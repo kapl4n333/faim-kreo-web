@@ -319,6 +319,7 @@ const RAIL=[["queued","Очередь","q"],["in_progress","Работа","p"],[
 const postedList=c=>Array.isArray(c.posters)?c.posters:[];
 const iPosted=c=>postedList(c).some(p=>String(p.tg_id)===String(S.me.tg_id));
 const HUES=["#ff3b6b","#3aa0ff","#22c58a","#f6a935","#a274ff","#ff7a4d","#12b5b0"];
+let TASK_ASG=new Set();   // выбранные исполнители для новой задачи (мульти)
 
 async function api(action,params){
   const r=await fetch(API,{method:"POST",
@@ -695,7 +696,8 @@ function vTasks(){
   const open=S.tasks.filter(t=>t.status!=="done");
   const done=S.tasks.filter(t=>t.status==="done");
   const row=(t,i,arr)=>{
-    const who=nameOf(t.assignee_tg_id);const by=nameOf(t.created_by_tg_id);
+    const aids=Array.isArray(t.assignee_tg_ids)&&t.assignee_tg_ids.length?t.assignee_tg_ids:(t.assignee_tg_id?[t.assignee_tg_id]:[]);
+    const who=aids.map(nameOf).filter(Boolean).join(", ");const by=nameOf(t.created_by_tg_id);
     return '<div class="row'+(t.pinned?" pin":"")+'"><div class="prio '+(t.priority||"")+'"></div><div class="b">'+
       '<div class="t">'+(t.pinned?"📌 ":"")+esc(t.title)+'</div>'+
       '<div class="m">'+(t.due_date?"до "+t.due_date+" · ":"")+
@@ -711,19 +713,24 @@ function vTasks(){
   return '<div class="panel"><input class="field" id="tT" placeholder="Новая задача — что сделать?" maxlength="200" style="margin-bottom:10px">'+
     '<div class="two" style="margin-bottom:10px"><input class="field" id="tD" type="date"><select class="field" id="tP"><option value="">Приоритет</option>'+
     '<option value="high">Высокий</option><option value="med">Средний</option><option value="low">Низкий</option></select></div>'+
-    '<select class="field" id="tA"><option value="">Общая (без исполнителя)</option>'+
-    S.members.map(m=>'<option value="'+m.tg_id+'">'+esc(m.name||("@"+(m.username||m.tg_id)))+'</option>').join("")+'</select>'+
+    '<div style="font-size:12px;color:var(--hint);margin:0 2px 8px">Кому — можно несколько · выбрано <span id="asgCnt">'+TASK_ASG.size+'</span></div>'+
+    '<div class="rolechips" id="asgChips" style="margin-bottom:12px">'+
+    S.members.map(m=>'<button class="rc'+(TASK_ASG.has(m.tg_id)?" creative on":"")+'" data-asg="'+m.tg_id+'">'+esc(m.name||("@"+(m.username||m.tg_id)))+'</button>').join("")+'</div>'+
     '<button class="primary" id="tGo">Добавить задачу</button></div>'+
     '<div class="hh">В работе <span class="c">'+open.length+'</span></div>'+
     (open.length?open.map((t,i)=>row(t,i,open)).join(""):'<div class="empty" style="padding:26px">Задач нет — спланируй неделю.</div>')+
     (done.length?'<div class="hh">История <span class="c">'+done.length+'</span></div>'+done.map(t=>row(t)).join(""):"");
 }
 function bindTasks(el){
+  el.querySelectorAll("[data-asg]").forEach(b=>b.onclick=()=>{haptic();const id=+b.dataset.asg;
+    if(TASK_ASG.has(id)){TASK_ASG.delete(id);b.classList.remove("creative","on");}
+    else{TASK_ASG.add(id);b.classList.add("creative","on");}
+    const c=el.querySelector("#asgCnt");if(c)c.textContent=TASK_ASG.size;});
   el.querySelector("#tGo").onclick=async()=>{
     const title=el.querySelector("#tT").value.trim();if(!title)return;
     try{const d=await api("create_task",{title,due_date:el.querySelector("#tD").value||null,
-      priority:el.querySelector("#tP").value||null,assignee_tg_id:el.querySelector("#tA").value?+el.querySelector("#tA").value:null});
-      S.tasks.unshift(d.task);S._sig=sigOf();render();toast("Задача добавлена","ok");}catch(e){toast(errMsg(e),"err");}};
+      priority:el.querySelector("#tP").value||null,assignee_tg_ids:[...TASK_ASG]});
+      S.tasks.unshift(d.task);TASK_ASG=new Set();S._sig=sigOf();render();toast("Задача добавлена","ok");}catch(e){toast(errMsg(e),"err");}};
   const patchTask=async(id,patch)=>{const d=await api("update_task",Object.assign({id},patch));
     const i=S.tasks.findIndex(t=>t.id===id);if(i>=0)S.tasks[i]=d.task;S._sig=sigOf();};
   el.querySelectorAll("[data-tt]").forEach(b=>b.onclick=async()=>{haptic();
