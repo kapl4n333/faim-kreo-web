@@ -107,6 +107,14 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto}
 .act.plus{background:color-mix(in srgb,var(--d) 15%,transparent);color:var(--d);
   border-color:color-mix(in srgb,var(--d) 30%,transparent)}
 .act .ar{color:var(--a)}
+/* «Залито» — отдельный флаг, независим от статуса. Горит только у того, кто сам залил */
+.pbar{margin-top:8px}
+.posted{width:100%;padding:10px 12px;border-radius:11px;font-weight:600;font-size:12.5px;
+  background:var(--raise);border:1px solid var(--line-soft);color:var(--hint);
+  display:flex;align-items:center;justify-content:center;gap:7px;text-align:center}
+.posted.has{color:var(--o)}
+.posted.on{background:color-mix(in srgb,var(--o) 18%,transparent);color:var(--o);
+  border-color:color-mix(in srgb,var(--o) 42%,transparent)}
 
 /* claim board */
 .cbtn{width:100%;margin-top:10px;padding:11px;border-radius:11px;font-weight:700;font-size:13px;
@@ -236,7 +244,9 @@ try{tg&&tg.ready();tg&&tg.expand();tg&&tg.setHeaderColor&&tg.setHeaderColor("bg_
 const S={me:null,creos:[],tasks:[],members:[],stats:null,tab:"all",fAuthor:"",fStatus:"",
   files:[],uploading:false,deliverTo:null};
 const KIND={link:"🔗",photo:"🖼",video:"🎬",album:"🗂",text:"📝"};
-const ST=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"],["posted","Залито","o"]];
+const ST=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"]];
+const postedList=c=>Array.isArray(c.posters)?c.posters:[];
+const iPosted=c=>postedList(c).some(p=>String(p.tg_id)===String(S.me.tg_id));
 const STL={queued:"в очереди",in_progress:"в работе",done:"готово",posted:"залито"};
 const HUES=["#ff3b6b","#38a3ff","#26c281","#f6a935","#a06bff","#ff7a4d","#12b5b0"];
 
@@ -283,9 +293,11 @@ const nameOf=id=>{const m=S.members.find(x=>x.tg_id===id);return m?(m.name||("@"
 function header(){
   const rl=admin()?"АДМИН":(roles().length?roles().map(r=>r==="creative"?"КРЕАТИВ":"ЗАЛИВ").join("·"):"КОМАНДА");
   document.getElementById("user").innerHTML=esc(S.me.name||"Вы")+' <span class="badge">'+rl+'</span>';
-  const c={queued:0,in_progress:0,done:0,posted:0};S.creos.forEach(x=>c[x.status]!=null&&c[x.status]++);
+  const c={queued:0,in_progress:0,done:0};S.creos.forEach(x=>c[x.status]!=null&&c[x.status]++);
+  const postedN=S.creos.filter(x=>postedList(x).length).length;
   document.getElementById("pipe").innerHTML=ST.map(([k,l,cl])=>
-    '<div class="s '+cl+'"><div class="n">'+c[k]+'</div><div class="l">'+l+'</div></div>').join("");
+    '<div class="s '+cl+'"><div class="n">'+c[k]+'</div><div class="l">'+l+'</div></div>').join("")+
+    '<div class="s o"><div class="n">'+postedN+'</div><div class="l">Залито</div></div>';
   const tabs=[["all","Креативы"],["gen","Генерации"],["mine","Мои"],["stats","Статистика"],["tasks","Задачи"],["members","Люди"]];
   if(admin())tabs.push(["admin","Админка"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
@@ -324,7 +336,7 @@ function card(c){
   const canOpen=c.source_msg_id&&(c.downloaded_msg_id||c.source_msg_id);
   const canDel=admin()||c.author_tg_id===S.me.tg_id;
   const asg=c.assignee_tg_id?'<span class="tag on">взял: '+esc(nameOf(c.assignee_tg_id)||"?")+'</span>':"";
-  const pst=c.status==="posted"&&c.poster_username?'<span class="tag on">залил: @'+esc(c.poster_username)+'</span>':"";
+  const pst=postedList(c).length?'<span class="tag on">✓ залито</span>':"";
   const acts='<div class="acts">'+
     '<button class="act plus" data-plus="'+c.id+'">＋ Залить готовое</button>'+
     (canOpen?'<button class="act" data-open="'+c.id+'"><span class="ar">'+(c.downloaded_msg_id?"▶":"↗")+'</span> '+(c.downloaded_msg_id?"Видео":"Исходник")+'</button>':"")+
@@ -334,7 +346,17 @@ function card(c){
     '<div style="flex:1;min-width:0"><div class="who">'+esc(c.author_username||"—")+'</div>'+
     '<div class="sub"><span class="kbadge">'+(KIND[c.kind]||"📎")+'</span> '+c.kind+' · '+ago(c.created_at)+' '+asg+pst+'</div></div>'+
     (canDel?'<button class="trash" data-del="'+c.id+'">🗑</button>':"")+'</div>'+
-    (cap?'<div class="cap'+(capUrl?" url":"")+'">'+esc(cap)+'</div>':"")+mediaStrip(c)+seg+acts+'</div>';
+    (cap?'<div class="cap'+(capUrl?" url":"")+'">'+esc(cap)+'</div>':"")+mediaStrip(c)+seg+acts+postedBar(c)+'</div>';
+}
+function postedBar(c){
+  const ps=postedList(c),mine=iPosted(c);
+  let who="";
+  if(ps.length){
+    const names=ps.map(p=>"@"+esc(p.username||nameOf(p.tg_id)||p.tg_id));
+    who=' · <span class="pn">'+names.slice(0,2).join(", ")+(names.length>2?" +"+(names.length-2):"")+'</span>';
+  }
+  return '<div class="pbar"><button class="posted'+(mine?" on":ps.length?" has":"")+'" data-post="'+c.id+'">'+
+    (ps.length?"✓ Залито"+who:"☁ Отметить «Залито»")+'</button></div>';
 }
 function vCreos(){
   let list=S.creos.slice();
@@ -350,8 +372,8 @@ function vCreos(){
   return h+list.map(card).join("");
 }
 function vMine(){
-  const taken=S.creos.filter(c=>c.assignee_tg_id===S.me.tg_id&&c.status!=="posted");
-  const posted=S.creos.filter(c=>c.poster_tg_id===S.me.tg_id&&c.status==="posted");
+  const taken=S.creos.filter(c=>c.assignee_tg_id===S.me.tg_id);
+  const posted=S.creos.filter(c=>iPosted(c));
   let h="";
   h+='<div class="hh">Взял в работу <span class="c">'+taken.length+'</span></div>';
   h+=taken.length?taken.map(card).join(""):'<div class="empty" style="padding:26px">Ты пока ничего не взял — загляни в «Генерации».</div>';
@@ -366,6 +388,7 @@ function bindCreos(el){
   el.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>setStatus(+b.dataset.id,b.dataset.set));
   el.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openCreo(+b.dataset.open));
   el.querySelectorAll("[data-plus]").forEach(b=>b.onclick=()=>openSheet(+b.dataset.plus));
+  el.querySelectorAll("[data-post]").forEach(b=>b.onclick=()=>togglePosted(+b.dataset.post));
   el.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>delCreo(+b.dataset.del));
   el.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{try{tg.openLink(b.dataset.m)}catch(e){window.open(b.dataset.m)}});
 }
@@ -382,6 +405,14 @@ async function delCreo(id){
   haptic("medium");
   try{await api("delete_creo",{id});S.creos=S.creos.filter(x=>x.id!==id);header();render();}
   catch(e){alert("Не удалось: "+e.message);}
+}
+async function togglePosted(id){
+  haptic();const c=S.creos.find(x=>x.id===id);const prev=(c.posters||[]).slice();
+  const meP={tg_id:S.me.tg_id,username:S.me.username,at:new Date().toISOString()};
+  c.posters=iPosted(c)?prev.filter(p=>String(p.tg_id)!==String(S.me.tg_id)):prev.concat([meP]);
+  header();render();
+  try{const d=await api("toggle_posted",{id});Object.assign(c,d.creo);header();render();}
+  catch(e){c.posters=prev;header();render();alert("Не вышло: "+e.message);}
 }
 function openCreo(id){const c=S.creos.find(x=>x.id===id);const m=c.downloaded_msg_id||c.source_msg_id;
   const u="https://t.me/c/"+CHAT_INTERNAL+"/"+LINKS_THREAD+"/"+m;
@@ -496,14 +527,14 @@ async function doUpload(){
 
 /* ---------- статистика ---------- */
 function vStats(){
-  const st=S.stats||{byStatus:{queued:0,in_progress:0,done:0,posted:0},byAuthor:[],byPoster:[],avgTurnaroundHours:null,avgPostLagHours:null,total:0};
+  const st=S.stats||{byStatus:{queued:0,in_progress:0,done:0},posted:0,byAuthor:[],byPoster:[],avgTurnaroundHours:null,avgPostLagHours:null,total:0};
   const maxA=Math.max(1,...st.byAuthor.map(a=>a.submitted));
   const maxP=Math.max(1,...(st.byPoster||[]).map(a=>a.posted));
   return '<div class="sgrid">'+
     '<div class="stat q"><div class="n">'+st.byStatus.queued+'</div><div class="l">очередь</div></div>'+
     '<div class="stat p"><div class="n">'+st.byStatus.in_progress+'</div><div class="l">в работе</div></div>'+
     '<div class="stat d"><div class="n">'+st.byStatus.done+'</div><div class="l">готово</div></div>'+
-    '<div class="stat o"><div class="n">'+st.byStatus.posted+'</div><div class="l">залито</div></div></div>'+
+    '<div class="stat o"><div class="n">'+(st.posted||0)+'</div><div class="l">залито</div></div></div>'+
     '<div class="sgrid two2"><div class="stat"><div class="n">'+st.total+'</div><div class="l">всего крео</div></div>'+
     '<div class="stat"><div class="n">'+(st.avgTurnaroundHours==null?"—":st.avgTurnaroundHours)+'</div><div class="l">ч до готово</div></div>'+
     '<div class="stat"><div class="n">'+(st.avgPostLagHours==null?"—":st.avgPostLagHours)+'</div><div class="l">ч до залива</div></div></div>'+
