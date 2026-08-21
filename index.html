@@ -604,7 +604,7 @@ function renderSheet(){
     : '<div class="drop" id="drop"><div class="di">📎</div>Перетащи файлы или <b>выбери</b><br><span style="font-size:12px;opacity:.7">фото и видео, можно несколько</span></div>'+
       '<input id="file" type="file" accept="image/*,video/*" multiple hidden>'+
       (S.files.length?'<div class="thumbs" id="thumbs"></div>':"")+
-      '<input class="field" id="cap" placeholder="Подпись (необязательно)">'+
+      '<input class="field" id="cap" placeholder="Подпись к готовому — уйдёт в Ready">'+
       '<button class="primary" id="send"'+(S.files.length?"":" disabled")+'>Отправить'+(S.files.length?" · "+S.files.length:"")+'</button>';
   s.innerHTML='<div class="grip"></div><h3>'+title+'</h3><p class="hint">'+hint+'</p>'+body;
   if(S.uploading)return;
