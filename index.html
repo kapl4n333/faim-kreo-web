@@ -267,6 +267,9 @@ async function boot(){
   }catch(e){
     const m=e.message==="unauthorized"
       ?"Telegram не передал подпись входа. Открой FTask командой /app в боте и жми inline-кнопку."
+      :e.message==="not_member"
+      ?("Тебя ещё нет в команде FTask. Скинь админу свой Telegram ID — он добавит тебя во вкладке «Люди», и заходи снова."+
+        ((tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.id)?"<div class=\"dbg\">твой ID: "+tg.initDataUnsafe.user.id+"</div>":""))
       :("Ошибка: "+esc(e.message));
     document.getElementById("app").innerHTML='<div class="gate"><div><div class="gh">Нет доступа</div>'+
       '<p>'+m+'</p><div class="dbg">'+esc(dbg)+'</div></div></div>';
