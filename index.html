@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AvaKreo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  /* нейтрали берём из темы Telegram, с тёмным фолбэком для превью в браузере */
+  --bg: var(--tg-theme-bg-color, #0e1014);
+  --surface: var(--tg-theme-secondary-bg-color, #171b22);
+  --card: var(--tg-theme-section-bg-color, #1b2029);
+  --text: var(--tg-theme-text-color, #eef1f6);
+  --hint: var(--tg-theme-hint-color, #8b94a7);
+  --link: var(--tg-theme-link-color, #ff2e63);
+  --border: color-mix(in srgb, var(--text) 12%, transparent);
+  /* фирменный акцент — розовый (креатор-энергия Ava); статусы отдельной триадой */
+  --brand:#ff2e63; --brand-ink:#fff;
+  --q:#f4a73b; --p:#3e97ff; --d:#22c55e;   /* queued / in_progress / done */
+  --r:14px;
+  --shadow: 0 1px 0 color-mix(in srgb, var(--text) 6%, transparent);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+body{padding-bottom:env(safe-area-inset-bottom)}
+.mono,.disp{font-family:"Space Grotesk",-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+a{color:var(--link)}
+
+/* ---------- header ---------- */
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 16px 0}
+.brandrow{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.wordmark{font-family:"Space Grotesk";font-weight:700;font-size:20px;letter-spacing:-.02em}
+.wordmark b{color:var(--brand)}
+.whoami{font-size:12px;color:var(--hint)}
+.whoami .role{color:var(--brand);font-weight:600}
+
+/* ---------- signature: pipeline rail (header summary) ---------- */
+.pipe{display:flex;gap:8px;margin:12px 0 10px}
+.pipe .stop{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:8px 10px;position:relative;overflow:hidden}
+.pipe .stop .n{font-family:"Space Grotesk";font-weight:700;font-size:22px;line-height:1}
+.pipe .stop .l{font-size:11px;color:var(--hint);margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
+.pipe .stop::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+.pipe .stop.q::before{background:var(--q)} .pipe .stop.p::before{background:var(--p)} .pipe .stop.d::before{background:var(--d)}
+
+/* ---------- tabs ---------- */
+nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+nav::-webkit-scrollbar{display:none}
+nav button{padding:10px 12px;font-size:14px;color:var(--hint);white-space:nowrap;
+  border-bottom:2px solid transparent;font-weight:500}
+nav button.on{color:var(--text);border-color:var(--brand)}
+
+/* ---------- content ---------- */
+main{padding:14px 16px 40px;max-width:640px;margin:0 auto}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.filters select{background:var(--card);color:var(--text);border:1px solid var(--border);
+  border-radius:10px;padding:8px 10px;font-size:13px}
+.empty{text-align:center;color:var(--hint);padding:48px 16px}
+.empty .big{font-family:"Space Grotesk";font-size:15px;color:var(--text);margin-bottom:4px}
+
+/* ---------- creo card ---------- */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:12px;margin-bottom:10px;box-shadow:var(--shadow)}
+.card .top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.kind{width:30px;height:30px;flex:0 0 auto;border-radius:9px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--brand) 15%,transparent);font-size:15px}
+.who{font-weight:600;font-size:14px}
+.meta{font-size:12px;color:var(--hint)}
+.card .cap{font-size:13px;color:var(--text);opacity:.9;margin:2px 0 10px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.card .cap.url{color:var(--link);opacity:1}
+
+/* per-card status rail = signature, tappable */
+.rail{display:flex;gap:6px}
+.rail button{flex:1;padding:7px 4px;border-radius:9px;background:var(--surface);
+  border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--hint);
+  display:flex;align-items:center;justify-content:center;gap:5px;transition:transform .08s}
+.rail button:active{transform:scale(.97)}
+.rail .dot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5}
+.rail button.on{color:var(--text)}
+.rail button.q.on{background:color-mix(in srgb,var(--q) 20%,transparent);border-color:var(--q)}
+.rail button.p.on{background:color-mix(in srgb,var(--p) 20%,transparent);border-color:var(--p)}
+.rail button.d.on{background:color-mix(in srgb,var(--d) 20%,transparent);border-color:var(--d)}
+.rail button.q.on .dot{color:var(--q);opacity:1}
+.rail button.p.on .dot{color:var(--p);opacity:1}
+.rail button.d.on .dot{color:var(--d);opacity:1}
+.open{margin-top:9px;width:100%;padding:9px;border-radius:9px;background:var(--surface);
+  border:1px solid var(--border);color:var(--link);font-weight:600;font-size:13px}
+
+/* ---------- stats ---------- */
+.statgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.stat .n{font-family:"Space Grotesk";font-weight:700;font-size:26px;line-height:1}
+.stat .l{font-size:11px;color:var(--hint);margin-top:4px}
+.stat.q .n{color:var(--q)} .stat.p .n{color:var(--p)} .stat.d .n{color:var(--d)}
+.leadrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.leadrow .name{flex:1;font-weight:600;font-size:14px}
+.bar{height:6px;border-radius:3px;background:var(--brand);opacity:.85}
+.leadrow .num{font-family:"Space Grotesk";font-weight:600;font-size:14px;color:var(--hint)}
+.sect-h{font-family:"Space Grotesk";font-weight:600;font-size:13px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--hint);margin:6px 0 8px}
+
+/* ---------- tasks / members ---------- */
+.trow,.mrow{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.trow .body{flex:1;min-width:0}
+.trow .t{font-weight:600;font-size:14px}
+.trow .sub{font-size:12px;color:var(--hint);margin-top:2px}
+.prio{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.prio.high{background:var(--brand)} .prio.med{background:var(--q)} .prio.low{background:var(--hint)}
+.chip{font-size:11px;padding:3px 8px;border-radius:20px;background:var(--surface);
+  border:1px solid var(--border);color:var(--hint);font-weight:600}
+.chip.role{cursor:pointer}
+.chip.admin{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
+.fab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));width:52px;height:52px;
+  border-radius:50%;background:var(--brand);color:var(--brand-ink);font-size:26px;line-height:1;
+  box-shadow:0 6px 20px color-mix(in srgb,var(--brand) 45%,transparent);z-index:30}
+.addform{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px}
+.addform input,.addform select{width:100%;background:var(--surface);color:var(--text);
+  border:1px solid var(--border);border-radius:9px;padding:10px;font-size:14px;margin-bottom:8px}
+.addform .go{background:var(--brand);color:var(--brand-ink);font-weight:600;padding:10px;
+  border-radius:9px;width:100%}
+.two{display:flex;gap:8px}.two>*{flex:1}
+
+.gate{min-height:70vh;display:grid;place-items:center;text-align:center;padding:24px}
+.gate .g{font-family:"Space Grotesk";font-weight:700;font-size:18px;margin-bottom:6px}
+.gate p{color:var(--hint);font-size:14px;max-width:280px;line-height:1.5}
+.spin{width:26px;height:26px;border-radius:50%;border:3px solid var(--border);
+  border-top-color:var(--brand);animation:sp .8s linear infinite;margin:0 auto 14px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}*{transition:none!important}}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header class="hidden" id="hdr">
+  <div class="brandrow">
+    <div class="wordmark">Ava<b>Kreo</b></div>
+    <div class="whoami" id="whoami"></div>
+  </div>
+  <div class="pipe" id="pipe"></div>
+  <nav id="nav"></nav>
+</header>
+<main id="app">
+  <div class="gate"><div><div class="spin"></div><div class="g">AvaKreo</div>
+    <p id="gatemsg">Открываю реестр…</p></div></div>
+</main>
+<script>
+const API="https://xgkyuxjvwwstsuhtwhpv.supabase.co/functions/v1/kreo-api";
+const CHAT_INTERNAL="3863967700";      // -1003863967700 без -100 (для t.me/c ссылок)
+const LINKS_THREAD=3209;
+const tg=window.Telegram&&window.Telegram.WebApp;
+try{tg&&tg.ready();tg&&tg.expand();}catch(e){}
+const S={me:null,creos:[],tasks:[],members:[],stats:null,tab:"all",fAuthor:"",fStatus:"",addTask:false,addMember:false};
+const KIND={link:"🔗",photo:"🖼",video:"🎬",album:"🗂",text:"📝"};
+const STATUSES=[["queued","Очередь","q"],["in_progress","В работе","p"],["done","Готово","d"]];
+
+async function api(action,params){
+  const r=await fetch(API,{method:"POST",
+    headers:{"content-type":"application/json","x-init-data":(tg&&tg.initData)||""},
+    body:JSON.stringify(Object.assign({action},params||{}))});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error||("HTTP "+r.status));
+  return d;
+}
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function ago(iso){const s=(Date.now()-new Date(iso).getTime())/1000;
+  if(s<60)return"только что";if(s<3600)return Math.floor(s/60)+" мин";
+  if(s<86400)return Math.floor(s/3600)+" ч";return Math.floor(s/86400)+" дн";}
+function haptic(){try{tg.HapticFeedback.impactOccurred("light")}catch(e){}}
+
+async function boot(){
+  try{
+    const d=await api("bootstrap");
+    S.me=d.me;S.creos=d.creos||[];S.tasks=d.tasks||[];S.members=d.members||[];S.stats=d.stats;
+    document.getElementById("hdr").classList.remove("hidden");
+    renderHeader();render();
+  }catch(e){
+    document.getElementById("app").innerHTML=
+      '<div class="gate"><div><div class="g">Нет доступа</div><p>'+
+      (e.message==="unauthorized"
+        ?"Открой это приложение через кнопку в боте @faimGenBot — тогда Telegram подпишет вход."
+        :("Ошибка: "+esc(e.message)))+'</p></div></div>';
+  }
+}
+function isAdmin(){return S.me&&S.me.role==="admin";}
+
+function renderHeader(){
+  document.getElementById("whoami").innerHTML=
+    (S.me.name?esc(S.me.name):"Вы")+' · <span class="role">'+(isAdmin()?"админ":"команда")+'</span>';
+  const c={queued:0,in_progress:0,done:0};S.creos.forEach(x=>c[x.status]++);
+  document.getElementById("pipe").innerHTML=STATUSES.map(([k,l,cl])=>
+    '<div class="stop '+cl+'"><div class="n">'+c[k]+'</div><div class="l">'+l+'</div></div>').join("");
+  const tabs=[["all","Все крео"],["mine","Мои"],["stats","Статистика"],["tasks","План"]];
+  if(isAdmin())tabs.push(["members","Люди"]);
+  document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
+    '<button class="'+(S.tab===k?"on":"")+'" data-tab="'+k+'">'+l+'</button>').join("");
+  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;renderHeader();render();});
+}
+
+function render(){
+  const el=document.getElementById("app");
+  if(S.tab!=="tasks"&&_fab){_fab.remove();_fab=null;}   // FAB только на вкладке План
+  if(S.tab==="stats")return el.innerHTML=viewStats();
+  if(S.tab==="tasks")return renderTasks(el);
+  if(S.tab==="members")return renderMembers(el);
+  renderCreos(el);
+}
+
+/* ---------- crео ---------- */
+function renderCreos(el){
+  const mine=S.tab==="mine";
+  const authors=[...new Set(S.creos.map(c=>c.author_username).filter(Boolean))];
+  let list=S.creos.slice();
+  if(mine)list=list.filter(c=>c.author_tg_id===S.me.tg_id||c.assignee_tg_id===S.me.tg_id);
+  if(S.fAuthor)list=list.filter(c=>c.author_username===S.fAuthor);
+  if(S.fStatus)list=list.filter(c=>c.status===S.fStatus);
+  let h="";
+  if(!mine){
+    h+='<div class="filters"><select id="fA"><option value="">Все авторы</option>'+
+      authors.map(a=>'<option '+(S.fAuthor===a?"selected":"")+'>'+esc(a)+'</option>').join("")+'</select>'+
+      '<select id="fS"><option value="">Любой статус</option>'+
+      STATUSES.map(([k,l])=>'<option value="'+k+'" '+(S.fStatus===k?"selected":"")+'>'+l+'</option>').join("")+
+      '</select></div>';
+  }
+  if(!list.length){
+    h+='<div class="empty"><div class="big">'+(mine?"У тебя пока пусто":"Крео пока нет")+'</div>'+
+       (mine?"Здесь появятся крео, которые ты кинул или взял в работу.":"Поставь 👍 на сообщение в AvaKreo Links — и оно попадёт сюда.")+'</div>';
+  }else{
+    h+=list.map(cardHTML).join("");
+  }
+  el.innerHTML=h;
+  const fa=document.getElementById("fA"),fs=document.getElementById("fS");
+  if(fa)fa.onchange=()=>{S.fAuthor=fa.value;render();};
+  if(fs)fs.onchange=()=>{S.fStatus=fs.value;render();};
+  el.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>setStatus(+b.dataset.id,b.dataset.set));
+  el.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openCreo(+b.dataset.open));
+}
+function cardHTML(c){
+  const capUrl=c.kind==="link"&&c.source_url;
+  const cap=capUrl?c.source_url:(c.caption||"");
+  const rail=STATUSES.map(([k,l,cl])=>
+    '<button class="'+cl+(c.status===k?" on":"")+'" data-id="'+c.id+'" data-set="'+k+'">'+
+    '<span class="dot"></span>'+l+'</button>').join("");
+  const canOpen=c.downloaded_msg_id||c.source_msg_id;
+  return '<div class="card"><div class="top">'+
+    '<div class="kind">'+(KIND[c.kind]||"📎")+'</div>'+
+    '<div style="flex:1;min-width:0"><div class="who">'+esc(c.author_username||"—")+'</div>'+
+    '<div class="meta">'+(KIND[c.kind]||"")+' '+c.kind+' · '+ago(c.created_at)+'</div></div></div>'+
+    (cap?'<div class="cap'+(capUrl?" url":"")+'">'+esc(cap)+'</div>':'')+
+    '<div class="rail">'+rail+'</div>'+
+    (canOpen?'<button class="open" data-open="'+c.id+'">'+(c.downloaded_msg_id?"▶ Перейти к видео":"↗ Открыть исходник")+'</button>':'')+
+    '</div>';
+}
+async function setStatus(id,status){
+  haptic();
+  const c=S.creos.find(x=>x.id===id);const prev=c.status;c.status=status;renderHeader();render();
+  try{const d=await api("set_creo_status",{id,status,claim:status==="in_progress"});
+    Object.assign(c,d.creo);}catch(e){c.status=prev;render();alert("Не вышло: "+e.message);}
+}
+function openCreo(id){
+  const c=S.creos.find(x=>x.id===id);const msg=c.downloaded_msg_id||c.source_msg_id;
+  const url="https://t.me/c/"+CHAT_INTERNAL+"/"+LINKS_THREAD+"/"+msg;
+  try{tg.openTelegramLink(url);}catch(e){window.open(url,"_blank");}
+}
+
+/* ---------- stats ---------- */
+function viewStats(){
+  const st=S.stats||{byStatus:{queued:0,in_progress:0,done:0},byAuthor:[],avgTurnaroundHours:null,total:0};
+  const max=Math.max(1,...st.byAuthor.map(a=>a.submitted));
+  return '<div class="statgrid">'+
+    '<div class="stat q"><div class="n">'+st.byStatus.queued+'</div><div class="l">в очереди</div></div>'+
+    '<div class="stat p"><div class="n">'+st.byStatus.in_progress+'</div><div class="l">в работе</div></div>'+
+    '<div class="stat d"><div class="n">'+st.byStatus.done+'</div><div class="l">готово</div></div></div>'+
+    '<div class="statgrid"><div class="stat"><div class="n">'+st.total+'</div><div class="l">всего крео</div></div>'+
+    '<div class="stat"><div class="n">'+(st.avgTurnaroundHours??"—")+'</div><div class="l">ср. ч до готово</div></div>'+
+    '<div class="stat d"><div class="n">'+(st.total?Math.round(st.byStatus.done/st.total*100):0)+'%</div><div class="l">закрыто</div></div></div>'+
+    '<div class="sect-h">Кто сколько кинул</div>'+
+    (st.byAuthor.length?st.byAuthor.map(a=>
+      '<div class="leadrow"><div class="name">'+esc(a.author)+'</div>'+
+      '<div style="flex:1.4"><div class="bar" style="width:'+(a.submitted/max*100)+'%"></div></div>'+
+      '<div class="num">'+a.done+'/'+a.submitted+'</div></div>').join("")
+      :'<div class="empty">Пока нет данных</div>');
+}
+
+/* ---------- tasks ---------- */
+function renderTasks(el){
+  const nameOf=id=>{const m=S.members.find(x=>x.tg_id===id);return m?(m.name||("@"+(m.username||id))):null;};
+  let h="";
+  if(S.addTask){
+    h+='<div class="addform"><input id="tT" placeholder="Что сделать?" maxlength="200">'+
+      '<div class="two"><input id="tD" type="date"><select id="tP"><option value="">Приоритет</option>'+
+      '<option value="high">Высокий</option><option value="med">Средний</option><option value="low">Низкий</option></select></div>'+
+      '<select id="tA"><option value="">Без исполнителя</option>'+
+      S.members.map(m=>'<option value="'+m.tg_id+'">'+esc(m.name||("@"+(m.username||m.tg_id)))+'</option>').join("")+'</select>'+
+      '<button class="go" id="tGo">Добавить задачу</button></div>';
+  }
+  const open=S.tasks.filter(t=>t.status!=="done"),done=S.tasks.filter(t=>t.status==="done");
+  const row=t=>'<div class="trow"><div class="prio '+(t.priority||"")+'"></div>'+
+    '<div class="body"><div class="t">'+esc(t.title)+'</div>'+
+    '<div class="sub">'+(t.due_date?"до "+t.due_date+" · ":"")+(nameOf(t.assignee_tg_id)?esc(nameOf(t.assignee_tg_id)):"общая")+'</div></div>'+
+    '<button class="chip" data-tt="'+t.id+'" data-ns="'+(t.status==="done"?"queued":"done")+'">'+(t.status==="done"?"↺":"✓ Готово")+'</button></div>';
+  h+=(open.length?open.map(row).join(""):'<div class="empty"><div class="big">Задач нет</div>Спланируй, что делаем на неделю.</div>');
+  if(done.length)h+='<div class="sect-h" style="margin-top:16px">Выполнено</div>'+done.map(row).join("");
+  el.innerHTML=h;
+  el.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>toggleTask(+b.dataset.tt,b.dataset.ns));
+  if(S.addTask){document.getElementById("tGo").onclick=createTask;}
+  fab(()=>{S.addTask=!S.addTask;render();});
+}
+async function createTask(){
+  const title=document.getElementById("tT").value.trim();if(!title)return;
+  const due=document.getElementById("tD").value||null;
+  const priority=document.getElementById("tP").value||null;
+  const aid=document.getElementById("tA").value;
+  try{const d=await api("create_task",{title,due_date:due,priority,assignee_tg_id:aid?+aid:null});
+    S.tasks.push(d.task);S.addTask=false;render();}catch(e){alert("Не вышло: "+e.message);}
+}
+async function toggleTask(id,ns){haptic();
+  try{const d=await api("update_task",{id,status:ns});
+    const i=S.tasks.findIndex(t=>t.id===id);S.tasks[i]=d.task;render();}catch(e){alert(e.message);}
+}
+
+/* ---------- members ---------- */
+function renderMembers(el){
+  let h='<div class="sect-h">Команда · '+S.members.length+'</div>';
+  h+=S.members.map(m=>'<div class="mrow"><div class="body" style="flex:1">'+
+    '<div class="t">'+esc(m.name||"—")+'</div><div class="sub">'+(m.username?"@"+esc(m.username):"id "+m.tg_id)+'</div></div>'+
+    '<button class="chip role '+(m.role==="admin"?"admin":"")+'" data-mr="'+m.tg_id+'" data-role="'+(m.role==="admin"?"user":"admin")+'">'+
+    (m.role==="admin"?"админ":"участник")+'</button></div>').join("");
+  h+='<div class="sect-h" style="margin-top:16px">Добавить вручную</div>'+
+    '<div class="addform"><input id="mI" placeholder="Telegram ID" inputmode="numeric">'+
+    '<input id="mN" placeholder="Имя (необязательно)"><button class="go" id="mGo">Добавить участника</button>'+
+    '<div class="sub" style="color:var(--hint);font-size:12px;margin-top:2px">Обычно люди появляются сами, когда открывают приложение.</div></div>';
+  el.innerHTML=h;
+  el.querySelectorAll("[data-mr]").forEach(b=>b.onclick=()=>setRole(+b.dataset.mr,b.dataset.role));
+  document.getElementById("mGo").onclick=addMember;
+}
+async function setRole(tg_id,role){haptic();
+  try{const d=await api("set_member_role",{tg_id,role});
+    const i=S.members.findIndex(m=>m.tg_id===tg_id);S.members[i]=d.member;render();}catch(e){alert(e.message);}
+}
+async function addMember(){
+  const id=parseInt(document.getElementById("mI").value,10);if(!id)return;
+  const name=document.getElementById("mN").value.trim()||null;
+  try{const d=await api("add_member",{tg_id:id,name});
+    if(!S.members.find(m=>m.tg_id===id))S.members.push(d.member);render();}catch(e){alert(e.message);}
+}
+let _fab=null;
+function fab(fn){if(_fab)_fab.remove();_fab=document.createElement("button");
+  _fab.className="fab";_fab.textContent=S.addTask?"×":"+";_fab.onclick=fn;document.body.appendChild(_fab);}
+document.addEventListener("visibilitychange",()=>{});
+boot();
+</script>
+</body>
+</html>
