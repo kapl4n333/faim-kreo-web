@@ -13,13 +13,12 @@
   --bg: var(--tg-theme-bg-color, #0d0f14);
   --text: var(--tg-theme-text-color, #f2f4f8);
   --hint: var(--tg-theme-hint-color, #8b93a6);
-  /* карточки/поверхности строим поверх темы, чтобы был объём в любой теме */
   --surface: color-mix(in srgb, var(--text) 6%, var(--bg));
   --raise: color-mix(in srgb, var(--text) 9%, var(--bg));
   --line: color-mix(in srgb, var(--text) 12%, transparent);
   --line-soft: color-mix(in srgb, var(--text) 7%, transparent);
-  --a:#ff3b6b; --a2:#ff7a4d;              /* акцент FTask: розово-коралловый градиент */
-  --q:#f6a935; --p:#38a3ff; --d:#26c281;  /* статусы */
+  --a:#ff3b6b; --a2:#ff7a4d;                 /* акцент FTask */
+  --q:#f6a935; --p:#38a3ff; --d:#26c281; --o:#a06bff; /* статусы: очередь/работа/готово/залито */
   --r:16px;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
@@ -43,11 +42,11 @@ header{position:sticky;top:0;z-index:20;padding:14px 18px 0;
 .user{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--hint)}
 .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;
   background:color-mix(in srgb,var(--a) 16%,transparent);color:var(--a);font-family:"Space Grotesk"}
-.pipe{display:flex;gap:9px;margin:14px 0 12px}
-.pipe .s{flex:1;background:var(--surface);border:1px solid var(--line-soft);border-radius:13px;padding:10px 12px}
-.pipe .s .n{font-family:"Space Grotesk";font-weight:700;font-size:23px;line-height:1;letter-spacing:-.02em}
-.pipe .s .l{font-size:10.5px;color:var(--hint);margin-top:4px;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
-.pipe .s.q .n{color:var(--q)} .pipe .s.p .n{color:var(--p)} .pipe .s.d .n{color:var(--d)}
+.pipe{display:flex;gap:7px;margin:14px 0 12px}
+.pipe .s{flex:1;background:var(--surface);border:1px solid var(--line-soft);border-radius:13px;padding:9px 8px}
+.pipe .s .n{font-family:"Space Grotesk";font-weight:700;font-size:21px;line-height:1;letter-spacing:-.02em}
+.pipe .s .l{font-size:9.5px;color:var(--hint);margin-top:4px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.pipe .s.q .n{color:var(--q)} .pipe .s.p .n{color:var(--p)} .pipe .s.d .n{color:var(--d)} .pipe .s.o .n{color:var(--o)}
 nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 nav::-webkit-scrollbar{display:none}
 nav button{padding:11px 4px;margin-right:14px;font-size:14.5px;font-weight:600;color:var(--hint);
@@ -61,9 +60,12 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto}
 .filters{display:flex;gap:9px;margin-bottom:14px}
 .filters select{flex:1;background:var(--surface);color:var(--text);border:1px solid var(--line);
   border-radius:11px;padding:10px 12px;font-size:13.5px;font-weight:500}
-.empty{text-align:center;color:var(--hint);padding:56px 20px;font-size:13.5px;line-height:1.5}
+.empty{text-align:center;color:var(--hint);padding:48px 20px;font-size:13.5px;line-height:1.5}
 .empty .e-ic{font-size:34px;margin-bottom:12px;opacity:.5}
 .empty .e-h{font-family:"Space Grotesk";font-size:16px;font-weight:600;color:var(--text);margin-bottom:5px}
+.hh{font-family:"Space Grotesk";font-weight:600;font-size:12px;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--hint);margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+.hh .c{color:var(--text);opacity:.5;font-weight:600}
 
 /* ---------- creo card ---------- */
 .card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);
@@ -72,59 +74,96 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto}
 .av{width:38px;height:38px;flex:0 0 auto;border-radius:11px;display:grid;place-items:center;
   color:#fff;font-family:"Space Grotesk";font-weight:700;font-size:16px}
 .who{font-weight:600;font-size:14.5px;line-height:1.2}
-.sub{font-size:12px;color:var(--hint);margin-top:2px;display:flex;align-items:center;gap:6px}
+.sub{font-size:12px;color:var(--hint);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .kbadge{font-size:11px}
+.tag{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:8px;background:var(--raise);color:var(--hint)}
+.tag.on{color:var(--p);background:color-mix(in srgb,var(--p) 14%,transparent)}
+.trash{flex:0 0 auto;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+  color:var(--hint);font-size:15px;background:var(--raise)}
 .cap{font-size:13.5px;line-height:1.45;color:var(--text);opacity:.92;margin:0 0 12px;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
 .cap.url{color:var(--a);opacity:1;font-weight:500}
-.media{display:flex;gap:6px;margin:0 0 12px;overflow-x:auto;scrollbar-width:none}
+.media{display:flex;gap:6px;margin:0 0 10px;overflow-x:auto;scrollbar-width:none}
 .media::-webkit-scrollbar{display:none}
 .media .t{width:84px;height:84px;flex:0 0 auto;border-radius:11px;overflow:hidden;position:relative;
   background:var(--raise);border:1px solid var(--line-soft)}
 .media .t img{width:100%;height:100%;object-fit:cover}
-.media .t .pv{position:absolute;inset:0;display:grid;place-items:center;font-size:22px;color:#fff;
-  background:rgba(0,0,0,.35)}
+.media .t .pv{position:absolute;inset:0;display:grid;place-items:center;font-size:22px;color:#fff;background:rgba(0,0,0,.35)}
+.mlabel{font-size:10.5px;font-weight:600;color:var(--hint);margin:2px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+.mlabel.res{color:var(--d)}
 
-/* status segmented control */
+/* status segmented control (4 states) */
 .seg{display:flex;background:var(--raise);border-radius:11px;padding:3px;gap:2px}
-.seg button{flex:1;padding:8px 4px;border-radius:8px;font-size:12px;font-weight:600;color:var(--hint);
-  display:flex;align-items:center;justify-content:center;gap:6px;transition:background .12s,color .12s}
-.seg button .dot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.45}
+.seg button{flex:1;padding:8px 3px;border-radius:8px;font-size:11.5px;font-weight:600;color:var(--hint);
+  display:flex;align-items:center;justify-content:center;gap:5px;transition:background .12s,color .12s}
+.seg button .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.45}
 .seg button.on{color:#fff}
 .seg button.on .dot{opacity:1;background:#fff}
-.seg button.q.on{background:var(--q)} .seg button.p.on{background:var(--p)} .seg button.d.on{background:var(--d)}
-.open{margin-top:11px;width:100%;padding:10px;border-radius:11px;background:var(--raise);
-  border:1px solid var(--line-soft);color:var(--text);font-weight:600;font-size:13px;
-  display:flex;align-items:center;justify-content:center;gap:7px}
-.open .ar{color:var(--a)}
+.seg button.q.on{background:var(--q)} .seg button.p.on{background:var(--p)}
+.seg button.d.on{background:var(--d)} .seg button.o.on{background:var(--o)}
+.acts{display:flex;gap:8px;margin-top:10px}
+.act{flex:1;padding:10px;border-radius:11px;background:var(--raise);border:1px solid var(--line-soft);
+  color:var(--text);font-weight:600;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px}
+.act.plus{background:color-mix(in srgb,var(--d) 15%,transparent);color:var(--d);
+  border-color:color-mix(in srgb,var(--d) 30%,transparent)}
+.act .ar{color:var(--a)}
+
+/* claim board */
+.cbtn{width:100%;margin-top:10px;padding:11px;border-radius:11px;font-weight:700;font-size:13px;
+  background:linear-gradient(135deg,var(--p),#5cc0ff);color:#fff}
+.mini{background:var(--surface);border:1px solid var(--line-soft);border-radius:13px;padding:12px 13px;margin-bottom:9px;
+  display:flex;align-items:center;gap:11px}
+.mini .b{flex:1;min-width:0}
+.mini .t{font-size:13.5px;line-height:1.3;word-break:break-word;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mini .m{font-size:11.5px;color:var(--hint);margin-top:3px}
+.take{flex:0 0 auto;padding:8px 14px;border-radius:20px;font-weight:700;font-size:12.5px;
+  background:color-mix(in srgb,var(--p) 16%,transparent);color:var(--p)}
+.owncol{background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;padding:12px 13px 6px;margin-bottom:11px}
+.owncol .oh{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.owncol .oh .nm{font-weight:700;font-size:13.5px}
+.owncol .oh .ct{font-size:11.5px;color:var(--hint)}
+.assign{margin-top:8px}
+.assign select{width:100%;background:var(--raise);color:var(--text);border:1px solid var(--line-soft);
+  border-radius:9px;padding:8px 10px;font-size:12.5px}
 
 /* ---------- stats ---------- */
-.sgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
-.stat{background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;padding:13px}
-.stat .n{font-family:"Space Grotesk";font-weight:700;font-size:27px;line-height:1;letter-spacing:-.02em}
-.stat .l{font-size:11px;color:var(--hint);margin-top:5px;font-weight:500}
-.stat.q .n{color:var(--q)} .stat.p .n{color:var(--p)} .stat.d .n{color:var(--d)}
-.hh{font-family:"Space Grotesk";font-weight:600;font-size:12px;text-transform:uppercase;
-  letter-spacing:.07em;color:var(--hint);margin:18px 0 10px}
+.sgrid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.stat{background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;padding:12px 10px}
+.stat .n{font-family:"Space Grotesk";font-weight:700;font-size:23px;line-height:1;letter-spacing:-.02em}
+.stat .l{font-size:10px;color:var(--hint);margin-top:5px;font-weight:500}
+.stat.q .n{color:var(--q)} .stat.p .n{color:var(--p)} .stat.d .n{color:var(--d)} .stat.o .n{color:var(--o)}
+.sgrid.two2{grid-template-columns:1fr 1fr 1fr}
 .lead{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line-soft)}
-.lead .nm{flex:0 0 90px;font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lead .nm{flex:0 0 88px;font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lead .track{flex:1;height:8px;border-radius:4px;background:var(--raise);overflow:hidden}
 .lead .bar{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--a),var(--a2))}
-.lead .num{flex:0 0 auto;font-family:"Space Grotesk";font-weight:600;font-size:13.5px;color:var(--hint)}
+.lead .bar.o{background:linear-gradient(90deg,var(--o),#c39bff)}
+.lead .num{flex:0 0 auto;font-family:"Space Grotesk";font-weight:600;font-size:13px;color:var(--hint)}
 
-/* ---------- tasks / members ---------- */
+/* ---------- rows: tasks / members ---------- */
 .row{background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;
   padding:13px 14px;margin-bottom:9px;display:flex;align-items:center;gap:12px}
+.row.pin{border-color:color-mix(in srgb,var(--a) 32%,transparent)}
 .row .b{flex:1;min-width:0}
 .row .t{font-weight:600;font-size:14px;word-break:break-word}
 .row .m{font-size:12px;color:var(--hint);margin-top:3px}
 .prio{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
 .prio.high{background:var(--a)} .prio.med{background:var(--q)} .prio.low{background:var(--hint)}
+.tbtns{display:flex;gap:6px;flex:0 0 auto;align-items:center}
+.ico{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:14px;
+  background:var(--raise);color:var(--hint)}
+.ico.on{color:var(--a);background:color-mix(in srgb,var(--a) 13%,transparent)}
 .pill{font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;background:var(--raise);
   border:1px solid var(--line-soft);color:var(--hint);flex:0 0 auto}
 .pill.done{color:var(--d)}
-.pill.admin{color:var(--a);background:color-mix(in srgb,var(--a) 12%,transparent);
-  border-color:color-mix(in srgb,var(--a) 35%,transparent)}
+.rolechips{display:flex;gap:6px;flex-wrap:wrap;flex:0 0 auto}
+.rc{font-size:11px;font-weight:700;padding:5px 10px;border-radius:16px;background:var(--raise);
+  border:1px solid var(--line-soft);color:var(--hint)}
+.rc.on{color:#fff}
+.rc.admin.on{background:var(--a);border-color:transparent}
+.rc.creative.on{background:var(--p);border-color:transparent}
+.rc.uploader.on{background:var(--o);border-color:transparent}
 .field{width:100%;background:var(--surface);color:var(--text);border:1px solid var(--line);
   border-radius:12px;padding:12px;font-size:14.5px;margin-bottom:10px}
 .field::placeholder{color:var(--hint)}
@@ -134,8 +173,10 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto}
   box-shadow:0 6px 18px color-mix(in srgb,var(--a) 35%,transparent)}
 .primary:disabled{opacity:.55;box-shadow:none}
 .panel{background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;padding:14px;margin-bottom:14px}
+.panel .ph{font-family:"Space Grotesk";font-weight:600;font-size:14px;margin:0 0 10px}
+.note{font-size:12.5px;color:var(--hint);line-height:1.5}
 
-/* ---------- FAB + upload sheet ---------- */
+/* ---------- FAB + sheet ---------- */
 .fab{position:fixed;right:18px;bottom:calc(24px + env(safe-area-inset-bottom));width:56px;height:56px;
   border-radius:18px;background:linear-gradient(135deg,var(--a),var(--a2));color:#fff;font-size:28px;
   display:grid;place-items:center;z-index:40;box-shadow:0 10px 26px color-mix(in srgb,var(--a) 50%,transparent)}
@@ -193,9 +234,10 @@ const CHAT_INTERNAL="3863967700",LINKS_THREAD=3209;
 const tg=window.Telegram&&window.Telegram.WebApp;
 try{tg&&tg.ready();tg&&tg.expand();tg&&tg.setHeaderColor&&tg.setHeaderColor("bg_color");}catch(e){}
 const S={me:null,creos:[],tasks:[],members:[],stats:null,tab:"all",fAuthor:"",fStatus:"",
-  sheet:false,files:[],uploading:false};
+  files:[],uploading:false,deliverTo:null};
 const KIND={link:"🔗",photo:"🖼",video:"🎬",album:"🗂",text:"📝"};
-const ST=[["queued","Очередь","q"],["in_progress","В работе","p"],["done","Готово","d"]];
+const ST=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"],["posted","Залито","o"]];
+const STL={queued:"в очереди",in_progress:"в работе",done:"готово",posted:"залито"};
 const HUES=["#ff3b6b","#38a3ff","#26c281","#f6a935","#a06bff","#ff7a4d","#12b5b0"];
 
 async function api(action,params){
@@ -207,12 +249,13 @@ async function api(action,params){
   return d;
 }
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const ago=iso=>{const s=(Date.now()-new Date(iso).getTime())/1000;
+const ago=iso=>{if(!iso)return"";const s=(Date.now()-new Date(iso).getTime())/1000;
   return s<60?"только что":s<3600?Math.floor(s/60)+" мин":s<86400?Math.floor(s/3600)+" ч":Math.floor(s/86400)+" дн";};
 const hue=s=>HUES[[...String(s||"?")].reduce((a,c)=>a+c.charCodeAt(0),0)%HUES.length];
 const initial=s=>((String(s||"?").trim()[0])||"?").toUpperCase();
 const isVid=p=>/\.(mp4|mov|webm|m4v|avi|mkv)(\?|$)/i.test(p||"");
 function haptic(t){try{tg.HapticFeedback.impactOccurred(t||"light")}catch(e){}}
+function notify(t){try{tg.HapticFeedback.notificationOccurred(t||"success")}catch(e){}}
 
 async function boot(){
   const dbg=tg?("platform "+(tg.platform||"?")+" · initData "+((tg.initData||"").length)+"b"):"вне Telegram";
@@ -229,67 +272,89 @@ async function boot(){
       '<p>'+m+'</p><div class="dbg">'+esc(dbg)+'</div></div></div>';
   }
 }
-const admin=()=>S.me&&S.me.role==="admin";
+const roles=()=>(S.me&&S.me.roles)||[];
+const admin=()=>roles().includes("admin");
+const canClaim=()=>admin()||roles().includes("creative");
+const nameOf=id=>{const m=S.members.find(x=>x.tg_id===id);return m?(m.name||("@"+(m.username||id))):null;};
 
 function header(){
-  document.getElementById("user").innerHTML=
-    esc(S.me.name||"Вы")+' <span class="badge">'+(admin()?"АДМИН":"КОМАНДА")+'</span>';
-  const c={queued:0,in_progress:0,done:0};S.creos.forEach(x=>c[x.status]++);
+  const rl=admin()?"АДМИН":(roles().length?roles().map(r=>r==="creative"?"КРЕАТИВ":"ЗАЛИВ").join("·"):"КОМАНДА");
+  document.getElementById("user").innerHTML=esc(S.me.name||"Вы")+' <span class="badge">'+rl+'</span>';
+  const c={queued:0,in_progress:0,done:0,posted:0};S.creos.forEach(x=>c[x.status]!=null&&c[x.status]++);
   document.getElementById("pipe").innerHTML=ST.map(([k,l,cl])=>
     '<div class="s '+cl+'"><div class="n">'+c[k]+'</div><div class="l">'+l+'</div></div>').join("");
-  const tabs=[["all","Все крео"],["mine","Мои"],["stats","Статистика"],["tasks","План"]];
-  if(admin())tabs.push(["members","Люди"]);
+  const tabs=[["all","Креативы"],["gen","Генерации"],["mine","Мои"],["stats","Статистика"],["tasks","Задачи"],["members","Люди"]];
+  if(admin())tabs.push(["admin","Админка"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
     '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+l+'</button>').join("");
   document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;header();render();});
 }
 
 function render(){
-  const el=document.getElementById("app");
-  killFab();
+  const el=document.getElementById("app");killFab();
+  if(S.tab==="gen"){el.innerHTML=vGen();bindGen(el);return;}
   if(S.tab==="stats")return el.innerHTML=vStats();
   if(S.tab==="tasks"){el.innerHTML=vTasks();bindTasks(el);return;}
   if(S.tab==="members"){el.innerHTML=vMembers();bindMembers(el);return;}
-  el.innerHTML=vCreos();bindCreos(el);
-  fab();   // «+» загрузка на вкладках крео
+  if(S.tab==="admin"){el.innerHTML=vAdmin();bindAdmin(el);return;}
+  if(S.tab==="mine"){el.innerHTML=vMine();bindCreos(el);fab();return;}
+  el.innerHTML=vCreos();bindCreos(el);fab();
 }
 
-/* ---------- creos ---------- */
-function vCreos(){
-  const mine=S.tab==="mine";
-  let list=S.creos.slice();
-  if(mine)list=list.filter(c=>c.author_tg_id===S.me.tg_id||c.assignee_tg_id===S.me.tg_id);
-  if(S.fAuthor)list=list.filter(c=>c.author_username===S.fAuthor);
-  if(S.fStatus)list=list.filter(c=>c.status===S.fStatus);
+/* ---------- creo card ---------- */
+function mediaStrip(c){
+  const res=(c.result_urls||[]),src=(c.media_urls||[]);
+  const strip=(urls,paths)=>urls.length?'<div class="media">'+urls.map((u,i)=>{
+    const v=isVid((paths||[])[i]||u);
+    return '<div class="t" data-m="'+esc(u)+'">'+(v?'<div class="pv">▶</div>':'<img loading="lazy" src="'+esc(u)+'">')+'</div>';
+  }).join("")+'</div>':"";
   let h="";
-  if(!mine){
-    const authors=[...new Set(S.creos.map(c=>c.author_username).filter(Boolean))];
-    h+='<div class="filters"><select id="fA"><option value="">Все авторы</option>'+
-      authors.map(a=>'<option '+(S.fAuthor===a?"selected":"")+'>'+esc(a)+'</option>').join("")+'</select>'+
-      '<select id="fS"><option value="">Любой статус</option>'+
-      ST.map(([k,l])=>'<option value="'+k+'" '+(S.fStatus===k?"selected":"")+'>'+l+'</option>').join("")+'</select></div>';
-  }
-  if(!list.length)return h+'<div class="empty"><div class="e-ic">🗂</div><div class="e-h">'+
-    (mine?"У тебя пусто":"Пока нет крео")+'</div>'+
-    (mine?"Здесь будут крео, которые ты кинул или взял в работу.":"Загрузи файлы кнопкой «+» или поставь 👍 в AvaKreo Links.")+'</div>';
-  return h+list.map(card).join("");
+  if(src.length)h+=(res.length?'<div class="mlabel">исходник</div>':"")+strip(src,c.storage_paths);
+  if(res.length)h+='<div class="mlabel res">готовое ✓</div>'+strip(res,c.result_paths);
+  return h;
 }
 function card(c){
   const capUrl=c.kind==="link"&&c.source_url;
   const cap=capUrl?c.source_url:(c.caption||"");
-  const media=(c.media_urls||[]).length?'<div class="media">'+
-    c.media_urls.map((u,i)=>{const v=isVid((c.storage_paths||[])[i]||u);
-      return '<div class="t" data-m="'+esc(u)+'">'+(v?'<div class="pv">▶</div>':'<img loading="lazy" src="'+esc(u)+'">')+'</div>';}).join("")+'</div>':"";
   const seg='<div class="seg">'+ST.map(([k,l,cl])=>
     '<button class="'+cl+(c.status===k?" on":"")+'" data-id="'+c.id+'" data-set="'+k+'"><span class="dot"></span>'+l+'</button>').join("")+'</div>';
   const canOpen=c.source_msg_id&&(c.downloaded_msg_id||c.source_msg_id);
+  const canDel=admin()||c.author_tg_id===S.me.tg_id;
+  const asg=c.assignee_tg_id?'<span class="tag on">взял: '+esc(nameOf(c.assignee_tg_id)||"?")+'</span>':"";
+  const pst=c.status==="posted"&&c.poster_username?'<span class="tag on">залил: @'+esc(c.poster_username)+'</span>':"";
+  const acts='<div class="acts">'+
+    '<button class="act plus" data-plus="'+c.id+'">＋ Залить готовое</button>'+
+    (canOpen?'<button class="act" data-open="'+c.id+'"><span class="ar">'+(c.downloaded_msg_id?"▶":"↗")+'</span> '+(c.downloaded_msg_id?"Видео":"Исходник")+'</button>':"")+
+    '</div>';
   return '<div class="card"><div class="head">'+
     '<div class="av" style="background:'+hue(c.author_username)+'">'+initial(c.author_username)+'</div>'+
     '<div style="flex:1;min-width:0"><div class="who">'+esc(c.author_username||"—")+'</div>'+
-    '<div class="sub"><span class="kbadge">'+(KIND[c.kind]||"📎")+'</span> '+c.kind+' · '+ago(c.created_at)+'</div></div></div>'+
-    (cap?'<div class="cap'+(capUrl?" url":"")+'">'+esc(cap)+'</div>':"")+media+seg+
-    (canOpen?'<button class="open" data-open="'+c.id+'"><span class="ar">'+(c.downloaded_msg_id?"▶":"↗")+'</span> '+(c.downloaded_msg_id?"Перейти к видео":"Открыть исходник")+'</button>':"")+
-    '</div>';
+    '<div class="sub"><span class="kbadge">'+(KIND[c.kind]||"📎")+'</span> '+c.kind+' · '+ago(c.created_at)+' '+asg+pst+'</div></div>'+
+    (canDel?'<button class="trash" data-del="'+c.id+'">🗑</button>':"")+'</div>'+
+    (cap?'<div class="cap'+(capUrl?" url":"")+'">'+esc(cap)+'</div>':"")+mediaStrip(c)+seg+acts+'</div>';
+}
+function vCreos(){
+  let list=S.creos.slice();
+  if(S.fAuthor)list=list.filter(c=>c.author_username===S.fAuthor);
+  if(S.fStatus)list=list.filter(c=>c.status===S.fStatus);
+  const authors=[...new Set(S.creos.map(c=>c.author_username).filter(Boolean))];
+  let h='<div class="filters"><select id="fA"><option value="">Все авторы</option>'+
+    authors.map(a=>'<option '+(S.fAuthor===a?"selected":"")+'>'+esc(a)+'</option>').join("")+'</select>'+
+    '<select id="fS"><option value="">Любой статус</option>'+
+    ST.map(([k,l])=>'<option value="'+k+'" '+(S.fStatus===k?"selected":"")+'>'+l+'</option>').join("")+'</select></div>';
+  if(!list.length)return h+'<div class="empty"><div class="e-ic">🗂</div><div class="e-h">Пока нет крео</div>'+
+    'Поставь 👍 в AvaKreo Links или залей готовое кнопкой «+».</div>';
+  return h+list.map(card).join("");
+}
+function vMine(){
+  const taken=S.creos.filter(c=>c.assignee_tg_id===S.me.tg_id&&c.status!=="posted");
+  const posted=S.creos.filter(c=>c.poster_tg_id===S.me.tg_id&&c.status==="posted");
+  let h="";
+  h+='<div class="hh">Взял в работу <span class="c">'+taken.length+'</span></div>';
+  h+=taken.length?taken.map(card).join(""):'<div class="empty" style="padding:26px">Ты пока ничего не взял — загляни в «Генерации».</div>';
+  h+='<div class="hh">Залил <span class="c">'+posted.length+'</span></div>';
+  h+=posted.length?posted.map(card).join(""):'<div class="empty" style="padding:26px">Здесь появятся крео, которые ты запостил.</div>';
+  return h;
 }
 function bindCreos(el){
   const fa=el.querySelector("#fA"),fs=el.querySelector("#fS");
@@ -297,29 +362,85 @@ function bindCreos(el){
   if(fs)fs.onchange=()=>{S.fStatus=fs.value;render();};
   el.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>setStatus(+b.dataset.id,b.dataset.set));
   el.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openCreo(+b.dataset.open));
+  el.querySelectorAll("[data-plus]").forEach(b=>b.onclick=()=>openSheet(+b.dataset.plus));
+  el.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>delCreo(+b.dataset.del));
   el.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{try{tg.openLink(b.dataset.m)}catch(e){window.open(b.dataset.m)}});
 }
 async function setStatus(id,status){
-  haptic();const c=S.creos.find(x=>x.id===id);const prev=c.status;c.status=status;header();render();
-  try{const d=await api("set_creo_status",{id,status,claim:status==="in_progress"});Object.assign(c,d.creo);}
-  catch(e){c.status=prev;render();alert("Не вышло: "+e.message);}
+  haptic();const c=S.creos.find(x=>x.id===id);const prev=Object.assign({},c);
+  c.status=status;if(status==="in_progress"&&!c.assignee_tg_id)c.assignee_tg_id=S.me.tg_id;
+  header();render();
+  try{const d=await api("set_creo_status",{id,status,claim:status==="in_progress"});Object.assign(c,d.creo);header();render();}
+  catch(e){Object.assign(c,prev);header();render();alert("Не вышло: "+e.message);}
+}
+async function delCreo(id){
+  const c=S.creos.find(x=>x.id===id);
+  if(!confirm("Точно удалить крео от "+(c&&c.author_username||"—")+"? Это навсегда."))return;
+  haptic("medium");
+  try{await api("delete_creo",{id});S.creos=S.creos.filter(x=>x.id!==id);header();render();}
+  catch(e){alert("Не удалось: "+e.message);}
 }
 function openCreo(id){const c=S.creos.find(x=>x.id===id);const m=c.downloaded_msg_id||c.source_msg_id;
   const u="https://t.me/c/"+CHAT_INTERNAL+"/"+LINKS_THREAD+"/"+m;
   try{tg.openTelegramLink(u)}catch(e){window.open(u,"_blank")}}
 
-/* ---------- upload ---------- */
+/* ---------- генерации (claim board) ---------- */
+function vGen(){
+  const free=S.creos.filter(c=>c.status==="queued");
+  const taken=S.creos.filter(c=>c.status==="in_progress");
+  const byOwner={};taken.forEach(c=>{(byOwner[c.assignee_tg_id]=byOwner[c.assignee_tg_id]||[]).push(c);});
+  const miniCap=c=>c.caption||c.source_url||c.kind;
+  let h='<div class="hh">Свободные <span class="c">'+free.length+'</span></div>';
+  if(free.length){
+    h+=free.map(c=>'<div class="mini"><div class="av" style="width:34px;height:34px;font-size:14px;background:'+hue(c.author_username)+'">'+(KIND[c.kind]||"📎")+'</div>'+
+      '<div class="b"><div class="t">'+esc(miniCap(c))+'</div><div class="m">от '+esc(c.author_username||"—")+' · '+ago(c.created_at)+'</div></div>'+
+      (canClaim()?'<button class="take" data-take="'+c.id+'">Взять</button>':"")+'</div>').join("");
+  }else h+='<div class="empty" style="padding:26px">Очередь пуста — всё разобрано 👌</div>';
+  h+='<div class="hh">В работе <span class="c">'+taken.length+'</span></div>';
+  const owners=Object.keys(byOwner);
+  if(!owners.length)h+='<div class="empty" style="padding:26px">Никто пока не взял крео в работу.</div>';
+  owners.forEach(oid=>{
+    const list=byOwner[oid];const isMe=+oid===S.me.tg_id;
+    h+='<div class="owncol"><div class="oh"><div class="av" style="width:30px;height:30px;font-size:13px;background:'+hue(nameOf(+oid)||oid)+'">'+initial(nameOf(+oid))+'</div>'+
+      '<div class="nm">'+esc(nameOf(+oid)||("id "+oid))+(isMe?" · ты":"")+'</div><div class="ct">'+list.length+' в работе</div></div>';
+    h+=list.map(c=>'<div class="mini" style="margin-bottom:8px"><div class="b"><div class="t">'+esc(miniCap(c))+'</div>'+
+      '<div class="m">от '+esc(c.author_username||"—")+' · взял '+ago(c.claimed_at||c.created_at)+'</div></div>'+
+      (admin()?'<div class="assign"><select data-reassign="'+c.id+'"><option value="">↪ переназначить…</option>'+
+        '<option value="0">← вернуть в очередь</option>'+
+        S.members.map(m=>'<option value="'+m.tg_id+'"'+(m.tg_id===+oid?" selected":"")+'>'+esc(m.name||("@"+(m.username||m.tg_id)))+'</option>').join("")+
+        '</select></div>':"")+'</div>').join("");
+    h+='</div>';
+  });
+  return h;
+}
+function bindGen(el){
+  el.querySelectorAll("[data-take]").forEach(b=>b.onclick=async()=>{haptic();
+    const id=+b.dataset.take;const c=S.creos.find(x=>x.id===id);
+    try{const d=await api("claim_creo",{id});Object.assign(c,d.creo);notify();header();render();}
+    catch(e){alert("Не вышло: "+e.message);}});
+  el.querySelectorAll("[data-reassign]").forEach(s=>s.onchange=async()=>{
+    const id=+s.dataset.reassign,v=s.value;if(v==="")return;
+    const c=S.creos.find(x=>x.id===id);
+    try{const d=await api("assign_creo",{id,assignee_tg_id:v==="0"?null:+v});Object.assign(c,d.creo);header();render();}
+    catch(e){alert("Не вышло: "+e.message);render();}});
+}
+
+/* ---------- upload sheet (per-creo deliver / standalone) ---------- */
 function fab(){killFab();const b=document.createElement("button");b.className="fab";b.id="fab";
-  b.textContent="+";b.onclick=openSheet;document.body.appendChild(b);}
+  b.textContent="+";b.onclick=()=>openSheet(null);document.body.appendChild(b);}
 function killFab(){const f=document.getElementById("fab");if(f)f.remove();}
-function openSheet(){haptic();S.files=[];renderSheet();document.getElementById("scrim").classList.add("show");
+function openSheet(creoId){haptic();S.files=[];S.deliverTo=creoId||null;renderSheet();
+  document.getElementById("scrim").classList.add("show");
   requestAnimationFrame(()=>document.getElementById("sheet").classList.add("show"));}
 function closeSheet(){document.getElementById("sheet").classList.remove("show");
   document.getElementById("scrim").classList.remove("show");}
 function renderSheet(){
   const s=document.getElementById("sheet");
-  s.innerHTML='<div class="grip"></div><h3>Загрузить крео</h3>'+
-    '<p class="hint">Перетащи фото/видео сюда или выбери с устройства. Отправишь — попадёт в реестр как готовое.</p>'+
+  const c=S.deliverTo?S.creos.find(x=>x.id===S.deliverTo):null;
+  const title=c?"Залить готовое к крео":"Новое готовое крео";
+  const hint=c?("Файлы уйдут в AvaCarter Ready, крео станет «готово». Автор: "+esc(c.author_username||"—")):
+    "Отдельное готовое без исходного брифа. Уйдёт в AvaCarter Ready и станет «готово».";
+  s.innerHTML='<div class="grip"></div><h3>'+title+'</h3><p class="hint">'+hint+'</p>'+
     '<div class="drop" id="drop"><div class="di">📎</div>Перетащи файлы или <b>выбери</b><br><span style="font-size:12px;opacity:.7">фото и видео, можно несколько</span></div>'+
     '<input id="file" type="file" accept="image/*,video/*" multiple hidden>'+
     (S.files.length?'<div class="thumbs" id="thumbs"></div>':"")+
@@ -357,77 +478,143 @@ async function doUpload(){
       if(!put.ok)throw new Error("upload "+put.status);
       paths.push(su.path);
     }
-    const kind=S.files.length>1?"album":(S.files[0].type.startsWith("video")?"video":"photo");
     const cap=(document.getElementById("cap")||{}).value||null;
-    const d=await api("create_upload_creo",{paths,caption:cap,kind});
-    S.creos.unshift(d.creo);S.uploading=false;S.files=[];closeSheet();haptic("medium");header();render();
+    if(S.deliverTo){
+      const d=await api("deliver_creo",{id:S.deliverTo,paths,caption:cap});
+      const c=S.creos.find(x=>x.id===S.deliverTo);if(c)Object.assign(c,d.creo);
+    }else{
+      const kind=S.files.length>1?"album":(S.files[0].type.startsWith("video")?"video":"photo");
+      const d=await api("create_upload_creo",{paths,caption:cap,kind});
+      S.creos.unshift(d.creo);
+    }
+    S.uploading=false;S.files=[];S.deliverTo=null;closeSheet();notify();header();render();
   }catch(e){S.uploading=false;renderSheet();alert("Ошибка загрузки: "+e.message);}
 }
 
-/* ---------- stats ---------- */
+/* ---------- статистика ---------- */
 function vStats(){
-  const st=S.stats||{byStatus:{queued:0,in_progress:0,done:0},byAuthor:[],avgTurnaroundHours:null,total:0};
-  const max=Math.max(1,...st.byAuthor.map(a=>a.submitted));
+  const st=S.stats||{byStatus:{queued:0,in_progress:0,done:0,posted:0},byAuthor:[],byPoster:[],avgTurnaroundHours:null,avgPostLagHours:null,total:0};
+  const maxA=Math.max(1,...st.byAuthor.map(a=>a.submitted));
+  const maxP=Math.max(1,...(st.byPoster||[]).map(a=>a.posted));
   return '<div class="sgrid">'+
-    '<div class="stat q"><div class="n">'+st.byStatus.queued+'</div><div class="l">в очереди</div></div>'+
+    '<div class="stat q"><div class="n">'+st.byStatus.queued+'</div><div class="l">очередь</div></div>'+
     '<div class="stat p"><div class="n">'+st.byStatus.in_progress+'</div><div class="l">в работе</div></div>'+
-    '<div class="stat d"><div class="n">'+st.byStatus.done+'</div><div class="l">готово</div></div></div>'+
-    '<div class="sgrid"><div class="stat"><div class="n">'+st.total+'</div><div class="l">всего крео</div></div>'+
-    '<div class="stat"><div class="n">'+(st.avgTurnaroundHours==null?"—":st.avgTurnaroundHours)+'</div><div class="l">ср. часов до готово</div></div>'+
-    '<div class="stat d"><div class="n">'+(st.total?Math.round(st.byStatus.done/st.total*100):0)+'%</div><div class="l">закрыто</div></div></div>'+
-    '<div class="hh">Кто сколько кинул</div>'+
+    '<div class="stat d"><div class="n">'+st.byStatus.done+'</div><div class="l">готово</div></div>'+
+    '<div class="stat o"><div class="n">'+st.byStatus.posted+'</div><div class="l">залито</div></div></div>'+
+    '<div class="sgrid two2"><div class="stat"><div class="n">'+st.total+'</div><div class="l">всего крео</div></div>'+
+    '<div class="stat"><div class="n">'+(st.avgTurnaroundHours==null?"—":st.avgTurnaroundHours)+'</div><div class="l">ч до готово</div></div>'+
+    '<div class="stat"><div class="n">'+(st.avgPostLagHours==null?"—":st.avgPostLagHours)+'</div><div class="l">ч до залива</div></div></div>'+
+    '<div class="hh">Кто сколько сделал</div>'+
     (st.byAuthor.length?st.byAuthor.map(a=>'<div class="lead"><div class="nm">'+esc(a.author)+'</div>'+
-      '<div class="track"><div class="bar" style="width:'+Math.round(a.submitted/max*100)+'%"></div></div>'+
-      '<div class="num">'+a.done+'/'+a.submitted+'</div></div>').join(""):'<div class="empty">Пока нет данных</div>');
+      '<div class="track"><div class="bar" style="width:'+Math.round(a.submitted/maxA*100)+'%"></div></div>'+
+      '<div class="num">'+a.done+'/'+a.submitted+'</div></div>').join(""):'<div class="empty">Пока нет данных</div>')+
+    '<div class="hh">Кто сколько залил</div>'+
+    ((st.byPoster||[]).length?st.byPoster.map(a=>'<div class="lead"><div class="nm">'+esc(a.poster)+'</div>'+
+      '<div class="track"><div class="bar o" style="width:'+Math.round(a.posted/maxP*100)+'%"></div></div>'+
+      '<div class="num">'+a.posted+'</div></div>').join(""):'<div class="empty" style="padding:24px">Ещё ничего не залито.</div>')+
+    '<div class="hh">Дальше</div><div class="panel"><div class="note">Автоаналитику (охваты, промежутки постинга, лучшее время) подключим позже — данные уже копятся.</div></div>';
 }
 
-/* ---------- tasks ---------- */
-function nameOf(id){const m=S.members.find(x=>x.tg_id===id);return m?(m.name||("@"+(m.username||id))):null;}
+/* ---------- задачи ---------- */
 function vTasks(){
-  const open=S.tasks.filter(t=>t.status!=="done"),done=S.tasks.filter(t=>t.status==="done");
-  const row=t=>'<div class="row"><div class="prio '+(t.priority||"")+'"></div><div class="b">'+
-    '<div class="t">'+esc(t.title)+'</div><div class="m">'+(t.due_date?"до "+t.due_date+" · ":"")+
-    (nameOf(t.assignee_tg_id)?esc(nameOf(t.assignee_tg_id)):"общая")+'</div></div>'+
-    '<button class="pill '+(t.status==="done"?"done":"")+'" data-tt="'+t.id+'" data-ns="'+(t.status==="done"?"queued":"done")+'">'+
-    (t.status==="done"?"↺ Вернуть":"✓ Готово")+'</button></div>';
+  const open=S.tasks.filter(t=>t.status!=="done");
+  const done=S.tasks.filter(t=>t.status==="done");
+  const row=(t,i,arr)=>{
+    const who=nameOf(t.assignee_tg_id);const by=nameOf(t.created_by_tg_id);
+    return '<div class="row'+(t.pinned?" pin":"")+'"><div class="prio '+(t.priority||"")+'"></div><div class="b">'+
+      '<div class="t">'+(t.pinned?"📌 ":"")+esc(t.title)+'</div>'+
+      '<div class="m">'+(t.due_date?"до "+t.due_date+" · ":"")+
+      (who?"кому: "+esc(who):"общая")+(by?" · от "+esc(by):"")+'</div></div>'+
+      '<div class="tbtns">'+
+      (t.status!=="done"&&admin()?'<button class="ico'+(t.pinned?" on":"")+'" data-pin="'+t.id+'" data-pv="'+(t.pinned?0:1)+'">📌</button>':"")+
+      (t.status!=="done"&&i!=null&&arr&&i>0?'<button class="ico" data-up="'+t.id+'">▲</button>':"")+
+      '<button class="pill '+(t.status==="done"?"done":"")+'" data-tt="'+t.id+'" data-ns="'+(t.status==="done"?"queued":"done")+'">'+
+      (t.status==="done"?"↺":"✓ Готово")+'</button>'+
+      ((admin()||t.created_by_tg_id===S.me.tg_id)?'<button class="ico" data-tdel="'+t.id+'">🗑</button>':"")+
+      '</div></div>';
+  };
   return '<div class="panel"><input class="field" id="tT" placeholder="Новая задача — что сделать?" maxlength="200" style="margin-bottom:10px">'+
     '<div class="two" style="margin-bottom:10px"><input class="field" id="tD" type="date"><select class="field" id="tP"><option value="">Приоритет</option>'+
     '<option value="high">Высокий</option><option value="med">Средний</option><option value="low">Низкий</option></select></div>'+
-    '<select class="field" id="tA"><option value="">Без исполнителя</option>'+
+    '<select class="field" id="tA"><option value="">Общая (без исполнителя)</option>'+
     S.members.map(m=>'<option value="'+m.tg_id+'">'+esc(m.name||("@"+(m.username||m.tg_id)))+'</option>').join("")+'</select>'+
     '<button class="primary" id="tGo">Добавить задачу</button></div>'+
-    '<div class="hh">В работе · '+open.length+'</div>'+
-    (open.length?open.map(row).join(""):'<div class="empty" style="padding:28px">Задач нет — спланируй неделю.</div>')+
-    (done.length?'<div class="hh">Выполнено</div>'+done.map(row).join(""):"");
+    '<div class="hh">В работе <span class="c">'+open.length+'</span></div>'+
+    (open.length?open.map((t,i)=>row(t,i,open)).join(""):'<div class="empty" style="padding:26px">Задач нет — спланируй неделю.</div>')+
+    (done.length?'<div class="hh">История <span class="c">'+done.length+'</span></div>'+done.map(t=>row(t)).join(""):"");
 }
 function bindTasks(el){
   el.querySelector("#tGo").onclick=async()=>{
     const title=el.querySelector("#tT").value.trim();if(!title)return;
     try{const d=await api("create_task",{title,due_date:el.querySelector("#tD").value||null,
       priority:el.querySelector("#tP").value||null,assignee_tg_id:el.querySelector("#tA").value?+el.querySelector("#tA").value:null});
-      S.tasks.push(d.task);render();}catch(e){alert(e.message);}};
+      S.tasks.unshift(d.task);render();}catch(e){alert(e.message);}};
+  const patchTask=async(id,patch)=>{const d=await api("update_task",Object.assign({id},patch));
+    const i=S.tasks.findIndex(t=>t.id===id);if(i>=0)S.tasks[i]=d.task;};
   el.querySelectorAll("[data-tt]").forEach(b=>b.onclick=async()=>{haptic();
-    try{const d=await api("update_task",{id:+b.dataset.tt,status:b.dataset.ns});
-      const i=S.tasks.findIndex(t=>t.id===+b.dataset.tt);S.tasks[i]=d.task;render();}catch(e){alert(e.message);}});
+    try{await patchTask(+b.dataset.tt,{status:b.dataset.ns});render();}catch(e){alert(e.message);}});
+  el.querySelectorAll("[data-pin]").forEach(b=>b.onclick=async()=>{haptic();
+    try{await patchTask(+b.dataset.pin,{pinned:b.dataset.pv==="1"});render();}catch(e){alert(e.message);}});
+  el.querySelectorAll("[data-tdel]").forEach(b=>b.onclick=async()=>{
+    if(!confirm("Удалить задачу?"))return;haptic("medium");
+    try{await api("delete_task",{id:+b.dataset.tdel});S.tasks=S.tasks.filter(t=>t.id!==+b.dataset.tdel);render();}catch(e){alert(e.message);}});
+  el.querySelectorAll("[data-up]").forEach(b=>b.onclick=async()=>{haptic();
+    const id=+b.dataset.up,open=S.tasks.filter(t=>t.status!=="done"),i=open.findIndex(t=>t.id===id);
+    if(i<=0)return;const above=open[i-1];
+    try{await patchTask(id,{position:(above.position||0)-1});render();}catch(e){alert(e.message);}});
 }
 
-/* ---------- members ---------- */
+/* ---------- люди ---------- */
+function roleLabel(r){return r==="admin"?"админ":r==="creative"?"креатив":r==="uploader"?"залив":r;}
 function vMembers(){
-  return '<div class="hh">Команда · '+S.members.length+'</div>'+
-    S.members.map(m=>'<div class="row"><div class="av" style="width:38px;height:38px;background:'+hue(m.username||m.tg_id)+'">'+initial(m.name||m.username)+'</div>'+
-    '<div class="b"><div class="t">'+esc(m.name||"—")+'</div><div class="m">'+(m.username?"@"+esc(m.username):"id "+m.tg_id)+'</div></div>'+
-    '<button class="pill '+(m.role==="admin"?"admin":"")+'" data-mr="'+m.tg_id+'" data-role="'+(m.role==="admin"?"user":"admin")+'">'+
-    (m.role==="admin"?"админ":"участник")+'</button></div>').join("")+
-    '<div class="hh">Добавить вручную</div><div class="panel"><input class="field" id="mI" placeholder="Telegram ID" inputmode="numeric">'+
-    '<input class="field" id="mN" placeholder="Имя (необязательно)"><button class="primary" id="mGo">Добавить участника</button></div>';
+  return '<div class="hh">Команда <span class="c">'+S.members.length+'</span></div>'+
+    S.members.map(m=>{
+      const rs=(m.roles||[]);
+      const chips=rs.length?rs.map(r=>'<span class="rc '+r+' on">'+roleLabel(r)+'</span>').join(""):'<span class="rc">без роли</span>';
+      return '<div class="row"><div class="av" style="width:38px;height:38px;background:'+hue(m.username||m.tg_id)+'">'+initial(m.name||m.username)+'</div>'+
+      '<div class="b"><div class="t">'+esc(m.name||"—")+'</div><div class="m">'+(m.username?"@"+esc(m.username):"id "+m.tg_id)+'</div></div>'+
+      '<div class="rolechips">'+chips+'</div></div>';
+    }).join("")+
+    (admin()?'<div class="hh">Добавить</div><div class="panel"><input class="field" id="mI" placeholder="Telegram ID" inputmode="numeric">'+
+      '<input class="field" id="mN" placeholder="Имя (необязательно)"><button class="primary" id="mGo">Добавить участника</button>'+
+      '<div class="note" style="margin-top:8px">Роли выдаются в «Админке».</div></div>':
+      '<div class="hh">Роли</div><div class="panel"><div class="note">Роли и доступ настраивает админ.</div></div>');
 }
 function bindMembers(el){
-  el.querySelectorAll("[data-mr]").forEach(b=>b.onclick=async()=>{haptic();
-    try{const d=await api("set_member_role",{tg_id:+b.dataset.mr,role:b.dataset.role});
-      const i=S.members.findIndex(m=>m.tg_id===+b.dataset.mr);S.members[i]=d.member;render();}catch(e){alert(e.message);}});
-  el.querySelector("#mGo").onclick=async()=>{const id=parseInt(el.querySelector("#mI").value,10);if(!id)return;
+  const go=el.querySelector("#mGo");if(go)go.onclick=async()=>{const id=parseInt(el.querySelector("#mI").value,10);if(!id)return;
     try{const d=await api("add_member",{tg_id:id,name:el.querySelector("#mN").value.trim()||null});
-      if(!S.members.find(m=>m.tg_id===id))S.members.push(d.member);render();}catch(e){alert(e.message);}};
+      if(!S.members.find(m=>m.tg_id===id))S.members.push(d.member);else S.members[S.members.findIndex(m=>m.tg_id===id)]=d.member;
+      render();}catch(e){alert(e.message);}};
+}
+
+/* ---------- админка ---------- */
+function vAdmin(){
+  const ALL=["admin","creative","uploader"];
+  let h='<div class="hh">Роли и доступ</div>';
+  h+=S.members.map(m=>{
+    const rs=(m.roles||[]);
+    return '<div class="row"><div class="av" style="width:36px;height:36px;background:'+hue(m.username||m.tg_id)+'">'+initial(m.name||m.username)+'</div>'+
+      '<div class="b"><div class="t">'+esc(m.name||"—")+'</div><div class="m">'+(m.username?"@"+esc(m.username):"id "+m.tg_id)+'</div>'+
+      '<div class="rolechips" style="margin-top:8px">'+ALL.map(r=>'<button class="rc '+r+(rs.includes(r)?" on":"")+'" data-role-tg="'+m.tg_id+'" data-role="'+r+'">'+roleLabel(r)+'</button>').join("")+'</div></div>'+
+      (m.tg_id!==S.me.tg_id?'<button class="ico" data-mdel="'+m.tg_id+'">🗑</button>':"")+'</div>';
+  }).join("");
+  h+='<div class="hh">Управление ботом</div>'+
+     '<div class="panel"><div class="ph">Реестр воркфлоу RunningHub</div>'+
+     '<div class="note">Список ВФ (Face Swap, Motion Control, Krea2 и т.д.) и их доступность команде подключим сюда из конфига бота следующим шагом. Запуск генераций остаётся в боте.</div></div>';
+  return h;
+}
+function bindAdmin(el){
+  el.querySelectorAll("[data-role]").forEach(b=>b.onclick=async()=>{haptic();
+    const tgid=+b.dataset.roleTg,role=b.dataset.role;
+    const m=S.members.find(x=>x.tg_id===tgid);const rs=new Set(m.roles||[]);
+    if(rs.has(role))rs.delete(role);else rs.add(role);
+    const roles=[...rs];
+    try{const d=await api("set_member_roles",{tg_id:tgid,roles});m.roles=d.member.roles;
+      if(tgid===S.me.tg_id){S.me.roles=d.member.roles;header();}render();}
+    catch(e){alert(e.message);}});
+  el.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=async()=>{
+    const id=+b.dataset.mdel;if(!confirm("Убрать участника из команды?"))return;haptic("medium");
+    try{await api("remove_member",{tg_id:id});S.members=S.members.filter(m=>m.tg_id!==id);render();}catch(e){alert(e.message);}});
 }
 boot();
 </script>
