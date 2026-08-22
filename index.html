@@ -9,28 +9,40 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-/* ============================ токены (тема из Telegram) ============================ */
+/* ============================ токены — FAIM (фикс. gold-on-black, снято с faim.mp4) ============================ */
 :root{
-  --bg: var(--tg-theme-bg-color, #0e0f13);
-  --text: var(--tg-theme-text-color, #eef1f6);
-  --hint: var(--tg-theme-hint-color, #8a92a6);
-  --surface: color-mix(in srgb, var(--text) 6.5%, var(--bg));
-  --raise: color-mix(in srgb, var(--text) 11%, var(--bg));
-  --line: color-mix(in srgb, var(--text) 13%, transparent);
-  --line-soft: color-mix(in srgb, var(--text) 7%, transparent);
-  --a:#ff3b6b; --a2:#ff7a4d;                          /* фирменный акцент FTask */
-  --a-dim: color-mix(in srgb, var(--a) 15%, transparent);
-  --q:#f6a935; --p:#3aa0ff; --d:#22c58a; --o:#a274ff; /* очередь / работа / готово / залито */
+  color-scheme: dark;
+  --bg:#100e0c;                                        /* тёплый почти-чёрный (лого-фон #110F0D) */
+  --text:#ECE3D2;                                      /* тёплый крем */
+  --hint:#9c8c74;                                      /* тёплый графит (не серый) */
+  --surface: color-mix(in srgb, var(--text) 5%, var(--bg));
+  --raise:   color-mix(in srgb, var(--text) 9%, var(--bg));
+  --line:    color-mix(in srgb, var(--text) 12%, transparent);
+  --line-soft: color-mix(in srgb, var(--text) 6%, transparent);
+  --a:#CFA968; --a2:#F0D3A0;                           /* золото FAIM: ядро → шампань */
+  --a-deep:#8A6135;                                    /* бронза (тень золота) */
+  --grad-gold: linear-gradient(135deg,var(--a-deep),var(--a) 46%,var(--a2)); /* металлик логотипа */
+  --a-dim: color-mix(in srgb, var(--a) 16%, transparent);
+  --on-gold:#17120b;                                   /* тёмный текст поверх золота */
+  --q:#E0983F; --p:#5AA6E6; --d:#4CC08A; --o:#B58BE6;  /* очередь / работа / готово / залито */
   --mono: ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
   --disp:"Space Grotesk",-apple-system,"Segoe UI",Roboto,sans-serif;
   --r-sm:11px; --r:15px; --r-lg:20px;
-  --sh: 0 4px 16px -8px rgba(0,0,0,.30), 0 1px 2px rgba(0,0,0,.10);
-  --sh-lg: 0 16px 40px -12px rgba(0,0,0,.44);
+  --rail-w:84px;                                        /* ширина левого рейла (ландшафт) */
+  --sh: 0 4px 16px -8px rgba(0,0,0,.42), 0 1px 2px rgba(0,0,0,.20);
+  --sh-lg: 0 18px 44px -12px rgba(0,0,0,.60);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* поверхности браузера — под палитру (краф-флор) */
+::selection{background:color-mix(in srgb,var(--a) 32%,transparent);color:var(--text)}
+:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+*{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--text) 16%,transparent) transparent}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--text) 15%,transparent);border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
 html,body{margin:0;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
-body{padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+body{padding-bottom:calc(80px + env(safe-area-inset-bottom))} /* место под нижний нав-бар */
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-appearance:none}
 img{display:block}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -42,7 +54,7 @@ header{position:sticky;top:0;z-index:20;padding:13px 18px 0;
 .brand{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .logo{display:flex;align-items:center;gap:9px}
 .mark{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--a),var(--a2));color:#fff;font-family:var(--disp);
+  background:var(--grad-gold);color:var(--on-gold);font-family:var(--disp);
   font-weight:700;font-size:18px;box-shadow:0 4px 13px -2px color-mix(in srgb,var(--a) 55%,transparent)}
 .name{font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:-.02em}
 .sync{width:7px;height:7px;border-radius:50%;background:var(--d);opacity:.3;
@@ -68,16 +80,35 @@ header{position:sticky;top:0;z-index:20;padding:13px 18px 0;
 .rail .st.d .n{color:var(--d)} .rail .st.d .l::before{background:var(--d)}
 .rail .st.o .n{color:var(--o)} .rail .st.o .l::before{background:var(--o)}
 
-nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
-nav::-webkit-scrollbar{display:none}
-nav button{padding:11px 3px;margin-right:15px;font-size:14.5px;font-weight:600;color:var(--hint);
-  white-space:nowrap;position:relative;transition:color .2s}
-nav button:last-child{margin-right:2px}
-nav button.on{color:var(--text)}
-nav button.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:2px;
-  background:linear-gradient(90deg,var(--a),var(--a2))}
-/* шапку центрируем по той же ширине, что и контент (для Telegram Desktop) */
-header .brand,header .rail,header nav{max-width:680px;margin-left:auto;margin-right:auto}
+/* ---- навигация: адаптивная. База (портрет 9:16) — нижний бар ---- */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;justify-content:space-around;align-items:stretch;
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:saturate(1.4) blur(18px);
+  border-top:1px solid var(--line)}
+nav button{flex:1;min-width:0;min-height:50px;position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  padding:7px 2px 5px;font-size:9.5px;font-weight:600;letter-spacing:-.01em;color:var(--hint);
+  transition:color .2s}
+nav button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+nav button .lbl{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+nav button.on{color:var(--a)}
+nav button.on svg{transform:translateY(-1px)}
+nav button.on::after{content:"";position:absolute;top:2px;left:50%;transform:translateX(-50%);
+  width:20px;height:2.5px;border-radius:2px;background:var(--grad-gold)}
+@media (hover:hover){nav button:hover{color:color-mix(in srgb,var(--a) 70%,var(--text))}}
+/* шапку центрируем по ширине контента (Telegram Desktop) */
+header .brand,header .rail{max-width:680px;margin-left:auto;margin-right:auto}
+
+/* ---- ландшафт (16:9 и шире) — навигация левым рейлом ---- */
+@media (min-width:640px) and (min-aspect-ratio:1/1){
+  nav{top:0;bottom:0;left:0;right:auto;width:var(--rail-w);flex-direction:column;justify-content:flex-start;
+    gap:2px;padding:14px 8px calc(14px + env(safe-area-inset-bottom));
+    border-top:0;border-right:1px solid var(--line)}
+  nav button{flex:0 0 auto;width:100%;min-height:58px;font-size:9.5px;padding:9px 2px}
+  nav button.on::after{top:50%;left:0;transform:translateY(-50%);width:3px;height:24px}
+  body{padding-left:var(--rail-w);padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+}
 
 /* ============================ контент ============================ */
 main{padding:16px 18px 24px;max-width:680px;margin:0 auto;animation:fade .28s ease both}
@@ -240,9 +271,11 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto;animation:fade .28s ea
 .field:focus{outline:none;border-color:var(--a);box-shadow:0 0 0 3px var(--a-dim)}
 .field::placeholder{color:var(--hint)}
 .two{display:flex;gap:10px}.two>*{flex:1;margin-bottom:0}
-.primary{background:linear-gradient(135deg,var(--a),var(--a2));color:#fff;font-weight:700;
+.primary{background:var(--grad-gold);color:var(--on-gold);font-weight:700;
   padding:13px;border-radius:12px;width:100%;font-size:14.5px;
   box-shadow:0 8px 20px -8px color-mix(in srgb,var(--a) 60%,transparent);transition:transform .1s}
+/* тёмный текст поверх золотых заливок (контраст) */
+.subnav button .b,.utog button.adm.on,.rc.admin.on{color:var(--on-gold)}
 .primary:active{transform:scale(.99)}
 .primary:disabled{opacity:.5;box-shadow:none}
 .panel{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);
@@ -251,10 +284,11 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto;animation:fade .28s ea
 .note{font-size:12.5px;color:var(--hint);line-height:1.55}
 
 /* ============================ FAB + нижний лист ============================ */
-.fab{position:fixed;right:18px;bottom:calc(24px + env(safe-area-inset-bottom));width:56px;height:56px;
-  border-radius:19px;background:linear-gradient(135deg,var(--a),var(--a2));color:#fff;font-size:28px;
+.fab{position:fixed;right:18px;bottom:calc(78px + env(safe-area-inset-bottom));width:56px;height:56px;
+  border-radius:19px;background:var(--grad-gold);color:var(--on-gold);font-size:28px;
   display:grid;place-items:center;z-index:40;box-shadow:0 12px 28px -8px color-mix(in srgb,var(--a) 65%,transparent);
   transition:transform .12s}
+@media (min-width:640px) and (min-aspect-ratio:1/1){.fab{bottom:calc(24px + env(safe-area-inset-bottom))}}
 .fab:active{transform:scale(.9)}
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;opacity:0;
   pointer-events:none;transition:opacity .22s}
@@ -288,7 +322,7 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto;animation:fade .28s ea
 .uppct{font-family:var(--mono);font-size:11px;color:var(--hint);width:36px;text-align:right;flex:0 0 auto}
 
 /* ============================ тост ============================ */
-.toast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));
   transform:translate(-50%,16px);background:var(--raise);color:var(--text);border:1px solid var(--line);
   border-radius:13px;padding:11px 16px;font-size:13px;font-weight:500;max-width:88%;z-index:80;opacity:0;
   box-shadow:var(--sh-lg);transition:opacity .25s,transform .25s;text-align:center;line-height:1.4}
@@ -309,10 +343,16 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto;animation:fade .28s ea
 #splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-items:center;transition:opacity .5s}
 #splash.hide{opacity:0;pointer-events:none}
 #splash video{width:100%;height:100%;object-fit:cover}
-/* плавное раскрытие приложения после сплэша (по умолчанию видно — reveal лишь усиливает) */
-@keyframes appear{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
-body.revealed #hdr{animation:appear .5s cubic-bezier(.22,.61,.36,1) both}
-body.revealed #app{animation:appear .6s cubic-bezier(.22,.61,.36,1) .08s both}
+/* оркестрованный выезд после сплэша: шапка сверху, контент снизу, нав всплывает */
+@keyframes dropIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
+@keyframes riseIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@keyframes navUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:none}}
+@keyframes navLeft{from{opacity:0;transform:translateX(-100%)}to{opacity:1;transform:none}}
+body.revealed #hdr{animation:dropIn .55s cubic-bezier(.22,.61,.36,1) both}
+body.revealed #app{animation:riseIn .62s cubic-bezier(.22,.61,.36,1) .10s both}
+body.revealed nav{animation:navUp .55s cubic-bezier(.22,.61,.36,1) .16s both}
+@media (min-width:640px) and (min-aspect-ratio:1/1){
+  body.revealed nav{animation:navLeft .55s cubic-bezier(.22,.61,.36,1) .16s both}}
 #splash .skip{position:absolute;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));
   font-size:12px;font-weight:600;color:rgba(255,255,255,.7);background:rgba(0,0,0,.35);
   padding:6px 12px;border-radius:16px;backdrop-filter:blur(6px)}
@@ -327,8 +367,8 @@ body.revealed #app{animation:appear .6s cubic-bezier(.22,.61,.36,1) .08s both}
     <div class="user" id="user"></div>
   </div>
   <div class="rail" id="pipe"></div>
-  <nav id="nav"></nav>
 </header>
+<nav id="nav" class="hidden" aria-label="Разделы"></nav>
 <main id="app">
   <div class="gate"><div><div class="spin"></div><div class="gh">FTask</div>
     <p>Открываю реестр…</p></div></div>
@@ -337,9 +377,14 @@ body.revealed #app{animation:appear .6s cubic-bezier(.22,.61,.36,1) .08s both}
 const API="https://xgkyuxjvwwstsuhtwhpv.supabase.co/functions/v1/kreo-api";
 const CHAT_INTERNAL="3863967700",LINKS_THREAD=3209,READY_THREAD=3;
 const tg=window.Telegram&&window.Telegram.WebApp;
-try{tg&&tg.ready();tg&&tg.expand();tg&&tg.setHeaderColor&&tg.setHeaderColor("bg_color");}catch(e){}
+try{tg&&tg.ready();tg&&tg.expand();
+  tg&&tg.setHeaderColor&&tg.setHeaderColor("#100e0c");
+  tg&&tg.setBackgroundColor&&tg.setBackgroundColor("#100e0c");}catch(e){}
+/* координатор выезда: анимация играет, когда И сплэш ушёл, И контент готов */
+var _splashDone=false,_bootDone=false;
+function tryReveal(){if(_splashDone&&_bootDone)document.body.classList.add("revealed");}
 (function(){var sp=document.getElementById("splash");if(!sp)return;var done=false;
-  function hide(){if(done)return;done=true;document.body.classList.add("revealed");
+  function hide(){if(done)return;done=true;_splashDone=true;tryReveal();
     sp.classList.add("hide");setTimeout(function(){sp.remove();},600);}
   var v=document.getElementById("splashv");
   if(v){v.addEventListener("ended",hide);v.addEventListener("error",hide);
@@ -355,7 +400,7 @@ const ST=[["queued","Очередь","q"],["in_progress","Работа","p"],["d
 const RAIL=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"],["posted","Залито","o"]];
 const postedList=c=>Array.isArray(c.posters)?c.posters:[];
 const iPosted=c=>postedList(c).some(p=>String(p.tg_id)===String(S.me.tg_id));
-const HUES=["#ff3b6b","#3aa0ff","#22c58a","#f6a935","#a274ff","#ff7a4d","#12b5b0"];
+const HUES=["#B98A3E","#B0673A","#8F7440","#9A6B96","#5B8C7E","#B05C5C","#7A72B6"];
 let TASK_ASG=new Set();   // выбранные исполнители для новой задачи (мульти)
 
 async function api(action,params){
@@ -393,9 +438,11 @@ async function boot(){
     const d=await api("bootstrap");
     absorb(d);
     document.getElementById("hdr").classList.remove("hidden");
+    document.getElementById("nav").classList.remove("hidden");
     header();render();
     S._sig=sigOf();
     startSync();
+    _bootDone=true;tryReveal();
   }catch(e){
     const m=e.message==="unauthorized"
       ?"Telegram не передал подпись входа. Открой FTask командой /app в боте и жми inline-кнопку."
@@ -439,6 +486,15 @@ function startSync(){
   const s=document.getElementById("sync");if(s)s.onclick=()=>{haptic();poll();};
 }
 
+const NAVICON={
+  all:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+  gen:'<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.4 15.4l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
+  mine:'<path d="M6 4h12v16l-6-4-6 4z"/>',
+  stats:'<path d="M5 20V11M12 20V4M19 20V14"/>',
+  tasks:'<path d="M4 6l1.6 1.6L8.5 4.7M4 17.4l1.6 1.6 2.9-2.9M12 6.5h8M12 16.5h8"/>',
+  members:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0111 0"/><path d="M16 5.2a3.2 3.2 0 010 6M15.2 15.6A5.5 5.5 0 0120.5 20"/>',
+  admin:'<path d="M4 21v-6M4 11V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M2 15h4M10 8h4M18 16h4"/>'};
+const navIcon=k=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+(NAVICON[k]||"")+'</svg>';
 function header(){
   const rl=admin()?"АДМИН":(roles().length?roles().map(r=>r==="creative"?"КРЕАТИВ":"ЗАЛИВ").join("·"):"КОМАНДА");
   document.getElementById("user").innerHTML='<span class="un">'+esc(S.me.name||"Вы")+'</span><span class="badge">'+rl+'</span>';
@@ -447,10 +503,10 @@ function header(){
     posted:S.creos.filter(x=>postedList(x).length).length};
   document.getElementById("pipe").innerHTML=RAIL.map(([k,l,cl])=>
     '<div class="st '+cl+'"><div class="n">'+cnt[k]+'</div><div class="l">'+l+'</div></div>').join("");
-  const tabs=[["all","Креативы"],["gen","Генерации"],["mine","Мои"],["stats","Статистика"],["tasks","Задачи"],["members","Люди"]];
-  if(admin())tabs.push(["admin","Админка"]);
+  const tabs=[["all","Крео"],["gen","Генер"],["mine","Мои"],["stats","Стата"],["tasks","Задачи"],["members","Люди"]];
+  if(admin())tabs.push(["admin","Админ"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
-    '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+l+'</button>').join("");
+    '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+navIcon(k)+'<span class="lbl">'+l+'</span></button>').join("");
   document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;window.scrollTo(0,0);header();render();});
 }
 
