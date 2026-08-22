@@ -309,6 +309,10 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto;animation:fade .28s ea
 #splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-items:center;transition:opacity .5s}
 #splash.hide{opacity:0;pointer-events:none}
 #splash video{width:100%;height:100%;object-fit:cover}
+/* плавное раскрытие приложения после сплэша (по умолчанию видно — reveal лишь усиливает) */
+@keyframes appear{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+body.revealed #hdr{animation:appear .5s cubic-bezier(.22,.61,.36,1) both}
+body.revealed #app{animation:appear .6s cubic-bezier(.22,.61,.36,1) .08s both}
 #splash .skip{position:absolute;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));
   font-size:12px;font-weight:600;color:rgba(255,255,255,.7);background:rgba(0,0,0,.35);
   padding:6px 12px;border-radius:16px;backdrop-filter:blur(6px)}
@@ -335,7 +339,8 @@ const CHAT_INTERNAL="3863967700",LINKS_THREAD=3209,READY_THREAD=3;
 const tg=window.Telegram&&window.Telegram.WebApp;
 try{tg&&tg.ready();tg&&tg.expand();tg&&tg.setHeaderColor&&tg.setHeaderColor("bg_color");}catch(e){}
 (function(){var sp=document.getElementById("splash");if(!sp)return;var done=false;
-  function hide(){if(done)return;done=true;sp.classList.add("hide");setTimeout(function(){sp.remove();},600);}
+  function hide(){if(done)return;done=true;document.body.classList.add("revealed");
+    sp.classList.add("hide");setTimeout(function(){sp.remove();},600);}
   var v=document.getElementById("splashv");
   if(v){v.addEventListener("ended",hide);v.addEventListener("error",hide);
     try{var p=v.play();if(p&&p.catch)p.catch(hide);}catch(e){hide();}}
