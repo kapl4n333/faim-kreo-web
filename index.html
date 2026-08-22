@@ -357,6 +357,39 @@ body.revealed nav{animation:navUp .55s cubic-bezier(.22,.61,.36,1) .16s both}
   font-size:12px;font-weight:600;color:rgba(255,255,255,.7);background:rgba(0,0,0,.35);
   padding:6px 12px;border-radius:16px;backdrop-filter:blur(6px)}
 .hidden{display:none!important}
+
+/* ============================ склад / история ============================ */
+.wtools{display:flex;gap:9px;margin-bottom:14px}
+.wtools select{flex:1;background:var(--surface);color:var(--text);border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:10px 12px;font-size:13px;font-weight:500;box-shadow:var(--sh)}
+.wgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+@media (min-width:520px){.wgrid{grid-template-columns:1fr 1fr 1fr}}
+.wcard{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r-lg);
+  overflow:hidden;box-shadow:var(--sh);transition:transform .12s,border-color .2s}
+.wcard:active{transform:scale(.98)}
+@media (hover:hover){.wcard:hover{border-color:var(--a-dim)}}
+.wm{position:relative;aspect-ratio:1/1;background:var(--raise);overflow:hidden;cursor:pointer}
+.wm img,.wm video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.wm video.hv{opacity:0;transition:opacity .25s}
+.wm.play video.hv{opacity:1}
+.wm .ph{position:absolute;inset:0;display:grid;place-items:center;font-size:30px;color:var(--hint)}
+.wm .dur{position:absolute;right:6px;bottom:6px;font-family:var(--mono);font-size:10.5px;font-weight:600;
+  color:#fff;background:rgba(0,0,0,.62);padding:2px 6px;border-radius:7px;letter-spacing:.02em;z-index:2}
+.wm .kb{position:absolute;left:6px;top:6px;font-size:12px;background:rgba(0,0,0,.5);
+  width:24px;height:24px;border-radius:8px;display:grid;place-items:center;z-index:2}
+.wm .pruned{position:absolute;left:6px;bottom:6px;font-size:8.5px;font-weight:700;color:var(--hint);
+  background:rgba(0,0,0,.6);padding:2px 6px;border-radius:6px;text-transform:uppercase;letter-spacing:.04em;z-index:2}
+.wb{padding:10px 11px 11px}
+.wtitle{font-size:12.5px;line-height:1.35;color:var(--text);opacity:.92;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;min-height:2.7em}
+.wmeta{display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:11px;color:var(--hint)}
+.wmeta .r{display:flex;align-items:center;gap:6px;min-width:0}
+.wmeta .r b{color:var(--text);font-weight:600;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wmeta .ic{flex:0 0 auto;width:15px;text-align:center;opacity:.85}
+.wtime{display:flex;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft);
+  font-size:10.5px;color:var(--hint);flex-wrap:wrap}
+.wtime .t2{display:flex;align-items:center;gap:4px}
+.wtime .t2 b{color:var(--text);font-weight:600}
 </style>
 </head>
 <body>
@@ -394,7 +427,7 @@ function tryReveal(){if(_splashDone&&_bootDone)document.body.classList.add("reve
   setTimeout(hide,6000);})();
 const S={me:null,creos:[],tasks:[],members:[],stats:null,tab:"all",fAuthor:"",fStatus:"",
   files:[],uploading:false,deliverTo:null,_sig:"",_cap:null,
-  adminTab:"access",admin:null};
+  adminTab:"access",admin:null,hSort:"new",hAuthor:""};
 const KIND={link:"🔗",photo:"🖼",video:"🎬",album:"🗂",text:"📝"};
 const ST=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"]];
 const RAIL=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"],["posted","Залито","o"]];
@@ -490,6 +523,7 @@ const NAVICON={
   all:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
   gen:'<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.4 15.4l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
   mine:'<path d="M6 4h12v16l-6-4-6 4z"/>',
+  hist:'<path d="M3 8.5h18M5.5 8.5V19a1 1 0 001 1h11a1 1 0 001-1V8.5M4 8.5L5.4 4.7a1 1 0 01.95-.7h11.3a1 1 0 01.95.7L20 8.5M10 12.5h4"/>',
   stats:'<path d="M5 20V11M12 20V4M19 20V14"/>',
   tasks:'<path d="M4 6l1.6 1.6L8.5 4.7M4 17.4l1.6 1.6 2.9-2.9M12 6.5h8M12 16.5h8"/>',
   members:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0111 0"/><path d="M16 5.2a3.2 3.2 0 010 6M15.2 15.6A5.5 5.5 0 0120.5 20"/>',
@@ -503,7 +537,7 @@ function header(){
     posted:S.creos.filter(x=>postedList(x).length).length};
   document.getElementById("pipe").innerHTML=RAIL.map(([k,l,cl])=>
     '<div class="st '+cl+'"><div class="n">'+cnt[k]+'</div><div class="l">'+l+'</div></div>').join("");
-  const tabs=[["all","Крео"],["gen","Генер"],["mine","Мои"],["stats","Стата"],["tasks","Задачи"],["members","Люди"]];
+  const tabs=[["all","Крео"],["gen","Генер"],["mine","Мои"],["hist","Склад"],["stats","Стата"],["tasks","Задачи"],["members","Люди"]];
   if(admin())tabs.push(["admin","Админ"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
     '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+navIcon(k)+'<span class="lbl">'+l+'</span></button>').join("");
@@ -513,6 +547,7 @@ function header(){
 function render(){
   const el=document.getElementById("app");killFab();
   if(S.tab==="gen"){el.innerHTML=vGen();bindGen(el);return;}
+  if(S.tab==="hist"){el.innerHTML=vHistory();bindHistory(el);return;}
   if(S.tab==="stats")return el.innerHTML=vStats();
   if(S.tab==="tasks"){el.innerHTML=vTasks();bindTasks(el);return;}
   if(S.tab==="members"){el.innerHTML=vMembers();bindMembers(el);return;}
@@ -758,6 +793,82 @@ async function doUpload(){
     S.uploading=false;S.files=[];S.deliverTo=null;S._cap=null;S._sig=sigOf();
     closeSheet();notify();header();render();toast("Готовое отправляется в Ready","ok");
   }catch(e){S.uploading=false;renderSheet();toast("Ошибка загрузки: "+errMsg(e),"err");}
+}
+
+/* ---------- склад / история ---------- */
+const fmtDur=s=>{s=Math.round(+s||0);if(!s)return"";return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
+const madeBy=c=>nameOf(c.assignee_tg_id)||c.author_username||"—";
+function openExt(u){try{tg.openLink(u)}catch(e){window.open(u,"_blank")}}
+function histList(){
+  let list=S.creos.filter(c=>(c.result_urls&&c.result_urls.length)||(c.result_paths&&c.result_paths.length));
+  if(S.hAuthor)list=list.filter(c=>madeBy(c)===S.hAuthor);
+  const key=c=>c.posted_at||((postedList(c)[0]||{}).at)||c.delivered_at||c.done_at||c.created_at||0;
+  const turn=c=>(c.created_at&&c.done_at)?(new Date(c.done_at)-new Date(c.created_at)):-1;
+  if(S.hSort==="old")list.sort((a,b)=>new Date(key(a))-new Date(key(b)));
+  else if(S.hSort==="turn")list.sort((a,b)=>turn(b)-turn(a));
+  else list.sort((a,b)=>new Date(key(b))-new Date(key(a)));
+  return list;
+}
+function wCard(c){
+  const poster=c.preview_url||"";const clip=c.clip_url||"";
+  const firstRes=(c.result_urls||[])[0]||"";
+  const isV=isVid((c.result_paths||[])[0]||firstRes);
+  let media;
+  if(poster)media='<img loading="lazy" src="'+esc(poster)+'">';
+  else if(firstRes&&!isV)media='<img loading="lazy" src="'+esc(firstRes)+'">';
+  else if(firstRes&&isV)media='<video muted playsinline preload="metadata" src="'+esc(firstRes)+'#t=0.1"></video>';
+  else media='<div class="ph">'+(KIND[c.kind]||"🎬")+'</div>';
+  const dur=c.duration_sec?'<span class="dur">'+fmtDur(c.duration_sec)+'</span>':"";
+  const pruned=c.archive_pruned?'<span class="pruned">архив истёк</span>':"";
+  const ps=postedList(c);
+  const posters=ps.length?ps.map(p=>"@"+(p.username||nameOf(p.tg_id)||p.tg_id)).slice(0,2).join(", ")+(ps.length>2?" +"+(ps.length-2):""):"—";
+  const cap=c.result_caption||c.caption||c.source_url||"";
+  const tr=(c.created_at&&c.done_at)?Math.round((new Date(c.done_at)-new Date(c.created_at))/3600000):null;
+  const t='<span class="t2">🕓 <b>'+ago(c.delivered_at||c.done_at||c.created_at)+'</b></span>'+
+    (tr!=null&&tr>=0?'<span class="t2">⚡ <b>'+(tr<1?"<1":tr)+'ч</b></span>':"");
+  const clipAttr=clip?' data-clip="'+esc(clip)+'"':"";
+  const openAttr=firstRes?' data-openres="'+esc(firstRes)+'"':(c.ready_msg_id?' data-ready="'+c.id+'"':"");
+  return '<div class="wcard"><div class="wm"'+clipAttr+openAttr+'>'+media+
+    '<span class="kb">'+(KIND[c.kind]||"🎬")+'</span>'+dur+pruned+'</div>'+
+    '<div class="wb">'+(cap?'<div class="wtitle'+(c.kind==="link"&&c.source_url&&cap===c.source_url?'" style="color:var(--a)':"")+'">'+esc(cap)+'</div>':'<div class="wtitle" style="opacity:.4">без подписи</div>')+
+    '<div class="wmeta"><div class="r"><span class="ic">🎬</span>сделал: <b>'+esc(madeBy(c))+'</b></div>'+
+    '<div class="r"><span class="ic">📤</span>залил: <b>'+esc(posters)+'</b></div></div>'+
+    '<div class="wtime">'+t+'</div></div></div>';
+}
+function vHistory(){
+  const list=histList();
+  const authors=[...new Set(S.creos.filter(c=>(c.result_paths||[]).length).map(madeBy).filter(x=>x&&x!=="—"))];
+  let h='<div class="wtools">'+
+    '<select id="hS"><option value="new"'+(S.hSort!=="old"&&S.hSort!=="turn"?" selected":"")+'>Свежие сверху</option>'+
+      '<option value="old"'+(S.hSort==="old"?" selected":"")+'>Сначала старые</option>'+
+      '<option value="turn"'+(S.hSort==="turn"?" selected":"")+'>Дольше делали</option></select>'+
+    '<select id="hA"><option value="">Все, кто делал</option>'+
+      authors.map(a=>'<option '+(S.hAuthor===a?"selected":"")+'>'+esc(a)+'</option>').join("")+'</select></div>';
+  if(!list.length)return h+'<div class="empty"><div class="e-ic">📦</div><div class="e-h">Склад пуст</div>'+
+    'Готовые крео появятся здесь после первой доставки. Уже залитое подтянется автоматически.</div>';
+  h+='<div class="hh">Готовые крео <span class="c">'+list.length+'</span></div>';
+  return h+'<div class="wgrid">'+list.map(wCard).join("")+'</div>';
+}
+function bindHistory(el){
+  const hs=el.querySelector("#hS"),ha=el.querySelector("#hA");
+  if(hs)hs.onchange=()=>{S.hSort=hs.value;render();};
+  if(ha)ha.onchange=()=>{S.hAuthor=ha.value;render();};
+  el.querySelectorAll(".wm").forEach(m=>{
+    const clip=m.dataset.clip;
+    if(clip){
+      m.addEventListener("mouseenter",()=>{
+        let cv=m.querySelector("video.hv");
+        if(!cv){cv=document.createElement("video");cv.className="hv";cv.muted=true;cv.loop=true;
+          cv.playsInline=true;cv.preload="none";cv.src=clip;m.appendChild(cv);}
+        m.classList.add("play");cv.play().catch(()=>{});
+      });
+      m.addEventListener("mouseleave",()=>{m.classList.remove("play");
+        const cv=m.querySelector("video.hv");if(cv)cv.pause();});
+    }
+    m.addEventListener("click",()=>{haptic();
+      if(m.dataset.openres)openExt(m.dataset.openres);
+      else if(m.dataset.ready)openReady(+m.dataset.ready);});
+  });
 }
 
 /* ---------- статистика ---------- */
