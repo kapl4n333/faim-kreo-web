@@ -305,10 +305,18 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto;animation:fade .28s ea
 @keyframes sp{to{transform:rotate(360deg)}}
 .dbg{margin-top:16px;font-size:11px;opacity:.6;font-family:var(--mono);word-break:break-all}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* интро-видео при открытии (тап/конец/6с → скрыть) */
+#splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-items:center;transition:opacity .5s}
+#splash.hide{opacity:0;pointer-events:none}
+#splash video{width:100%;height:100%;object-fit:cover}
+#splash .skip{position:absolute;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));
+  font-size:12px;font-weight:600;color:rgba(255,255,255,.7);background:rgba(0,0,0,.35);
+  padding:6px 12px;border-radius:16px;backdrop-filter:blur(6px)}
 .hidden{display:none!important}
 </style>
 </head>
 <body>
+<div id="splash"><video id="splashv" src="faim.mp4" autoplay muted playsinline preload="auto"></video><div class="skip">Пропустить ›</div></div>
 <header class="hidden" id="hdr">
   <div class="brand">
     <div class="logo"><div class="mark">F</div><div class="name">FTask</div><span class="sync" id="sync" title="обновить"></span></div>
@@ -326,6 +334,14 @@ const API="https://xgkyuxjvwwstsuhtwhpv.supabase.co/functions/v1/kreo-api";
 const CHAT_INTERNAL="3863967700",LINKS_THREAD=3209,READY_THREAD=3;
 const tg=window.Telegram&&window.Telegram.WebApp;
 try{tg&&tg.ready();tg&&tg.expand();tg&&tg.setHeaderColor&&tg.setHeaderColor("bg_color");}catch(e){}
+(function(){var sp=document.getElementById("splash");if(!sp)return;var done=false;
+  function hide(){if(done)return;done=true;sp.classList.add("hide");setTimeout(function(){sp.remove();},600);}
+  var v=document.getElementById("splashv");
+  if(v){v.addEventListener("ended",hide);v.addEventListener("error",hide);
+    try{var p=v.play();if(p&&p.catch)p.catch(hide);}catch(e){hide();}}
+  else hide();
+  sp.addEventListener("click",hide);
+  setTimeout(hide,6000);})();
 const S={me:null,creos:[],tasks:[],members:[],stats:null,tab:"all",fAuthor:"",fStatus:"",
   files:[],uploading:false,deliverTo:null,_sig:"",_cap:null,
   adminTab:"access",admin:null};
