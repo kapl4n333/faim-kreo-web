@@ -377,6 +377,8 @@ body.revealed nav{animation:navUp .55s cubic-bezier(.22,.61,.36,1) .16s both}
   color:#fff;background:rgba(0,0,0,.62);padding:2px 6px;border-radius:7px;letter-spacing:.02em;z-index:2}
 .wm .kb{position:absolute;left:6px;top:6px;font-size:12px;background:rgba(0,0,0,.5);
   width:24px;height:24px;border-radius:8px;display:grid;place-items:center;z-index:2}
+.wm .wopen{position:absolute;right:6px;top:6px;font-size:13px;color:#fff;background:rgba(0,0,0,.5);
+  width:24px;height:24px;border-radius:8px;display:grid;place-items:center;z-index:2}
 .wm .pruned{position:absolute;left:6px;bottom:6px;font-size:8.5px;font-weight:700;color:var(--hint);
   background:rgba(0,0,0,.6);padding:2px 6px;border-radius:6px;text-transform:uppercase;letter-spacing:.04em;z-index:2}
 .wb{padding:10px 11px 11px}
@@ -827,9 +829,12 @@ function wCard(c){
   const t='<span class="t2">🕓 <b>'+ago(c.delivered_at||c.done_at||c.created_at)+'</b></span>'+
     (tr!=null&&tr>=0?'<span class="t2">⚡ <b>'+(tr<1?"<1":tr)+'ч</b></span>':"");
   const clipAttr=clip?' data-clip="'+esc(clip)+'"':"";
-  const openAttr=firstRes?' data-openres="'+esc(firstRes)+'"':(c.ready_msg_id?' data-ready="'+c.id+'"':"");
+  // Тап → сообщение в Ready: там видео/фото лежит документом = полный размер, нативное
+  // скачивание Telegram. Подписанная ссылка на оригинал — запаска, если ещё не в Ready.
+  const openAttr=c.ready_msg_id?' data-ready="'+c.id+'"':(firstRes?' data-openres="'+esc(firstRes)+'"':"");
+  const openHint=(c.ready_msg_id||firstRes)?'<span class="wopen">↗</span>':"";
   return '<div class="wcard"><div class="wm"'+clipAttr+openAttr+'>'+media+
-    '<span class="kb">'+(KIND[c.kind]||"🎬")+'</span>'+dur+pruned+'</div>'+
+    '<span class="kb">'+(KIND[c.kind]||"🎬")+'</span>'+openHint+dur+pruned+'</div>'+
     '<div class="wb">'+(cap?'<div class="wtitle'+(c.kind==="link"&&c.source_url&&cap===c.source_url?'" style="color:var(--a)':"")+'">'+esc(cap)+'</div>':'<div class="wtitle" style="opacity:.4">без подписи</div>')+
     '<div class="wmeta"><div class="r"><span class="ic">🎬</span>сделал: <b>'+esc(madeBy(c))+'</b></div>'+
     '<div class="r"><span class="ic">📤</span>залил: <b>'+esc(posters)+'</b></div></div>'+
@@ -866,8 +871,8 @@ function bindHistory(el){
         const cv=m.querySelector("video.hv");if(cv)cv.pause();});
     }
     m.addEventListener("click",()=>{haptic();
-      if(m.dataset.openres)openExt(m.dataset.openres);
-      else if(m.dataset.ready)openReady(+m.dataset.ready);});
+      if(m.dataset.ready)openReady(+m.dataset.ready);
+      else if(m.dataset.openres)openExt(m.dataset.openres);});
   });
 }
 
