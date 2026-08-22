@@ -220,6 +220,21 @@ main{padding:16px 18px 24px;max-width:680px;margin:0 auto;animation:fade .28s ea
 .rc.admin.on{background:var(--a);border-color:transparent}
 .rc.creative.on{background:var(--p);border-color:transparent}
 .rc.uploader.on{background:var(--o);border-color:transparent}
+/* --- админ: под-навигация + тумблеры доступа --- */
+.subnav{display:flex;gap:6px;margin:2px 0 14px;overflow-x:auto;scrollbar-width:none}
+.subnav::-webkit-scrollbar{display:none}
+.subnav button{padding:8px 14px;border-radius:20px;font-size:12.5px;font-weight:600;flex:0 0 auto;
+  background:var(--raise);color:var(--hint);white-space:nowrap;border:1px solid var(--line-soft)}
+.subnav button.on{background:var(--a-dim);color:var(--a);border-color:transparent}
+.subnav button .b{margin-left:6px;font-family:var(--mono);font-size:10.5px;background:var(--a);color:#fff;
+  padding:1px 6px;border-radius:10px}
+.utog{display:flex;gap:5px;flex-wrap:wrap;flex:0 0 auto;max-width:64%;justify-content:flex-end}
+.utog button{font-size:10.5px;font-weight:700;padding:5px 9px;border-radius:14px;
+  background:var(--raise);border:1px solid var(--line-soft);color:var(--hint);transition:transform .1s}
+.utog button:active{transform:scale(.93)}
+.utog button.on{color:#fff;background:var(--d);border-color:transparent}
+.utog button.adm.on{background:var(--a)} .utog button.acc.on{background:var(--p)}
+.utog button.off{opacity:.55}
 .field{width:100%;background:var(--surface);color:var(--text);border:1px solid var(--line);
   border-radius:12px;padding:12px;font-size:14.5px;margin-bottom:10px}
 .field:focus{outline:none;border-color:var(--a);box-shadow:0 0 0 3px var(--a-dim)}
@@ -312,7 +327,8 @@ const CHAT_INTERNAL="3863967700",LINKS_THREAD=3209,READY_THREAD=3;
 const tg=window.Telegram&&window.Telegram.WebApp;
 try{tg&&tg.ready();tg&&tg.expand();tg&&tg.setHeaderColor&&tg.setHeaderColor("bg_color");}catch(e){}
 const S={me:null,creos:[],tasks:[],members:[],stats:null,tab:"all",fAuthor:"",fStatus:"",
-  files:[],uploading:false,deliverTo:null,_sig:"",_cap:null};
+  files:[],uploading:false,deliverTo:null,_sig:"",_cap:null,
+  adminTab:"access",admin:null};
 const KIND={link:"🔗",photo:"🖼",video:"🎬",album:"🗂",text:"📝"};
 const ST=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"]];
 const RAIL=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"],["posted","Залито","o"]];
@@ -423,7 +439,7 @@ function render(){
   if(S.tab==="stats")return el.innerHTML=vStats();
   if(S.tab==="tasks"){el.innerHTML=vTasks();bindTasks(el);return;}
   if(S.tab==="members"){el.innerHTML=vMembers();bindMembers(el);return;}
-  if(S.tab==="admin"){el.innerHTML=vAdmin();bindAdmin(el);return;}
+  if(S.tab==="admin"){el.innerHTML=vAdmin();bindAdmin(el);if(!S.admin)loadAdmin();return;}
   if(S.tab==="mine"){el.innerHTML=vMine();bindCreos(el);fab();return;}
   el.innerHTML=vCreos();bindCreos(el);fab();
 }
@@ -770,28 +786,122 @@ function bindMembers(el){
 }
 
 /* ---------- админка ---------- */
+async function loadAdmin(){
+  try{const d=await api("admin_data");
+    S.admin={users:d.users||[],requests:d.requests||[],workflows:d.workflows||[]};render();}
+  catch(e){toast(errMsg(e),"err");}
+}
+const ATABS=[["access","Доступ"],["requests","Заявки"],["workflows","Воркфлоу"],["roles","Роли"]];
 function vAdmin(){
+  const reqN=(S.admin&&S.admin.requests.length)||0;
+  let h='<div class="subnav">'+ATABS.map(([k,l])=>
+    '<button class="'+(S.adminTab===k?"on":"")+'" data-at="'+k+'">'+l+
+    (k==="requests"&&reqN?'<span class="b">'+reqN+'</span>':"")+'</button>').join("")+'</div>';
+  if(S.adminTab==="roles")return h+vRoles();
+  if(!S.admin)return h+'<div class="empty" style="padding:40px"><div class="spin"></div></div>';
+  if(S.adminTab==="requests")return h+vReq();
+  if(S.adminTab==="workflows")return h+vWf();
+  return h+vAccess();
+}
+/* --- Доступ (юзеры бота + тумблеры) --- */
+function vAccess(){
+  const us=S.admin.users;
+  const tog=(u,cls,on,cmd,field,label)=>'<button class="'+cls+(on?" on":" off")+'" data-uc="'+cmd+'" data-ut="'+u.tg_id+'" data-uf="'+field+'" data-uon="'+(on?0:1)+'">'+label+'</button>';
+  let h=us.map(u=>{
+    const canGen=!u.no_gen,canUniq=!u.no_uniq;
+    const own=u.is_owner;
+    return '<div class="row"><div class="av" style="width:36px;height:36px;background:'+hue(u.username||u.tg_id)+'">'+initial(u.name||u.username)+'</div>'+
+      '<div class="b"><div class="t">'+esc(u.name||"—")+(own?" 👑":"")+'</div>'+
+      '<div class="m">'+(u.username?"@"+esc(u.username):"id "+u.tg_id)+'</div></div>'+
+      '<div class="utog">'+
+      (own?'<span class="tag">владелец</span>':
+        tog(u,"acc",u.approved,"__acc","approved","доступ")+tog(u,"adm",u.is_admin,"set_admin","is_admin","админ"))+
+      tog(u,"",canGen,"set_gen","no_gen","ген")+
+      tog(u,"",canUniq,"set_uniq","no_uniq","уник")+
+      tog(u,"",u.agent_ok,"set_agent","agent_ok","агент")+
+      '</div></div>';
+  }).join("");
+  h+='<div class="hh">Добавить по id</div><div class="panel">'+
+     '<input class="field" id="aI" placeholder="Telegram ID" inputmode="numeric">'+
+     '<input class="field" id="aN" placeholder="Имя (необязательно)">'+
+     '<button class="primary" id="aGo">Дать доступ</button>'+
+     '<div class="note" style="margin-top:8px">Команды применяет бот (~10с). 👑 владельца изменить нельзя.</div></div>';
+  return h;
+}
+/* --- Заявки --- */
+function vReq(){
+  const rs=S.admin.requests;
+  if(!rs.length)return '<div class="empty" style="padding:36px">Заявок нет.</div>';
+  return rs.map(r=>'<div class="row"><div class="av" style="width:36px;height:36px;background:'+hue(r.username||r.tg_id)+'">'+initial(r.name||r.username)+'</div>'+
+    '<div class="b"><div class="t">'+esc(r.name||"—")+'</div><div class="m">'+(r.username?"@"+esc(r.username):"id "+r.tg_id)+'</div></div>'+
+    '<div class="tbtns"><button class="pill done" data-rq="approve" data-rid="'+r.tg_id+'">✓ Одобрить</button>'+
+    '<button class="ico" data-rq="deny" data-rid="'+r.tg_id+'">✕</button></div></div>').join("");
+}
+/* --- Воркфлоу --- */
+function vWf(){
+  const wfs=S.admin.workflows;
+  if(!wfs.length)return '<div class="empty" style="padding:36px">ВФ подтянутся из бота через несколько секунд — обнови.</div>';
+  return wfs.map(w=>{
+    const inst=w.instance_type==="plus";
+    return '<div class="row"><div class="b"><div class="t">'+esc(w.title||w.key)+'</div>'+
+      '<div class="m">'+esc(w.key)+' · '+(inst?"48GB plus":"24GB")+'</div></div>'+
+      '<div class="tbtns">'+
+      '<button class="ico" data-wfinst="'+esc(w.key)+'" data-inston="'+(inst?0:1)+'" title="VRAM">'+(inst?"48":"24")+'</button>'+
+      '<button class="pill'+(w.enabled?" done":"")+'" data-wf="'+esc(w.key)+'" data-wfen="'+(w.enabled?0:1)+'">'+(w.enabled?"✓ вкл":"выкл")+'</button>'+
+      '</div></div>';
+  }).join("")+'<div class="note" style="margin:14px 2px">Вкл/выкл прячет ВФ у команды. Новые ВФ (с node_id) добавляются в код. Правка названий/дефолтов — следующим шагом.</div>';
+}
+/* --- Роли FTask --- */
+function vRoles(){
   const ALL=["admin","creative","uploader"];
-  let h='<div class="hh">Роли и доступ</div>';
-  h+=S.members.map(m=>{
+  return '<div class="hh">Роли FTask</div>'+S.members.map(m=>{
     const rs=(m.roles||[]);
     return '<div class="row"><div class="av" style="width:36px;height:36px;background:'+hue(m.username||m.tg_id)+'">'+initial(m.name||m.username)+'</div>'+
       '<div class="b"><div class="t">'+esc(m.name||"—")+'</div><div class="m">'+(m.username?"@"+esc(m.username):"id "+m.tg_id)+'</div>'+
       '<div class="rolechips" style="margin-top:8px">'+ALL.map(r=>'<button class="rc '+r+(rs.includes(r)?" on":"")+'" data-role-tg="'+m.tg_id+'" data-role="'+r+'">'+roleLabel(r)+'</button>').join("")+'</div></div>'+
       (m.tg_id!==S.me.tg_id?'<button class="ico" data-mdel="'+m.tg_id+'">🗑</button>':"")+'</div>';
   }).join("");
-  h+='<div class="hh">Управление ботом</div>'+
-     '<div class="panel"><div class="ph">Реестр воркфлоу RunningHub</div>'+
-     '<div class="note">Список ВФ (Face Swap, Motion Control, Krea2 и т.д.) и их доступность команде подключим сюда из конфига бота следующим шагом. Запуск генераций остаётся в боте.</div></div>';
-  return h;
+}
+async function adminCmd(cmd,payload,apply){
+  haptic();
+  try{await api("admin_cmd",{cmd,payload});if(apply)apply();render();toast("Отправлено боту (~10с)","ok");}
+  catch(e){toast(errMsg(e),"err");}
 }
 function bindAdmin(el){
+  el.querySelectorAll("[data-at]").forEach(b=>b.onclick=()=>{S.adminTab=b.dataset.at;window.scrollTo(0,0);render();});
+  // тумблеры доступа
+  el.querySelectorAll("[data-uc]").forEach(b=>b.onclick=()=>{
+    const tg=+b.dataset.ut,cmd=b.dataset.uc,field=b.dataset.uf,on=b.dataset.uon==="1";
+    const u=S.admin.users.find(x=>x.tg_id===tg);if(!u)return;
+    if(cmd==="__acc"){ // доступ: on=дать(add_user), off=убрать(remove_user)
+      adminCmd(on?"add_user":"remove_user",{tg_id:tg},()=>{u.approved=on;});return;
+    }
+    // ген/уник хранятся инверсно (no_gen/no_uniq): field=no_* → значение = !on
+    const val=(field==="no_gen"||field==="no_uniq")?on:on;
+    adminCmd(cmd,{tg_id:tg,on:val},()=>{
+      if(field==="no_gen")u.no_gen=!on;else if(field==="no_uniq")u.no_uniq=!on;
+      else if(field==="is_admin")u.is_admin=on;else if(field==="agent_ok")u.agent_ok=on;});
+  });
+  const aGo=el.querySelector("#aGo");if(aGo)aGo.onclick=()=>{const id=parseInt(el.querySelector("#aI").value,10);if(!id)return;
+    adminCmd("add_user",{tg_id:id,name:el.querySelector("#aN").value.trim()||null},()=>{
+      if(!S.admin.users.find(u=>u.tg_id===id))S.admin.users.push({tg_id:id,name:el.querySelector("#aN").value.trim()||null,approved:true});});};
+  // заявки
+  el.querySelectorAll("[data-rq]").forEach(b=>b.onclick=()=>{
+    const tg=+b.dataset.rid,act=b.dataset.rq;
+    adminCmd(act,{tg_id:tg},()=>{S.admin.requests=S.admin.requests.filter(r=>r.tg_id!==tg);});});
+  // воркфлоу — пишем прямо (set_workflow, мгновенно)
+  el.querySelectorAll("[data-wf]").forEach(b=>b.onclick=async()=>{haptic();
+    const key=b.dataset.wf,en=b.dataset.wfen==="1";const w=S.admin.workflows.find(x=>x.key===key);
+    try{const d=await api("set_workflow",{key,enabled:en});if(w)Object.assign(w,d.workflow);render();toast(en?"ВФ включён":"ВФ выключен","ok");}catch(e){toast(errMsg(e),"err");}});
+  el.querySelectorAll("[data-wfinst]").forEach(b=>b.onclick=async()=>{haptic();
+    const key=b.dataset.wfinst,on=b.dataset.inston==="1";const w=S.admin.workflows.find(x=>x.key===key);
+    try{const d=await api("set_workflow",{key,instance_type:on?"plus":null});if(w)Object.assign(w,d.workflow);render();toast(on?"48GB":"24GB","ok");}catch(e){toast(errMsg(e),"err");}});
+  // роли FTask
   el.querySelectorAll("[data-role]").forEach(b=>b.onclick=async()=>{haptic();
     const tgid=+b.dataset.roleTg,role=b.dataset.role;
     const m=S.members.find(x=>x.tg_id===tgid);const rs=new Set(m.roles||[]);
     if(rs.has(role))rs.delete(role);else rs.add(role);
-    const roles=[...rs];
-    try{const d=await api("set_member_roles",{tg_id:tgid,roles});m.roles=d.member.roles;
+    try{const d=await api("set_member_roles",{tg_id:tgid,roles:[...rs]});m.roles=d.member.roles;
       if(tgid===S.me.tg_id){S.me.roles=d.member.roles;header();}S._sig=sigOf();render();}
     catch(e){toast(errMsg(e),"err");}});
   el.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=async()=>{
