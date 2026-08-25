@@ -392,6 +392,34 @@ body.revealed nav{animation:navUp .55s cubic-bezier(.22,.61,.36,1) .16s both}
   font-size:10.5px;color:var(--hint);flex-wrap:wrap}
 .wtime .t2{display:flex;align-items:center;gap:4px}
 .wtime .t2 b{color:var(--text);font-weight:600}
+/* --- трекер источников (Аккаунты + Кейтаро) --- */
+.subnav.sub2{margin-bottom:12px}
+.subnav .miniref,.hh .miniref{margin-left:auto;flex:0 0 auto;width:26px;height:26px;border-radius:8px;
+  background:var(--raise);border:1px solid var(--line-soft);color:var(--hint);font-size:14px;cursor:pointer}
+.hh .miniref{display:inline-grid;place-items:center;vertical-align:middle}
+.accform{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.accform select{flex:0 0 auto;background:var(--surface);color:var(--text);border:1px solid var(--line);
+  border-radius:10px;padding:10px 8px;font-size:13px}
+.accform .field{flex:1;min-width:150px;width:auto;margin:0}
+.accform .act.plus{flex:0 0 auto}
+.acctbl{display:flex;flex-direction:column;gap:8px}
+.accrow{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line-soft);
+  border-radius:var(--r);padding:11px 12px}
+.acic{flex:0 0 auto;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  background:var(--raise);font-size:17px}
+.acmain{flex:1;min-width:0}
+.acnm{font-weight:600;font-size:13.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acsub{font-size:11px;color:var(--hint);margin-top:2px}
+.acsub b{color:var(--text)}
+.aclink{margin-top:7px}
+.linkchip{max-width:100%;display:inline-flex;align-items:center;gap:6px;background:var(--a-dim);color:var(--a);
+  border:none;border-radius:8px;padding:6px 9px;font-family:var(--mono);font-size:11px;cursor:pointer;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.linkchip .cp{flex:0 0 auto;opacity:.8}
+.linkpend{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--hint)}
+.linkerr{font-size:11px;color:var(--q)}
+.d1{color:var(--d);font-weight:600}
+.lead .nm .ls{display:block;font-size:10.5px;color:var(--hint);font-weight:400;margin-top:1px}
 </style>
 </head>
 <body>
@@ -429,8 +457,13 @@ function tryReveal(){if(_splashDone&&_bootDone)document.body.classList.add("reve
   setTimeout(hide,6000);})();
 const S={me:null,creos:[],tasks:[],members:[],stats:null,tab:"all",fAuthor:"",fStatus:"",
   files:[],uploading:false,deliverTo:null,_sig:"",_cap:null,
-  adminTab:"access",admin:null,hSort:"new",hAuthor:""};
+  adminTab:"access",admin:null,hSort:"new",hAuthor:"",
+  mineTab:"gen",statsTab:"keitaro",track:null,trkGroup:"person",trkPlat:"instagram",_trkLoading:false};
 const KIND={link:"🔗",photo:"🖼",video:"🎬",album:"🗂",text:"📝"};
+// соцсети трекера источников: [код, подпись, иконка]
+const PLAT=[["instagram","Instagram","📸"],["x","X","✖"],["tiktok","TikTok","🎵"],["threads","Threads","🧵"],["reddit","Reddit","👽"]];
+const platLabel=k=>{const p=PLAT.find(x=>x[0]===k);return p?p[1]:k;};
+const platIcon=k=>{const p=PLAT.find(x=>x[0]===k);return p?p[2]:"🔗";};
 const ST=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"]];
 const RAIL=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"],["posted","Залито","o"]];
 const postedList=c=>Array.isArray(c.posters)?c.posters:[];
@@ -550,11 +583,11 @@ function render(){
   const el=document.getElementById("app");killFab();
   if(S.tab==="gen"){el.innerHTML=vGen();bindGen(el);return;}
   if(S.tab==="hist"){el.innerHTML=vHistory();bindHistory(el);return;}
-  if(S.tab==="stats")return el.innerHTML=vStats();
+  if(S.tab==="stats"){el.innerHTML=vStatsTab();bindStatsTab(el);return;}
   if(S.tab==="tasks"){el.innerHTML=vTasks();bindTasks(el);return;}
   if(S.tab==="members"){el.innerHTML=vMembers();bindMembers(el);return;}
   if(S.tab==="admin"){el.innerHTML=vAdmin();bindAdmin(el);if(!S.admin)loadAdmin();return;}
-  if(S.tab==="mine"){el.innerHTML=vMine();bindCreos(el);fab();return;}
+  if(S.tab==="mine"){el.innerHTML=vMineTab();bindMineTab(el);if(S.mineTab!=="acc")fab();return;}
   el.innerHTML=vCreos();bindCreos(el);fab();
 }
 
@@ -874,6 +907,133 @@ function bindHistory(el){
       if(m.dataset.ready)openReady(+m.dataset.ready);
       else if(m.dataset.openres)openExt(m.dataset.openres);});
   });
+}
+
+/* ---------- трекер источников (Кейтаро) ---------- */
+function bindSub(el){el.querySelectorAll("[data-sub]").forEach(b=>b.onclick=()=>{
+  haptic();S[b.dataset.sub]=b.dataset.v;window.scrollTo(0,0);render();});}
+async function loadTrack(force){
+  if(S._trkLoading)return;
+  if(S.track!==null&&!force)return;
+  S._trkLoading=true;
+  try{const d=await api("track_data");S.track=d.accounts||[];}
+  catch(e){if(S.track===null)S.track=[];toast(errMsg(e),"err");}
+  finally{S._trkLoading=false;render();}
+}
+/* «Мои» = под-тоггл [Генерации][Аккаунты] */
+function vMineTab(){
+  let h='<div class="subnav"><button class="'+(S.mineTab!=="acc"?"on":"")+'" data-sub="mineTab" data-v="gen">Генерации</button>'+
+    '<button class="'+(S.mineTab==="acc"?"on":"")+'" data-sub="mineTab" data-v="acc">Аккаунты</button></div>';
+  return h+(S.mineTab==="acc"?vAccounts():vMine());
+}
+function bindMineTab(el){
+  bindSub(el);
+  if(S.mineTab==="acc"){bindAccounts(el);if(S.track===null)loadTrack();}
+  else bindCreos(el);
+}
+function vAccounts(){
+  const mine=(S.track||[]).filter(a=>String(a.owner_tg_id)===String(S.me.tg_id));
+  let h='<div class="accform"><select id="acP">'+
+    PLAT.map(([k,l,ic])=>'<option value="'+k+'"'+(S.trkPlat===k?" selected":"")+'>'+ic+" "+l+'</option>').join("")+'</select>'+
+    '<input class="field" id="acN" placeholder="Название аккаунта (напр. @ava.daily)" maxlength="80">'+
+    '<button class="act plus" id="acAdd">Создать ссылку</button></div>';
+  if(S.track===null)return h+'<div class="empty" style="padding:34px"><div class="spin"></div></div>';
+  if(!mine.length)return h+'<div class="empty"><div class="e-ic">🔗</div><div class="e-h">Пока нет аккаунтов</div>'+
+    'Добавь свой соц-аккаунт — бот выдаст под него отдельную трек-ссылку в канал. По ней увидишь, сколько людей пришло именно оттуда.</div>';
+  h+='<div class="hh">Мои аккаунты <span class="c">'+mine.length+'</span> <button class="miniref" id="acRef" title="Обновить">↻</button></div>';
+  h+='<div class="acctbl">'+mine.map(accRow).join("")+'</div>';
+  h+='<div class="note" style="margin:12px 2px">Ссылку менять нельзя — только скопировать (тап) или удалить строку. Удаление отзывает ссылку и стирает её статистику.</div>';
+  return h;
+}
+function accRow(a){
+  let link;
+  if(a.invite_link)link='<button class="linkchip" data-copy="'+esc(a.invite_link)+'">'+esc(a.invite_link.replace(/^https?:\/\//,""))+' <span class="cp">⧉</span></button>';
+  else if(a.link_error)link='<span class="linkerr" title="'+esc(a.link_error)+'">⚠ ошибка создания</span>';
+  else link='<span class="linkpend"><span class="dspin"></span> создаётся…</span>';
+  return '<div class="accrow"><div class="acic">'+platIcon(a.platform)+'</div>'+
+    '<div class="acmain"><div class="acnm">'+esc(a.account_name)+'</div>'+
+    '<div class="acsub">'+platLabel(a.platform)+' · вступлений: <b>'+(a.joins||0)+'</b>'+
+    (a.joins_24h?' <span class="d1">+'+a.joins_24h+' за 24ч</span>':"")+'</div>'+
+    '<div class="aclink">'+link+'</div></div>'+
+    '<button class="trash" data-acdel="'+a.id+'">🗑</button></div>';
+}
+function bindAccounts(el){
+  const add=el.querySelector("#acAdd");if(add)add.onclick=addAccount;
+  const p=el.querySelector("#acP");if(p)p.onchange=()=>{S.trkPlat=p.value;};
+  const ref=el.querySelector("#acRef");if(ref)ref.onclick=()=>{haptic();loadTrack(true);};
+  el.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>copyLink(b.dataset.copy));
+  el.querySelectorAll("[data-acdel]").forEach(b=>b.onclick=()=>delAccount(+b.dataset.acdel));
+}
+async function addAccount(){
+  const p=document.getElementById("acP"),n=document.getElementById("acN");
+  const platform=p.value,account_name=(n.value||"").trim();
+  if(!account_name){toast("Впиши название аккаунта","err");return;}
+  haptic();
+  try{const d=await api("track_add",{platform,account_name});
+    S.track=[d.account].concat(S.track||[]);n.value="";render();
+    toast("Аккаунт добавлен — ссылка создаётся (~15с)","ok");}
+  catch(e){toast(errMsg(e),"err");}
+}
+async function delAccount(id){
+  const a=(S.track||[]).find(x=>x.id===id);
+  if(!confirm("Удалить аккаунт "+((a&&a.account_name)||"")+"?\nСсылка перестанет работать, статистика по ней сотрётся."))return;
+  haptic("medium");
+  try{await api("track_delete",{id});S.track=(S.track||[]).filter(x=>x.id!==id);render();toast("Удалено","ok");}
+  catch(e){toast(errMsg(e),"err");}
+}
+function copyLink(u){
+  const done=()=>{haptic();notify();toast("Ссылка скопирована","ok");};
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(done,()=>fallbackCopy(u,done));
+    else fallbackCopy(u,done);}
+  catch(e){fallbackCopy(u,done);}
+}
+function fallbackCopy(u,done){
+  const t=document.createElement("textarea");t.value=u;t.style.position="fixed";t.style.opacity="0";
+  document.body.appendChild(t);t.focus();t.select();
+  try{document.execCommand("copy");done();}catch(e){toast("Не смог скопировать","err");}
+  t.remove();
+}
+/* «Стата» = под-тоггл [Кейтаро][Работа] */
+function vStatsTab(){
+  let h='<div class="subnav"><button class="'+(S.statsTab!=="work"?"on":"")+'" data-sub="statsTab" data-v="keitaro">Кейтаро</button>'+
+    '<button class="'+(S.statsTab==="work"?"on":"")+'" data-sub="statsTab" data-v="work">Работа</button></div>';
+  return h+(S.statsTab==="work"?vStats():vKeitaro());
+}
+function bindStatsTab(el){
+  bindSub(el);
+  if(S.statsTab==="keitaro"){const r=el.querySelector("#kRef");if(r)r.onclick=()=>{haptic();loadTrack(true);};
+    if(S.track===null)loadTrack();}
+}
+function vKeitaro(){
+  const G=[["person","По людям"],["account","По аккаунтам"],["platform","По соцсетям"]];
+  let h='<div class="subnav sub2">'+G.map(([k,l])=>'<button class="'+(S.trkGroup===k?"on":"")+'" data-sub="trkGroup" data-v="'+k+'">'+l+'</button>').join("")+
+    '<button class="miniref" id="kRef" title="Обновить">↻</button></div>';
+  if(S.track===null)return h+'<div class="empty" style="padding:34px"><div class="spin"></div></div>';
+  const accs=S.track||[];
+  const totAll=accs.reduce((s,a)=>s+(a.joins||0),0);
+  const tot24=accs.reduce((s,a)=>s+(a.joins_24h||0),0);
+  h+='<div class="sgrid two2"><div class="stat"><div class="n">'+totAll+'</div><div class="l">всего вступлений</div></div>'+
+     '<div class="stat o"><div class="n">'+tot24+'</div><div class="l">за 24 часа</div></div>'+
+     '<div class="stat"><div class="n">'+accs.length+'</div><div class="l">ссылок</div></div></div>';
+  if(!accs.length)return h+'<div class="empty"><div class="e-ic">📊</div><div class="e-h">Данных пока нет</div>'+
+    'Заведи аккаунты во вкладке «Мои → Аккаунты» и раздай трек-ссылки по соцсетям.</div>';
+  let rows=[];
+  if(S.trkGroup==="account"){
+    rows=accs.map(a=>({label:platIcon(a.platform)+" "+a.account_name,sub:(nameOf(a.owner_tg_id)||"")+" · "+platLabel(a.platform),n:a.joins||0,d1:a.joins_24h||0}));
+  }else if(S.trkGroup==="platform"){
+    const m={};accs.forEach(a=>{const g=m[a.platform]=m[a.platform]||{n:0,d1:0};g.n+=a.joins||0;g.d1+=a.joins_24h||0;});
+    rows=Object.entries(m).map(([k,v])=>({label:platIcon(k)+" "+platLabel(k),sub:"",n:v.n,d1:v.d1}));
+  }else{
+    const m={};accs.forEach(a=>{const g=m[a.owner_tg_id]=m[a.owner_tg_id]||{n:0,d1:0};g.n+=a.joins||0;g.d1+=a.joins_24h||0;});
+    rows=Object.entries(m).map(([k,v])=>({label:nameOf(+k)||("id"+k),sub:"",n:v.n,d1:v.d1}));
+  }
+  rows.sort((a,b)=>b.n-a.n);
+  const max=Math.max(1,...rows.map(r=>r.n));
+  h+='<div class="hh">'+({person:"По людям",account:"По аккаунтам",platform:"По соцсетям"}[S.trkGroup])+'</div>';
+  h+=rows.map(r=>'<div class="lead"><div class="nm">'+esc(r.label)+(r.sub?'<span class="ls">'+esc(r.sub)+'</span>':"")+'</div>'+
+    '<div class="track"><div class="bar" style="width:'+Math.round(r.n/max*100)+'%"></div></div>'+
+    '<div class="num">'+r.n+(r.d1?' <span class="d1">+'+r.d1+'</span>':"")+'</div></div>').join("");
+  return h;
 }
 
 /* ---------- статистика ---------- */

@@ -100,7 +100,20 @@ public-таблицы) — полезный, оставлен, но у него 
 `harden_rls_auto_enable`). Не удалять.
 
 Миграции (по порядку): `kreo_initial_schema` → `kreo_uploads_storage` →
-`harden_rls_auto_enable` → `ftask_v2_roles_posted_delivery`.
+`harden_rls_auto_enable` → `ftask_v2_roles_posted_delivery` → … → `track_links_schema`.
+
+**Трекер источников трафика («Кейтаро», миграция `track_links_schema`):**
+```
+track_accounts(id, owner_tg_id, platform[instagram|x|tiktok|threads|reddit],
+  account_name, code UNIQUE (=имя invite-ссылки, ≤32), invite_link, link_error,
+  pending_revoke bool, created_at)
+track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
+  joined_at, UNIQUE(account_id, tg_user_id))   -- 1 вступление на юзера на ссылку
+```
+Аккаунты создаёт аппа (`track_add`); invite-ссылки создаёт/отзывает **бот** (`track.py`,
+`provision_loop`); вступления пишет **бот** (`chat_member` → `track_joins`). Edge только
+читает (`track_data`) + управляет строками. Канал-приземления и топик отчёта — env бота
+(`TRACK_CHANNEL_ID`/`TRACK_REPORT_THREAD`).
 
 ---
 
@@ -147,8 +160,8 @@ public-таблицы) — полезный, оставлен, но у него 
    «Перейти к видео/исходнику» (deep-link), удаление 🗑 с `confirm()` (админ/автор).
 2. **Генерации** (`vGen`) — claim-борд «Uber»: «Свободные» (queued, кнопка «Взять»=`claim_creo`,
    видна `creative`/`admin`) + колонки «в работе» по владельцам; админ переназначает (`assign_creo`).
-3. **Мои** (`vMine`) — две секции: «Взял в работу» (assignee=я) + «Залил» (poster=я).
-4. **Статистика** (`vStats`) — плитки по статусам, «кто сколько сделал» (byAuthor),
+3. **Мои** (`vMineTab`) — под-тоггл **[Генерации][Аккаунты]** (`S.mineTab`). Генерации = прежний `vMine` (взял/залил) без изменений. **Аккаунты** (`vAccounts`) = трекер источников: добавить соц-аккаунт (`track_add`), ссылка-чип «клик=копировать» (`copyLink`, менять нельзя), удаление строки (`track_delete`). Данные — `loadTrack()`→`S.track`.
+4. **Статистика** (`vStatsTab`) — под-тоггл **[Кейтаро][Работа]** (`S.statsTab`). **Кейтаро** (`vKeitaro`) = вступления по трек-ссылкам, группировка По людям/аккаунтам/соцсетям (`S.trkGroup`), всего + за 24ч. **Работа** = прежний `vStats`: плитки по статусам, «кто сколько сделал» (byAuthor),
    «кто сколько залил» (byPoster), ср. время до готово / до залива.
 5. **Задачи** (`vTasks`) — создать (assignee, дедлайн, приоритет), 📌 закреп (админ),
    ▲ поднять, ✓ Готово → в «Историю», удалить.
@@ -180,7 +193,7 @@ public-таблицы) — полезный, оставлен, но у него 
 пускает; иначе возвращает `null` → **403 `not_member`** (авто-добавление чужих убрано).
 Итог: админ добавляет по Telegram ID во вкладке «Люди» → человек заходит.
 
-**Actions** (текущая версия edge — **v6**):
+**Actions** (текущая версия edge — **v12**):
 | action | кто | что делает |
 |---|---|---|
 | `bootstrap` | член | вернуть `me,isAdmin,creos(+media_urls/result_urls),tasks,members,stats` |
@@ -197,6 +210,9 @@ public-таблицы) — полезный, оставлен, но у него 
 | `create_task`/`update_task`/`delete_task` | член (delete: admin/автор) | задачи; update поддерживает status/pinned/position |
 | `set_member_roles` | admin | заменить roles[] участника |
 | `add_member`/`remove_member` | admin | добавить/убрать участника |
+| `track_data` | член | аккаунты трекера (все) + счётчики вступлений (`joins`, `joins_24h`) |
+| `track_add` | член | создать соц-аккаунт (platform+account_name); генерит `code`, `invite_link=null` (ссылку создаст бот) |
+| `track_delete` | владелец строки/admin | если ссылка есть → `pending_revoke=true` (бот отзовёт+снесёт), иначе delete |
 
 Правки edge: редактируй как единый `index.ts` и деплой целиком (`deploy_edge_function`
 затирает файлы). После DDL — `get_advisors(security)`.

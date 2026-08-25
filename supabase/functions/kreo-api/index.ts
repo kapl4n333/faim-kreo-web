@@ -330,6 +330,63 @@ Deno.serve(async (req) => {
         return json({ workflow: data });
       }
 
+      // -------------------------------------------------- ТРЕКЕР ИСТОЧНИКОВ (Кейтаро)
+      // Аккаунты соцсетей → именованные invite-ссылки канала (создаёт БОТ), вступления
+      // по ним пишет БОТ (chat_member) в track_joins. Edge только читает + управляет строками.
+      case "track_data": {
+        const { data: accounts } = await db.from("track_accounts").select("*")
+          .order("created_at", { ascending: false });
+        const ids = (accounts ?? []).map((a: any) => a.id);
+        let joins: any[] = [];
+        if (ids.length) {
+          const { data: j } = await db.from("track_joins").select("account_id, joined_at").in("account_id", ids);
+          joins = j ?? [];
+        }
+        const since = Date.now() - 24 * 3600 * 1000;
+        const per: Record<number, { total: number; d1: number }> = {};
+        for (const a of accounts ?? []) per[a.id] = { total: 0, d1: 0 };
+        for (const jn of joins) {
+          const p = per[jn.account_id]; if (!p) continue;
+          p.total++; if (new Date(jn.joined_at).getTime() >= since) p.d1++;
+        }
+        for (const a of accounts ?? []) { a.joins = per[a.id].total; a.joins_24h = per[a.id].d1; }
+        return json({ accounts: accounts ?? [] });
+      }
+      case "track_add": {
+        const PLATFORMS = ["instagram", "x", "tiktok", "threads", "reddit"];
+        const platform = String(body.platform ?? "");
+        if (!PLATFORMS.includes(platform)) return json({ error: "bad_platform" }, 400);
+        const name = String(body.account_name ?? "").trim().slice(0, 80);
+        if (!name) return json({ error: "no_name" }, 400);
+        // code = имя invite-ссылки (<=32, ascii-safe) + рандом для уникальности
+        const base = platform.slice(0, 3) + "_" + name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 16);
+        let code = "";
+        for (let i = 0; i < 6; i++) {
+          const cand = (base + "_" + Math.random().toString(36).slice(2, 7)).slice(0, 32);
+          const { data: ex } = await db.from("track_accounts").select("id").eq("code", cand).maybeSingle();
+          if (!ex) { code = cand; break; }
+        }
+        if (!code) return json({ error: "code_gen" }, 500);
+        const { data, error } = await db.from("track_accounts")
+          .insert({ owner_tg_id: me.tg_id, platform, account_name: name, code })
+          .select("*").single();
+        if (error) return json({ error: "insert_failed", detail: error.message }, 500);
+        (data as any).joins = 0; (data as any).joins_24h = 0;
+        return json({ account: data });
+      }
+      case "track_delete": {
+        const { data: a } = await db.from("track_accounts")
+          .select("owner_tg_id, invite_link").eq("id", body.id).maybeSingle();
+        if (!a) return json({ error: "not_found" }, 404);
+        if (!isAdmin && a.owner_tg_id !== me.tg_id) return json({ error: "forbidden" }, 403);
+        if (a.invite_link) {   // ссылка уже создана → бот отзовёт её в канале, потом снесёт строку
+          await db.from("track_accounts").update({ pending_revoke: true }).eq("id", body.id);
+          return json({ ok: true, id: body.id, pending: true });
+        }
+        await db.from("track_accounts").delete().eq("id", body.id);
+        return json({ ok: true, id: body.id });
+      }
+
       default: return json({ error: "unknown_action" }, 400);
     }
   } catch (e) { return json({ error: "server", detail: String(e) }, 500); }
