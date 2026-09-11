@@ -128,7 +128,7 @@ Supabase-тулы (`list_projects`, `get_edge_function`, `execute_sql` и т.д.
    на `status=posted` — менять надо аккуратно, синхронно с ботом.
 2. **Фронт**: убрать «Залито» из сегмента, добавить отдельную кнопку с
    отображением постера и подсветкой только у самого постившего.
-3. **Бот** (`E:\AI\CreatorBot\kreo.py`): если меняем семантику статуса —
+3. **Бот** (`C:\AI\Bot\CreatorBot\kreo.py`): если меняем семантику статуса —
    поправить `promote_posted` и `poll_deliveries`.
 4. Обновить оба CLAUDE.md + этот OX.md.
 
@@ -160,7 +160,7 @@ Supabase-тулы (`list_projects`, `get_edge_function`, `execute_sql` и т.д.
 - **Edge `kreo-api` v12:** actions `track_data` (аккаунты + `joins`/`joins_24h`), `track_add`
   (валидация платформы, генерация `code`, insert), `track_delete` (soft `pending_revoke`
   если ссылка есть, иначе delete).
-- **Бот (`E:\AI\Bot\CreatorBot`):** новый модуль `track.py` — `provision_loop` (создаёт/
+- **Бот (`C:\AI\Bot\CreatorBot`):** новый модуль `track.py` — `provision_loop` (создаёт/
   отзывает invite-ссылки), `record_join` (учёт вступлений), `daily_report_loop`+`build_report`
   (11:00 отчёт). Хуки в `bot.py`: `@router.chat_member()`, `@router.my_chat_member()` (лог
   chat_id), команда `/trackreport` (owner). Env в `config.py` + `deploy.yml`
@@ -177,5 +177,19 @@ Supabase-тулы (`list_projects`, `get_edge_function`, `execute_sql` и т.д.
 логирует его в `my_chat_member`/`chat_member`) и `TRACK_REPORT_THREAD` (топик «Основной»)
 как GitHub Secrets + локальный `.env`; бот — админ канала с правом «Пригласительные ссылки».
 Затем push обоих репо (фронт → Pages, бот → GH Actions).
+
+---
+
+## 2026-09-12
+
+### UX-набор по ревью FTask (дешёвое, на ванили; IA-перестройка — на React-фазу)
+- Склад: поиск (`#hQ`), чипы публикации (`S.hPub`), ключ сортировки без `posted_at`.
+- Персист вкладки/фильтров в `localStorage` (`loadPrefs`/`savePrefs`).
+- «Мои»: только незавершённое моё + публикации без дублей.
+- Тексты: «📤 Загрузить результат», «☁ Я опубликовал», «✓ Опубликовали: …», RAIL «Опубликовано».
+- Счётчики рельсы кликабельны; задачи — форма за кнопкой, история свёрнута; заставка раз в
+  сессию; nav 11px.
+- Проверка: headless Edge `--dump-dom` → `class="gate"` в DOM (скрипт валиден). Детали —
+  `CLAUDE.md` §9. Параллельно в боте закрыт аудит (H1…L2) — см. `CreatorBot/CLAUDE.md`.
 
 ---

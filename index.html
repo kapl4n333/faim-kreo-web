@@ -87,7 +87,7 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;justify-conte
   border-top:1px solid var(--line)}
 nav button{flex:1;min-width:0;min-height:50px;position:relative;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-  padding:7px 2px 5px;font-size:9.5px;font-weight:600;letter-spacing:-.01em;color:var(--hint);
+  padding:7px 2px 5px;font-size:11px;font-weight:600;letter-spacing:-.01em;color:var(--hint);
   transition:color .2s}
 nav button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;
   stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
@@ -105,7 +105,7 @@ header .brand,header .rail{max-width:680px;margin-left:auto;margin-right:auto}
   nav{top:0;bottom:0;left:0;right:auto;width:var(--rail-w);flex-direction:column;justify-content:flex-start;
     gap:2px;padding:14px 8px calc(14px + env(safe-area-inset-bottom));
     border-top:0;border-right:1px solid var(--line)}
-  nav button{flex:0 0 auto;width:100%;min-height:58px;font-size:9.5px;padding:9px 2px}
+  nav button{flex:0 0 auto;width:100%;min-height:58px;font-size:11px;padding:9px 2px}
   nav button.on::after{top:50%;left:0;transform:translateY(-50%);width:3px;height:24px}
   body{padding-left:var(--rail-w);padding-bottom:calc(28px + env(safe-area-inset-bottom))}
 }
@@ -449,7 +449,11 @@ function tryReveal(){if(_splashDone&&_bootDone)document.body.classList.add("reve
 (function(){var sp=document.getElementById("splash");if(!sp)return;var done=false;
   function hide(){if(done)return;done=true;_splashDone=true;tryReveal();
     sp.classList.add("hide");setTimeout(function(){sp.remove();},600);}
+  // заставка — только при первом открытии за сессию: рабочий инструмент открывают
+  // десятки раз в день, каждый раз смотреть ролик незачем
+  var seen=false;try{seen=sessionStorage.getItem("splashSeen")==="1";sessionStorage.setItem("splashSeen","1");}catch(e){}
   var v=document.getElementById("splashv");
+  if(seen){if(v){try{v.pause();v.removeAttribute("src");}catch(e){}}hide();return;}
   if(v){v.addEventListener("ended",hide);v.addEventListener("error",hide);
     try{var p=v.play();if(p&&p.catch)p.catch(hide);}catch(e){hide();}}
   else hide();
@@ -457,15 +461,21 @@ function tryReveal(){if(_splashDone&&_bootDone)document.body.classList.add("reve
   setTimeout(hide,6000);})();
 const S={me:null,creos:[],tasks:[],members:[],stats:null,tab:"all",fAuthor:"",fStatus:"",
   files:[],uploading:false,deliverTo:null,_sig:"",_cap:null,
-  adminTab:"access",admin:null,hSort:"new",hAuthor:"",
+  adminTab:"access",admin:null,hSort:"new",hAuthor:"",hQ:"",hPub:"",
+  tForm:false,tDone:false,
   mineTab:"gen",statsTab:"keitaro",track:null,trkGroup:"person",trkPlat:"instagram",_trkLoading:false};
+/* фильтры/вкладка переживают закрытие аппы: открыл ролик, вернулся — продолжаешь оттуда же */
+const PERSIST=["tab","fAuthor","fStatus","hSort","hAuthor","hQ","hPub","mineTab","statsTab"];
+function loadPrefs(){try{const p=JSON.parse(localStorage.getItem("ftask.prefs")||"{}");
+  PERSIST.forEach(k=>{if(p[k]!=null)S[k]=p[k];});}catch(e){}}
+function savePrefs(){try{const p={};PERSIST.forEach(k=>p[k]=S[k]);localStorage.setItem("ftask.prefs",JSON.stringify(p));}catch(e){}}
 const KIND={link:"🔗",photo:"🖼",video:"🎬",album:"🗂",text:"📝"};
 // соцсети трекера источников: [код, подпись, иконка]
 const PLAT=[["instagram","Instagram","📸"],["x","X","✖"],["tiktok","TikTok","🎵"],["threads","Threads","🧵"],["reddit","Reddit","👽"]];
 const platLabel=k=>{const p=PLAT.find(x=>x[0]===k);return p?p[1]:k;};
 const platIcon=k=>{const p=PLAT.find(x=>x[0]===k);return p?p[2]:"🔗";};
 const ST=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"]];
-const RAIL=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"],["posted","Залито","o"]];
+const RAIL=[["queued","Очередь","q"],["in_progress","Работа","p"],["done","Готово","d"],["posted","Опубликовано","o"]];
 const postedList=c=>Array.isArray(c.posters)?c.posters:[];
 const iPosted=c=>postedList(c).some(p=>String(p.tg_id)===String(S.me.tg_id));
 const HUES=["#B98A3E","#B0673A","#8F7440","#9A6B96","#5B8C7E","#B05C5C","#7A72B6"];
@@ -505,6 +515,8 @@ async function boot(){
   try{
     const d=await api("bootstrap");
     absorb(d);
+    loadPrefs();
+    if(S.tab==="admin"&&!admin())S.tab="all";
     document.getElementById("hdr").classList.remove("hidden");
     document.getElementById("nav").classList.remove("hidden");
     header();render();
@@ -571,12 +583,16 @@ function header(){
   const cnt={queued:c.queued,in_progress:c.in_progress,done:c.done,
     posted:S.creos.filter(x=>postedList(x).length).length};
   document.getElementById("pipe").innerHTML=RAIL.map(([k,l,cl])=>
-    '<div class="st '+cl+'"><div class="n">'+cnt[k]+'</div><div class="l">'+l+'</div></div>').join("");
+    '<div class="st '+cl+'" data-rail="'+k+'" role="button" style="cursor:pointer"><div class="n">'+cnt[k]+'</div><div class="l">'+l+'</div></div>').join("");
+  // счётчик = фильтр: тап по «В работе — 12» открывает именно этот список
+  document.querySelectorAll("#pipe .st").forEach(el=>el.onclick=()=>{haptic();const k=el.dataset.rail;
+    if(k==="posted"){S.tab="hist";S.hPub="any";}else{S.tab="all";S.fStatus=k;S.fAuthor="";}
+    savePrefs();window.scrollTo(0,0);header();render();});
   const tabs=[["all","Крео"],["gen","Генер"],["mine","Мои"],["hist","Склад"],["stats","Стата"],["tasks","Задачи"],["members","Люди"]];
   if(admin())tabs.push(["admin","Админ"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
     '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+navIcon(k)+'<span class="lbl">'+l+'</span></button>').join("");
-  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;window.scrollTo(0,0);header();render();});
+  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;savePrefs();window.scrollTo(0,0);header();render();});
 }
 
 function render(){
@@ -618,9 +634,9 @@ function card(c){
   const canOpen=c.source_msg_id&&(c.downloaded_msg_id||c.source_msg_id);
   const canDel=admin()||c.author_tg_id===S.me.tg_id;
   const asg=c.assignee_tg_id?'<span class="tag work">взял: '+esc(nameOf(c.assignee_tg_id)||"?")+'</span>':"";
-  const pst=postedList(c).length?'<span class="tag post">✓ залито</span>':"";
+  const pst=postedList(c).length?'<span class="tag post">✓ опубликовано</span>':"";
   const acts='<div class="acts">'+
-    '<button class="act plus" data-plus="'+c.id+'">＋ Залить готовое</button>'+
+    '<button class="act plus" data-plus="'+c.id+'">📤 Загрузить результат</button>'+
     (canOpen?'<button class="act" data-open="'+c.id+'"><span class="ar">'+(c.downloaded_msg_id?"▶":"↗")+'</span> '+(c.downloaded_msg_id?"Видео":"Исходник")+'</button>':"")+
     '</div>';
   return '<div class="card"><div class="head">'+
@@ -637,8 +653,10 @@ function postedBar(c){
     const names=ps.map(p=>"@"+esc(p.username||nameOf(p.tg_id)||p.tg_id));
     who=' · <span class="pn">'+names.slice(0,2).join(", ")+(names.length>2?" +"+(names.length-2):"")+'</span>';
   }
+  // «загрузить результат» (файлы в систему) и «я опубликовал» (отметка постинга) — разные
+  // действия; раньше оба назывались «залить/залито» и путались
   return '<div class="pbar"><button class="posted'+(mine?" on":ps.length?" has":"")+'" data-post="'+c.id+'">'+
-    (ps.length?"✓ Залито"+who:"☁ Отметить «Залито»")+'</button></div>';
+    (ps.length?"✓ Опубликовали:"+who:"☁ Я опубликовал")+'</button></div>';
 }
 function vCreos(){
   let list=S.creos.slice();
@@ -650,23 +668,26 @@ function vCreos(){
     '<select id="fS"><option value="">Любой статус</option>'+
     ST.map(([k,l])=>'<option value="'+k+'" '+(S.fStatus===k?"selected":"")+'>'+l+'</option>').join("")+'</select></div>';
   if(!list.length)return h+'<div class="empty"><div class="e-ic">🗂</div><div class="e-h">Пока нет крео</div>'+
-    'Поставь 👍 в AvaKreo Links или залей готовое кнопкой «+».</div>';
+    'Поставь 👍 в AvaKreo Links или загрузи результат кнопкой «📤».</div>';
   return h+list.map(card).join("");
 }
 function vMine(){
-  const taken=S.creos.filter(c=>c.assignee_tg_id===S.me.tg_id);
-  const posted=S.creos.filter(c=>iPosted(c));
+  // «Взял в работу» = только НЕЗАВЕРШЁННОЕ моё (готовое уходило сюда навсегда и
+  // захламляло страницу); «Опубликовал» — без повторов того, что уже показано выше
+  const taken=S.creos.filter(c=>c.assignee_tg_id===S.me.tg_id&&c.status!=="done");
+  const shown=new Set(taken.map(c=>c.id));
+  const posted=S.creos.filter(c=>iPosted(c)&&!shown.has(c.id));
   let h="";
-  h+='<div class="hh">Взял в работу <span class="c">'+taken.length+'</span></div>';
-  h+=taken.length?taken.map(card).join(""):'<div class="empty" style="padding:26px">Ты пока ничего не взял — загляни в «Генерации».</div>';
-  h+='<div class="hh">Залил <span class="c">'+posted.length+'</span></div>';
+  h+='<div class="hh">В работе у меня <span class="c">'+taken.length+'</span></div>';
+  h+=taken.length?taken.map(card).join(""):'<div class="empty" style="padding:26px">Сейчас ничего не в работе — загляни в «Генерации».</div>';
+  h+='<div class="hh">Я опубликовал <span class="c">'+posted.length+'</span></div>';
   h+=posted.length?posted.map(card).join(""):'<div class="empty" style="padding:26px">Здесь появятся крео, которые ты запостил.</div>';
   return h;
 }
 function bindCreos(el){
   const fa=el.querySelector("#fA"),fs=el.querySelector("#fS");
-  if(fa)fa.onchange=()=>{S.fAuthor=fa.value;render();};
-  if(fs)fs.onchange=()=>{S.fStatus=fs.value;render();};
+  if(fa)fa.onchange=()=>{S.fAuthor=fa.value;savePrefs();render();};
+  if(fs)fs.onchange=()=>{S.fStatus=fs.value;savePrefs();render();};
   el.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>setStatus(+b.dataset.id,b.dataset.set));
   el.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openCreo(+b.dataset.open));
   el.querySelectorAll("[data-plus]").forEach(b=>b.onclick=()=>openSheet(+b.dataset.plus));
@@ -756,7 +777,7 @@ function closeSheet(){if(S.uploading)return;document.getElementById("sheet").cla
 function renderSheet(){
   const s=document.getElementById("sheet");
   const c=S.deliverTo?S.creos.find(x=>x.id===S.deliverTo):null;
-  const title=c?"Залить готовое к крео":"Новое готовое крео";
+  const title=c?"Загрузить результат к крео":"Новое готовое крео";
   const hint=c?("Файлы уйдут в AvaCarter Ready, крео станет «готово». Автор: "+esc(c.author_username||"—")):
     "Отдельное готовое без исходного брифа. Уйдёт в AvaCarter Ready и станет «готово».";
   const body=S.uploading
@@ -826,7 +847,7 @@ async function doUpload(){
       S.creos.unshift(d.creo);
     }
     S.uploading=false;S.files=[];S.deliverTo=null;S._cap=null;S._sig=sigOf();
-    closeSheet();notify();header();render();toast("Готовое отправляется в Ready","ok");
+    closeSheet();notify();header();render();toast("Результат отправляется в Ready","ok");
   }catch(e){S.uploading=false;renderSheet();toast("Ошибка загрузки: "+errMsg(e),"err");}
 }
 
@@ -834,10 +855,18 @@ async function doUpload(){
 const fmtDur=s=>{s=Math.round(+s||0);if(!s)return"";return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
 const madeBy=c=>nameOf(c.assignee_tg_id)||c.author_username||"—";
 function openExt(u){try{tg.openLink(u)}catch(e){window.open(u,"_blank")}}
+const histText=c=>[c.result_caption,c.caption,c.source_url,c.id,madeBy(c)].filter(Boolean).join(" ").toLowerCase();
 function histList(){
   let list=S.creos.filter(c=>(c.result_urls&&c.result_urls.length)||(c.result_paths&&c.result_paths.length));
   if(S.hAuthor)list=list.filter(c=>madeBy(c)===S.hAuthor);
-  const key=c=>c.posted_at||((postedList(c)[0]||{}).at)||c.delivered_at||c.done_at||c.created_at||0;
+  if(S.hPub==="notme")list=list.filter(c=>!iPosted(c));
+  else if(S.hPub==="nobody")list=list.filter(c=>!postedList(c).length);
+  else if(S.hPub==="any")list=list.filter(c=>postedList(c).length);
+  const q=(S.hQ||"").trim().toLowerCase();
+  if(q)list=list.filter(c=>histText(c).includes(q));
+  // «Свежие» = по дате ГОТОВНОСТИ: отметка публикации не должна поднимать старое
+  // крео над вчерашним (на карточке показана именно эта дата)
+  const key=c=>c.delivered_at||c.done_at||c.created_at||0;
   const turn=c=>(c.created_at&&c.done_at)?(new Date(c.done_at)-new Date(c.created_at)):-1;
   if(S.hSort==="old")list.sort((a,b)=>new Date(key(a))-new Date(key(b)));
   else if(S.hSort==="turn")list.sort((a,b)=>turn(b)-turn(a));
@@ -870,27 +899,36 @@ function wCard(c){
     '<span class="kb">'+(KIND[c.kind]||"🎬")+'</span>'+openHint+dur+pruned+'</div>'+
     '<div class="wb">'+(cap?'<div class="wtitle'+(c.kind==="link"&&c.source_url&&cap===c.source_url?'" style="color:var(--a)':"")+'">'+esc(cap)+'</div>':'<div class="wtitle" style="opacity:.4">без подписи</div>')+
     '<div class="wmeta"><div class="r"><span class="ic">🎬</span>сделал: <b>'+esc(madeBy(c))+'</b></div>'+
-    '<div class="r"><span class="ic">📤</span>залил: <b>'+esc(posters)+'</b></div></div>'+
+    '<div class="r"><span class="ic">📤</span>опубликовал: <b>'+esc(posters)+'</b></div></div>'+
     '<div class="wtime">'+t+'</div></div></div>';
 }
 function vHistory(){
   const list=histList();
   const authors=[...new Set(S.creos.filter(c=>(c.result_paths||[]).length).map(madeBy).filter(x=>x&&x!=="—"))];
-  let h='<div class="wtools">'+
+  const PUB=[["","Все"],["notme","Я не публиковал"],["nobody","Никто не публиковал"],["any","Опубликованные"]];
+  let h='<div class="wtools" style="flex-wrap:wrap">'+
+    '<input class="field" id="hQ" type="search" placeholder="Поиск: подпись, ссылка, ID, кто делал" value="'+esc(S.hQ||"")+'" style="flex:1 1 100%;margin:0">'+
     '<select id="hS"><option value="new"'+(S.hSort!=="old"&&S.hSort!=="turn"?" selected":"")+'>Свежие сверху</option>'+
       '<option value="old"'+(S.hSort==="old"?" selected":"")+'>Сначала старые</option>'+
       '<option value="turn"'+(S.hSort==="turn"?" selected":"")+'>Дольше делали</option></select>'+
     '<select id="hA"><option value="">Все, кто делал</option>'+
-      authors.map(a=>'<option '+(S.hAuthor===a?"selected":"")+'>'+esc(a)+'</option>').join("")+'</select></div>';
-  if(!list.length)return h+'<div class="empty"><div class="e-ic">📦</div><div class="e-h">Склад пуст</div>'+
-    'Готовые крео появятся здесь после первой доставки. Уже залитое подтянется автоматически.</div>';
+      authors.map(a=>'<option '+(S.hAuthor===a?"selected":"")+'>'+esc(a)+'</option>').join("")+'</select></div>'+
+    '<div class="rolechips" style="margin:-6px 0 12px">'+PUB.map(([k,l])=>'<button class="rc'+((S.hPub||"")===k?" on":"")+'" data-hpub="'+k+'">'+l+'</button>').join("")+'</div>';
+  if(!list.length)return h+'<div class="empty"><div class="e-ic">📦</div><div class="e-h">'+(S.hQ||S.hPub?"Ничего не нашлось":"Склад пуст")+'</div>'+
+    (S.hQ||S.hPub?"Поменяй запрос или фильтр.":"Готовые крео появятся здесь после первой доставки. Уже загруженное подтянется автоматически.")+'</div>';
   h+='<div class="hh">Готовые крео <span class="c">'+list.length+'</span></div>';
   return h+'<div class="wgrid">'+list.map(wCard).join("")+'</div>';
 }
 function bindHistory(el){
-  const hs=el.querySelector("#hS"),ha=el.querySelector("#hA");
-  if(hs)hs.onchange=()=>{S.hSort=hs.value;render();};
-  if(ha)ha.onchange=()=>{S.hAuthor=ha.value;render();};
+  const hs=el.querySelector("#hS"),ha=el.querySelector("#hA"),hq=el.querySelector("#hQ");
+  if(hs)hs.onchange=()=>{S.hSort=hs.value;savePrefs();render();};
+  if(ha)ha.onchange=()=>{S.hAuthor=ha.value;savePrefs();render();};
+  if(hq){let t=null;
+    // перерисовываем только сетку, чтобы не терять фокус в поле ввода
+    hq.oninput=()=>{clearTimeout(t);t=setTimeout(()=>{S.hQ=hq.value;savePrefs();
+      const y=window.scrollY;render();window.scrollTo(0,y);
+      const n=document.getElementById("hQ");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}},180);};}
+  el.querySelectorAll("[data-hpub]").forEach(b=>b.onclick=()=>{haptic();S.hPub=b.dataset.hpub;savePrefs();render();});
   el.querySelectorAll(".wm").forEach(m=>{
     const clip=m.dataset.clip;
     if(clip){
@@ -1079,27 +1117,35 @@ function vTasks(){
       ((admin()||t.created_by_tg_id===S.me.tg_id)?'<button class="ico" data-tdel="'+t.id+'">🗑</button>':"")+
       '</div></div>';
   };
-  return '<div class="panel"><input class="field" id="tT" placeholder="Новая задача — что сделать?" maxlength="200" style="margin-bottom:10px">'+
-    '<div class="two" style="margin-bottom:10px"><input class="field" id="tD" type="date"><select class="field" id="tP"><option value="">Приоритет</option>'+
-    '<option value="high">Высокий</option><option value="med">Средний</option><option value="low">Низкий</option></select></div>'+
-    '<div style="font-size:12px;color:var(--hint);margin:0 2px 8px">Кому — можно несколько · выбрано <span id="asgCnt">'+TASK_ASG.size+'</span></div>'+
-    '<div class="rolechips" id="asgChips" style="margin-bottom:12px">'+
-    S.members.map(m=>'<button class="rc'+(TASK_ASG.has(m.tg_id)?" creative on":"")+'" data-asg="'+m.tg_id+'">'+esc(m.name||("@"+(m.username||m.tg_id)))+'</button>').join("")+'</div>'+
-    '<button class="primary" id="tGo">Добавить задачу</button></div>'+
+  // сначала сами задачи; форма создания — за кнопкой, история — свёрнута (аудит UX §6)
+  const form=S.tForm
+    ? '<div class="panel"><input class="field" id="tT" placeholder="Новая задача — что сделать?" maxlength="200" style="margin-bottom:10px">'+
+      '<div class="two" style="margin-bottom:10px"><input class="field" id="tD" type="date"><select class="field" id="tP"><option value="">Приоритет</option>'+
+      '<option value="high">Высокий</option><option value="med">Средний</option><option value="low">Низкий</option></select></div>'+
+      '<div style="font-size:12px;color:var(--hint);margin:0 2px 8px">Кому — можно несколько · выбрано <span id="asgCnt">'+TASK_ASG.size+'</span></div>'+
+      '<div class="rolechips" id="asgChips" style="margin-bottom:12px">'+
+      S.members.map(m=>'<button class="rc'+(TASK_ASG.has(m.tg_id)?" creative on":"")+'" data-asg="'+m.tg_id+'">'+esc(m.name||("@"+(m.username||m.tg_id)))+'</button>').join("")+'</div>'+
+      '<div class="two"><button class="primary" id="tGo">Добавить задачу</button><button class="act" id="tHide">Скрыть</button></div></div>'
+    : '<button class="act plus" id="tShow" style="width:100%;margin-bottom:12px">＋ Новая задача</button>';
+  return form+
     '<div class="hh">В работе <span class="c">'+open.length+'</span></div>'+
     (open.length?open.map((t,i)=>row(t,i,open)).join(""):'<div class="empty" style="padding:26px">Задач нет — спланируй неделю.</div>')+
-    (done.length?'<div class="hh">История <span class="c">'+done.length+'</span></div>'+done.map(t=>row(t)).join(""):"");
+    (done.length?'<div class="hh" id="tDoneHd" style="cursor:pointer">История <span class="c">'+done.length+'</span> '+(S.tDone?"▾":"▸")+'</div>'+
+      (S.tDone?done.map(t=>row(t)).join(""):""):"");
 }
 function bindTasks(el){
+  const sh=el.querySelector("#tShow");if(sh)sh.onclick=()=>{S.tForm=true;render();const t=document.getElementById("tT");if(t)t.focus();};
+  const hd=el.querySelector("#tHide");if(hd)hd.onclick=()=>{S.tForm=false;render();};
+  const dh=el.querySelector("#tDoneHd");if(dh)dh.onclick=()=>{S.tDone=!S.tDone;render();};
   el.querySelectorAll("[data-asg]").forEach(b=>b.onclick=()=>{haptic();const id=+b.dataset.asg;
     if(TASK_ASG.has(id)){TASK_ASG.delete(id);b.classList.remove("creative","on");}
     else{TASK_ASG.add(id);b.classList.add("creative","on");}
     const c=el.querySelector("#asgCnt");if(c)c.textContent=TASK_ASG.size;});
-  el.querySelector("#tGo").onclick=async()=>{
+  const go=el.querySelector("#tGo");if(go)go.onclick=async()=>{
     const title=el.querySelector("#tT").value.trim();if(!title)return;
     try{const d=await api("create_task",{title,due_date:el.querySelector("#tD").value||null,
       priority:el.querySelector("#tP").value||null,assignee_tg_ids:[...TASK_ASG]});
-      S.tasks.unshift(d.task);TASK_ASG=new Set();S._sig=sigOf();render();toast("Задача добавлена","ok");}catch(e){toast(errMsg(e),"err");}};
+      S.tasks.unshift(d.task);TASK_ASG=new Set();S.tForm=false;S._sig=sigOf();render();toast("Задача добавлена","ok");}catch(e){toast(errMsg(e),"err");}};
   const patchTask=async(id,patch)=>{const d=await api("update_task",Object.assign({id},patch));
     const i=S.tasks.findIndex(t=>t.id===id);if(i>=0)S.tasks[i]=d.task;S._sig=sigOf();};
   el.querySelectorAll("[data-tt]").forEach(b=>b.onclick=async()=>{haptic();

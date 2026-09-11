@@ -22,8 +22,8 @@ Mini App (веб-приложение внутри Telegram) поверх бот
 
 | Компонент | Где | Стек | Деплой |
 |---|---|---|---|
-| **Бот** | `E:\AI\CreatorBot` (репо `github.com/kapl4n333/FaimGenBot`) | Python, aiogram v3, httpx, без БД | push в `main` → GitHub Actions → SSH-деплой на VPS + `systemctl restart creatorbot` |
-| **Mini App (фронт)** | `E:\AI\faim-kreo-web` (репо `github.com/kapl4n333/faim-kreo-web`) — ЭТОТ репо | vanilla JS, один `index.html` | push в `main` → **GitHub Pages** (авто, ~1 мин) |
+| **Бот** | `C:\AI\Bot\CreatorBot` (репо `github.com/kapl4n333/FaimGenBot`) | Python, aiogram v3, httpx, без БД | push в `main` → GitHub Actions → SSH-деплой на VPS + `systemctl restart creatorbot` |
+| **Mini App (фронт)** | `C:\AI\Bot\faim-kreo-web` (репо `github.com/kapl4n333/faim-kreo-web`) — ЭТОТ репо | vanilla JS, один `index.html` | push в `main` → **GitHub Pages** (авто, ~1 мин) |
 | **Бэкенд** | **Supabase** проект `xgkyuxjvwwstsuhtwhpv` | Postgres + Edge Function (Deno/TS) + Storage | миграции + `deploy_edge_function` (через Supabase MCP или CLI) |
 
 Ключевые адреса/ID (НЕ секретны):
@@ -156,7 +156,7 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
 
 **7 вкладок** (навигация в `header()`, роутинг в `render()`):
 1. **Креативы** (`vCreos`) — весь реестр, фильтры (автор/статус), у каждого крео:
-   сегмент-контрол статуса (4), «＋ Залить готовое» (`openSheet(id)`→`deliver_creo`),
+   сегмент-контрол статуса (4), «📤 Загрузить результат» (бывш. «＋ Залить готовое»; `openSheet(id)`→`deliver_creo`),
    «Перейти к видео/исходнику» (deep-link), удаление 🗑 с `confirm()` (админ/автор).
 2. **Генерации** (`vGen`) — claim-борд «Uber»: «Свободные» (queued, кнопка «Взять»=`claim_creo`,
    видна `creative`/`admin`) + колонки «в работе» по владельцам; админ переназначает (`assign_creo`).
@@ -219,7 +219,7 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
 
 ---
 
-## 6. Бот — интеграция (`E:\AI\CreatorBot`)
+## 6. Бот — интеграция (`C:\AI\Bot\CreatorBot`)
 
 Файлы: **`kreo.py`** (весь модуль FTask), точки в **`bot.py`**, конфиг в **`config.py`**.
 `kreo.enabled()` = `KREO_CHAT_ID && SUPABASE_URL && SUPABASE_SERVICE_KEY`; пусто → no-op
@@ -273,10 +273,10 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
   (name=`kreo-api`, verify_jwt=false). После DDL — миграция через `apply_migration` +
   `get_advisors`. Версия сейчас v6.
 - **Бот:** правь `kreo.py`/`bot.py`, проверь `py_compile` (питон:
-  `E:\AI\Apps\ComfyUI_windows_portable\python_embeded\python.exe`), `git commit && git push`.
+  `C:\AI\Apps\ComfyUI_windows_portable\python_embeded\python.exe`), `git commit && git push`.
   Деплой — GitHub Actions по push (ждёт завершения активных генераций, потом рестарт).
 - **Дисциплина доков (правило проекта):** после каждого фикса/фичи бота обнови
-  `E:\AI\CreatorBot\CLAUDE.md` + `E:\AI\CreatorBot\FaimGenBot.md` тем же коммитом.
+  `C:\AI\Bot\CreatorBot\CLAUDE.md` + `C:\AI\Bot\CreatorBot\FaimGenBot.md` тем же коммитом.
   Про FTask держи актуальным И этот файл.
 - Не коммитить/пушить без явной просьбы владельца (общее правило).
 - Пути моделей ComfyUI и секреты — не трогать; секреты только через env.
@@ -304,6 +304,32 @@ aware, не сбивает скролл/ввод); **честный async** (с�
 превью+документ, подпись `result_caption`); `ready_msg_ids[]` (👍 на любом сообщении);
 **мульти-исполнители задач** (`assignee_tg_ids[]`). Оба репо запушены, edge задеплоена.
 
+**UX-набор по ревью (2026-09-12, только фронт, без edge):**
+- **Тексты:** «＋ Залить готовое» → **«📤 Загрузить результат»** (файлы в систему), «☁ Отметить
+  «Залито»» → **«☁ Я опубликовал»**, список постивших → **«✓ Опубликовали: …»**, RAIL «Залито» →
+  **«Опубликовано»**. Две разные операции больше не называются одним словом. Edge-action и
+  колонки не переименовывались (`mark_posted`, `posters[]`).
+- **Склад:** ключ «Свежие/старые» = `delivered_at || done_at || created_at` (раньше первым шёл
+  `posted_at` — отметка публикации поднимала старое над вчерашним, а на карточке была другая
+  дата). Поле **поиска** `#hQ` (подпись/ссылка/id/кто делал, debounce 180мс, перерисовка с
+  возвратом фокуса) и **чипы** `S.hPub`: Все / Я не публиковал / Никто не публиковал /
+  Опубликованные.
+- **Персист** `S.tab/fAuthor/fStatus/hSort/hAuthor/hQ/hPub/mineTab/statsTab` в
+  `localStorage["ftask.prefs"]` (`loadPrefs()` в `boot`, `savePrefs()` на каждое изменение;
+  вкладка `admin` у не-админа сбрасывается).
+- **«Мои»:** «В работе у меня» = `assignee==me && status!=="done"` (готовое больше не висит
+  вечно); «Я опубликовал» — без дублей с первой секцией.
+- **Счётчики рельсы кликабельны** (`#pipe .st[data-rail]`): статус → вкладка Крео с фильтром,
+  «Опубликовано» → Склад с чипом «Опубликованные».
+- **Задачи:** форма создания за кнопкой «＋ Новая задача» (`S.tForm`), список первым;
+  «История (N) ▸» свёрнута (`S.tDone`). `bindTasks` терпит отсутствие `#tGo`.
+- **Заставка** `faim.mp4` — один раз за сессию (`sessionStorage.splashSeen`); повторное
+  открытие сразу показывает контент. Навигация 9.5px → **11px**.
+- Перестройка IA (слияние Крео/Генер/Мои, карточка крео с просмотром, split-view) —
+  **отложена на React-фазу** осознанно: на ванили это двойная работа.
+- Проверка без node: `msedge --headless=new --dump-dom file:///…/index.html` → в DOM должен
+  быть `class="gate"` (значит скрипт распарсился и `boot()` дошёл до конца).
+
 **TODO / бэклог (полный, по приоритету владельца):**
 - **[NEXT, владелец «вначале»] Админка-самообслуживание** — чтобы владелец сам добавлял/
   убирал без кода: **реестр ВФ RunningHub → Supabase** (таблица `workflows` + CRUD в edge +
@@ -328,7 +354,7 @@ aware, не сбивает скролл/ввод); **честный async** (с�
 - **Помельче:** гранулярные права (кто удаляет/кто claim) — низкий приоритет для команды
   друзей; skeleton-загрузка; возможно Supabase Realtime вместо поллинга.
 
-Дизайн-база (если снова редизайн): `E:\AI\smm-hub\DESIGN.md`.
+Дизайн-база (если снова редизайн): `C:\AI\smm-hub\DESIGN.md`.
 
 **Открытые гочи-напоминалки:** initData только через inline-кнопку `/app`; реакция без
 `thread_id` (Ready опознаём по `ready_msg_id`); бот обязан быть админом группы;
