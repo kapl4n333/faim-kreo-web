@@ -1,0 +1,9 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>FTask — телефон 390×844</title>
+<style>html,body{margin:0;background:#2a2622;height:100%}
+.ph{position:absolute;left:24px;top:24px;width:390px;height:844px;border:10px solid #111;border-radius:34px;overflow:hidden;background:#000;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+iframe{border:0;width:390px;height:844px;display:block}</style>
+<!-- Реальный вьюпорт 390px: headless Edge не даёт окно уже ~492px, поэтому телефон эмулируем iframe.
+     Параметры demo передаются как есть: phone.html?tab=cat&view=work&open=3 -->
+</head><body><div class="ph"><iframe id="f"></iframe></div>
+<script>document.getElementById("f").src="demo.html"+location.search;</script>
+</body></html>

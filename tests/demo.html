@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>FTask — demo (фикстуры, без сервера)</title>
+<link rel="stylesheet" href="../css/app.css?v=dev">
+<!-- Демо-режим: тот же фронт, вымышленные данные, к edge не обращается. Для скриншотов и ручной проверки.
+     ?tab=cat&view=done&open=5&me=2 — стартовое состояние. -->
+</head>
+<body>
+<header class="hidden" id="hdr">
+  <div class="brand">
+    <div class="logo"><div class="mark">F</div><div class="name">FTask</div><span class="sync" id="sync" title="обновить"></span></div>
+    <div class="user" id="user"></div>
+  </div>
+  <div class="rail" id="pipe"></div>
+</header>
+<nav id="nav" class="hidden" aria-label="Разделы"></nav>
+<main id="app"><div class="gate"><div><div class="spin"></div><div class="gh">FTask</div><p>demo…</p></div></div></main>
+<aside class="detail empty" id="detail" aria-label="Карточка крео"></aside>
+<div class="scrim" id="scrim" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"></div>
+<script type="module">
+import { makeServer } from "./demo-data.js";
+const q = new URLSearchParams(location.search);
+const srv = makeServer(+(q.get("me") || 1));
+window.__FTASK_DEMO__ = (a, p) => srv.handle(a, p);
+window.__DEMO_SERVER__ = srv;
+try { localStorage.removeItem("ftask.prefs"); sessionStorage.setItem("splashSeen", "1"); } catch (e) {}
+const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+for (const f of ["core", "catalog", "upload", "views"]) await load("../js/" + f + ".js?v=dev");
+await boot();
+if (q.get("tab")) S.tab = q.get("tab");
+if (q.get("view")) S.view = q.get("view");
+if (q.get("open")) S.open = +q.get("open");
+if (q.get("tab") || q.get("view") || q.get("open")) { header(); render(); }
+document.body.classList.add("revealed");
+document.title = "FTask demo ready";
+</script>
+</body>
+</html>

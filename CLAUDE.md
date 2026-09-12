@@ -77,6 +77,18 @@ creos(
   created_at timestamptz, done_at timestamptz,
   UNIQUE(source_chat_id, source_msg_id))             -- идемпотентный upsert при 👍
 
+-- каталог (миграция 20260912225648_ftask_catalog, 2026-09-13):
+--   source_paths jsonb, source_poster/source_clip text, source_state text
+--     (null=не готовили | ready | none | too_big | failed), source_error, source_attempts, source_prepared_at
+--     → исходник референса в Storage `sources/<id>/…` + превью `previews/<id>/src_*` (готовит БОТ, source_prep_loop)
+--   deferred_at, deferred_by_tg_id                 -- «Отложить» (командное; НЕ archived_at — тот про файлы)
+--   notes, notes_updated_at, notes_by_tg_id        -- короткие заметки к крео (last-write-wins)
+
+niches(id, name, name_key = lower(btrim(name)) UNIQUE, created_by_tg_id, created_at, updated_at)
+creo_niches(creo_id FK cascade, niche_id FK cascade, added_by_tg_id, added_at, PK(creo_id,niche_id))
+  -- ниша удаляется → связи снимаются каскадом, крео остаются
+  -- RPC set_creo_niches(p_creo_id, p_niche_ids[], p_by) — атомарная замена набора (только service_role)
+
 results(id, creo_id FK→creos cascade, file_id, file_type, uploaded_by_tg_id, uploaded_at)
   -- зарезервировано, пока не используется активно
 
@@ -100,7 +112,8 @@ public-таблицы) — полезный, оставлен, но у него 
 `harden_rls_auto_enable`). Не удалять.
 
 Миграции (по порядку): `kreo_initial_schema` → `kreo_uploads_storage` →
-`harden_rls_auto_enable` → `ftask_v2_roles_posted_delivery` → … → `track_links_schema`.
+`harden_rls_auto_enable` → `ftask_v2_roles_posted_delivery` → … → `track_links_schema` →
+`20260912225648_ftask_catalog` (файл в `supabase/migrations/`, применять руками — CI для БД нет, см. `DEPLOY.md`).
 
 **Трекер источников трафика («Кейтаро», миграция `track_links_schema`):**
 ```
@@ -145,33 +158,66 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
 
 ---
 
-## 4. Фронт — Mini App (`index.html`, ЭТОТ репо)
+## 4. Фронт — Mini App (ЭТОТ репо) — «единый каталог» (2026-09-13)
 
-Один файл, vanilla JS, без сборки. Тема берётся из Telegram (`--tg-theme-*`), акцент —
-розово-коралловый градиент, шрифт Space Grotesk. Авторизация: шлёт `tg.initData` в
-заголовке `x-init-data` каждому запросу к edge-функции; та проверяет HMAC.
+Vanilla JS без сборки, но разнесён по файлам (классические скрипты, общие глобалы, порядок важен):
+- `index.html` — оболочка: шапка, `#nav`, `#app`, `#detail` (карточка), `#scrim`/`#sheet` (лист загрузки).
+  Все ресурсы с **`?v=YYYYMMDDx`** — бампать при КАЖДОЙ правке css/js (WebView кеширует).
+- `css/app.css` — тема (gold-on-black, Space Grotesk) + вся раскладка.
+- `js/core.js` — `S` (состояние), `PERSIST`/`loadPrefs`/`savePrefs`, `api()`, `boot`, поллинг
+  (`poll`/`sigOf`), `refreshMedia` (E), `header()` (рельса + нав), `render()` (роутер).
+- `js/catalog.js` — каталог (`catList`, `vCatalog`, `ccard`, `tileMedia`, клипы) + карточка
+  (`openDetail`/`renderDetail`/`closeDetail`, `frames`), действия (`creoAction`, ниши, заметки).
+- `js/upload.js` — FAB + лист загрузки с чипами ниш (`S.upNiches`).
+- `js/views.js` — Задачи, Кейтаро (вступления + мои аккаунты), Команда (люди + статистика), Админка (+ «Ниши»).
+- `supabase/functions/kreo-api/logic.js` — чистая логика edge; фронт её НЕ грузит, но тесты — да.
 
-**Ключевые константы (вверху `<script>`):** `API` (edge URL), `CHAT_INTERNAL="3863967700"`,
-`LINKS_THREAD=3209`. Состояние — объект `S`. Все запросы — `api(action, params)`.
+Авторизация: `tg.initData` в заголовке `x-init-data`. `api()` бросает `Error(code)` с `e.data`
+(ответ сервера, напр. актуальное `creo` при `already_claimed`). `window.__FTASK_DEMO__` — хук
+ТОЛЬКО для `tests/` (локальные фикстуры вместо fetch; к серверу не обращается — это не обход авторизации).
 
-**7 вкладок** (навигация в `header()`, роутинг в `render()`):
-1. **Креативы** (`vCreos`) — весь реестр, фильтры (автор/статус), у каждого крео:
-   сегмент-контрол статуса (4), «📤 Загрузить результат» (бывш. «＋ Залить готовое»; `openSheet(id)`→`deliver_creo`),
-   «Перейти к видео/исходнику» (deep-link), удаление 🗑 с `confirm()` (админ/автор).
-2. **Генерации** (`vGen`) — claim-борд «Uber»: «Свободные» (queued, кнопка «Взять»=`claim_creo`,
-   видна `creative`/`admin`) + колонки «в работе» по владельцам; админ переназначает (`assign_creo`).
-3. **Мои** (`vMineTab`) — под-тоггл **[Генерации][Аккаунты]** (`S.mineTab`). Генерации = прежний `vMine` (взял/залил) без изменений. **Аккаунты** (`vAccounts`) = трекер источников: добавить соц-аккаунт (`track_add`), ссылка-чип «клик=копировать» (`copyLink`, менять нельзя), удаление строки (`track_delete`). Данные — `loadTrack()`→`S.track`.
-4. **Статистика** (`vStatsTab`) — под-тоггл **[Кейтаро][Работа]** (`S.statsTab`). **Кейтаро** (`vKeitaro`) = вступления по трек-ссылкам, группировка По людям/аккаунтам/соцсетям (`S.trkGroup`), всего + за 24ч. **Работа** = прежний `vStats`: плитки по статусам, «кто сколько сделал» (byAuthor),
-   «кто сколько залил» (byPoster), ср. время до готово / до залива.
-5. **Задачи** (`vTasks`) — создать (assignee, дедлайн, приоритет), 📌 закреп (админ),
-   ▲ поднять, ✓ Готово → в «Историю», удалить.
-6. **Люди** (`vMembers`) — команда с чипами ролей; админ добавляет по tg_id.
-7. **Админка** (`vAdmin`, только admin) — выдача ролей тапом по чипу (`set_member_roles`),
-   удаление участника; заглушка «Реестр ВФ RunningHub» (TODO).
+**Навигация (5):** Каталог · Задачи · Кейтаро `[Вступления][Мои аккаунты]` · Команда `[Люди][Статистика]` · Админ
+(`[Доступ][Заявки][Воркфлоу][Роли][Ниши]`). Старые «Креативы/Генерации/Мои/Склад» слиты в Каталог.
 
-**Загрузка** (`openSheet`/`renderSheet`/`doUpload`): нижний лист. `S.deliverTo` = id крео
-(режим доставки к существующему, `deliver_creo`) или `null` (FAB «+» = отдельное готовое,
-`create_upload_creo`). Файл → `sign_upload` → PUT в signed URL → отдаём пути в edge.
+**Каталог** (`S.view`): **Свободные** (queued) / **В работе** (in_progress) / **Готовые** (done) /
+**Отложенные** (`deferred_at`, из остальных видов исключены). Поиск `S.q` (подпись, result_caption,
+ссылка, `#id`, автор, исполнитель, ниши, заметки), тумблер **Мои** (`isMine` — а в Готовых ещё и
+«опубликовал я»), фильтр ниш (`S.niche`: id | `none`=«Без ниши»), автор, сортировка; в Готовых —
+чипы публикации `S.pub`. Рельса в шапке = те же виды («Опубликовано» → Готовые + чип).
+Плитка (`ccard`): медиа (`tileMedia` — у референса исходник `source_poster_url`/`source_urls`,
+у готового последний результат; нет медиа → понятное состояние `srcState`: «> 20 МБ», «готовится…»,
+«ссылка · видео в Telegram»), ниши, кто/когда, одно главное действие по состоянию (`primaryAct`:
+Взять / 📤 Загрузить результат / ⬇ Скачать / ↩ Вернуть). **Клип-превью:** hover на ПК, ▶ на телефоне;
+`ACTIVE_CLIP` — играет ровно один. Персист: `tab, view, mine, q, niche, author, sort, pub, open, tDraft` +
+прокрутка на вид (`S._scroll[scrollKey()]`).
+
+**Карточка** (`#detail`): телефон — слой поверх списка (`.detail.show`, `body.dopen`; список не
+перерисовывается, прокрутка сохраняется); ПК ≥1024px ландшафт — `body.split`: панель справа
+(`--detail-w`), список слева. Внутри: просмотрщик (`frames()`: исходник + результаты, новые первыми;
+`<video controls>`/`<img>`, миниатюры), подпись/мета/ссылки в Telegram (исходник, Ready, внешняя),
+действия по состоянию (та же матрица, что на сервере), переназначение админом, ниши (чипы +
+«＋ Новая ниша» через `prompt`, ✎ переименовать), заметки (`textarea`, автосохранение 800 мс →
+`set_notes`, статус «сохранено · кто · когда»; при перерисовке ввод не теряется), результаты
+(список, новые первыми, ⬇ по подписанной ссылке), строка доставки, «☁ Я опубликовал», удаление.
+
+**Медиа-refresh (E):** каждый `img/video` несёт `data-mref="cid|поле|индекс"`; `poll()` при
+неизменной сигнатуре зовёт `refreshMedia()` — подставляет свежий signed URL только там, где он
+сменился; играющее видео не трогает; `error` на медиа (протухшая ссылка) → один bootstrap + refresh.
+`sigOf()` НЕ включает URL (иначе перерисовка каждые 10 с).
+
+**Задачи:** черновик `S.tDraft{title,due,prio,asg}` пишется на каждый ввод и персистится (D) —
+переживает вкладки, поллинг и закрытие; «✕ Отменить и очистить» — единственный путь его потерять.
+
+**Загрузка** (`openSheet`/`renderSheet`/`doUpload`): нижний лист; `S.deliverTo` = id крео
+(`deliver_creo`) или `null` (FAB «+» → `create_upload_creo`). Чипы ниш с множественным выбором,
+существующие ниши крео подставлены, «＋ Новая ниша». Файл → `sign_upload` → PUT → пути + `niche_ids` в edge.
+
+**Тесты (без node):** `tests/run.html` — 40 проверок logic.js + сценариев фронта на фикстурах
+(`tests/demo-data.js`, «сервер» на той же `logic.js`). Запуск:
+`msedge --headless=new --allow-file-access-from-files --window-size=390,844 --virtual-time-budget=30000 --dump-dom tests/run.html`
+(и `?split=1` при 1440×900) → `<title>RESULT: N passed, M failed`. `tests/demo.html` — визуальная
+демо-страница (`?tab=&view=&open=&me=`), `tests/phone.html` — то же в iframe 390px (headless Edge не
+даёт окно уже ~492px). Скриншоты — `tests/shots/` (gitignore).
 
 **Гоча initData:** reply-кнопки web_app на части клиентов НЕ передают подписанный
 `initData` (приходит пустой). Поэтому основной вход — команда **`/app`** в боте, которая
@@ -193,16 +239,20 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
 пускает; иначе возвращает `null` → **403 `not_member`** (авто-добавление чужих убрано).
 Итог: админ добавляет по Telegram ID во вкладке «Люди» → человек заходит.
 
-**Actions** (текущая версия edge — **v13**, 2026-09-12):
+**Actions** (edge **v14** — локально готов, 2026-09-13; на проде пока v13):
 | action | кто | что делает |
 |---|---|---|
-| `bootstrap` | член | вернуть `me,isAdmin,creos(+media_urls/result_urls),tasks,members,stats` |
+| `bootstrap` | член | вернуть `me,isAdmin,creos(+media_urls/result_urls/source_urls/source_poster_url/source_clip_url/niche_ids),tasks,members,niches,stats` |
 | `list_creos` | член | только крео |
-| `set_creo_status` | член | сменить статус; `in_progress`+`claim`→assignee=me; `posted`→poster=me |
-| `mark_posted` | член | пометить `posted` (кнопка «Залито» для всех) |
-| `claim_creo` | член | **атомарный** самозахват: UPDATE только при `status=queued AND assignee IS NULL`; иначе 409 `already_claimed` (+ актуальное `creo`), повтор своим = ok (v13, R5) |
-| `assign_creo` | admin | переназначить/вернуть в очередь |
-| `deliver_creo` | член | «+»: result_paths += files (CAS по jsonb, дубли путей не добавляются), status=done, delivery_state=pending; 409 `conflict` после 4 гонок (v13) |
+| `set_creo_status` / `claim_creo` | член | **один контракт** (`logic.statusTransition`, ревью B): `in_progress` = самозахват только свободного (UPDATE с условием `assignee IS NULL`), повтор своим — идемпотентно, чужое — 409 `already_claimed` (+`creo`); `queued` — исполнитель/админ; `done` — исполнитель/админ. `claim` в теле игнорируется. Чужого не перехватывает даже админ — для этого `assign_creo` |
+| `toggle_posted` | член | флаг «я опубликовал» в `posters[]` (CAS) |
+| `assign_creo` | admin | явное переназначение/вернуть в очередь — единственный путь сменить чужого исполнителя |
+| `deliver_creo` | член | result_paths += files (CAS, `mergePaths` без дублей), status=done, delivery_state=pending, `niche_ids` → RPC `set_creo_niches`; 409 `conflict` после 4 гонок |
+| `create_niche` / `rename_niche` | член | ниша; дубль по `lower(trim)` → `create` возвращает существующую (`existed:true`), `rename` → 409 `niche_exists`; пустое → 400 `no_name` |
+| `delete_niche` | admin | удалить нишу (крео остаются, связи каскадом) |
+| `set_creo_niches` | член | полная замена набора ниш крео (RPC, атомарно) |
+| `set_notes` | член | заметки (≤4000, last-write-wins, `notes_by_tg_id`/`notes_updated_at`) |
+| `defer_creo` / `restore_creo` | член | отложить/вернуть: только `deferred_at`/`deferred_by_tg_id`, статус и исполнитель не трогаются (`logic.deferPatch`) |
 | `delete_creo` | admin/автор | удалить |
 | `sign_upload` | член | signed upload URL в bucket `creos` |
 | `create_upload_creo` | член | отдельное готовое → done + delivery_state=pending |
@@ -214,8 +264,9 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
 | `track_add` | член | создать соц-аккаунт (platform+account_name); генерит `code`, `invite_link=null` (ссылку создаст бот) |
 | `track_delete` | владелец строки/admin | если ссылка есть → `pending_revoke=true` (бот отзовёт+снесёт), иначе delete |
 
-Правки edge: редактируй как единый `index.ts` и деплой целиком (`deploy_edge_function`
-затирает файлы). После DDL — `get_advisors(security)`.
+Правки edge: `index.ts` + `logic.js` (чистые функции контракта, тестируются в `tests/run.html`);
+деплой обоих файлов одним `deploy_edge_function` (затирает набор файлов). После DDL — `get_advisors(security)`.
+`attachNiches`/`listNiches` терпят отсутствие таблиц (миграция ещё не применена) — bootstrap не падает.
 
 **v13 (2026-09-12, повторное ревью R5/R9/R10):**
 - `casUpdate(id, field, compute, extra)` — CAS для jsonb-полей `creos`: читаем строку,
@@ -248,10 +299,17 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
 
 **Доставка готового (`kreo.py`):**
 - `delivery_loop(bot)` — фон, старт в `main()`, каждые 15с зовёт `poll_deliveries`.
-- `poll_deliveries` → берёт creos `delivery_state=pending` (limit 5) → `_deliver_one`:
-  качает `result_paths` из Storage (`_storage_get`), шлёт в топик Ready
-  (`send_photo/video` или `send_media_group`), пишет `ready_msg_id` + `delivery_state=sent`.
-  3 неудачи подряд → снимает с очереди (лог), чтобы не крутить вечно.
+- `poll_deliveries` → берёт creos `delivery_state=pending` (limit 10, заблокированные исключены) →
+  `_deliver_one`: качает недоставленный остаток `result_paths` (`_storage_get`), шлёт в топик Ready
+  (фото документами, видео превью+документ; прогресс по файлу в `kreo_delivery.json`), финал —
+  **условный** PATCH `delivery_state=eq.pending&result_paths=eq.<json>` → `sent` только если пакет
+  не изменился (ревью A). 3 неудачи подряд → пауза час + DM владельцам. Детали — `CreatorBot/CLAUDE.md`.
+- `source_prep_loop(bot)` — фон (каждые 30с, по 3 крео): для creos с `source_state IS NULL`
+  тянет `file_ids` через Bot API `getFile` (≤20 МБ, иначе `too_big`), кладёт в Storage
+  `sources/<id>/<n>.<ext>`, делает `previews/<id>/src_poster.jpg` + `src_clip.mp4`, пишет
+  `source_paths/source_state`. Ссылки: `attach_download(..., file_id)` дописывает file_id
+  скачанного ботом видео в `file_ids` — оно и есть исходник. Bot-token во фронт не утекает:
+  фронт видит только signed URL Storage.
 - `promote_posted(ready_msg_id, user)` — 👍 в Ready → `posted` по ready_msg_id.
 - REST-хелперы: `_sb_insert_creo`, `_sb_patch_creo`, `_sb_patch_where`, `_sb_patch_creo_id`,
   `list_recent`.
@@ -281,11 +339,11 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
 
 ## 7. Как вносить изменения (для агента)
 
-- **Фронт:** правь `index.html`, проверь синтаксис (извлечь `<script>` → `node --check`),
-  `git commit && git push origin main`. Pages пересоберётся ~1 мин. Юзеру: перезайти в /app.
-- **Edge:** правь как единый TS, деплой через Supabase MCP `deploy_edge_function`
-  (name=`kreo-api`, verify_jwt=false). После DDL — миграция через `apply_migration` +
-  `get_advisors`. Версия сейчас v6.
+- **Фронт:** правь `js/*.js` / `css/app.css`, бампни `?v=` в `index.html`, прогони `tests/run.html`
+  в headless Edge (см. §4), `git commit && git push origin main`. Pages пересоберётся ~1 мин. Юзеру: перезайти в /app.
+- **Edge:** `index.ts` + `logic.js`, деплой через Supabase MCP `deploy_edge_function`
+  (name=`kreo-api`, verify_jwt=false, оба файла). DDL — файл в `supabase/migrations/` + применить
+  руками (`apply_migration`/SQL editor) + `get_advisors`. Порядок выкладки — `DEPLOY.md`.
 - **Бот:** правь `kreo.py`/`bot.py`, проверь `py_compile` (питон:
   `C:\AI\Apps\ComfyUI_windows_portable\python_embeded\python.exe`), `git commit && git push`.
   Деплой — GitHub Actions по push (ждёт завершения активных генераций, потом рестарт).
@@ -358,6 +416,18 @@ aware, не сбивает скролл/ввод); **честный async** (с�
   потерять введённое. После успешного создания черновик чистится.
 - Карточка Склада без исполнителя пишет «автор идеи: @…», а не «сделал» (автор референса ≠
   исполнитель). Поля «кто загрузил результат» в схеме нет — это бэклог React-фазы.
+
+**Единый каталог (2026-09-13, локально, НЕ задеплоено — см. `DEPLOY.md`):** описание в §2/§4/§5.
+Кратко, что изменилось относительно «UX-набора» выше: вкладки Крео/Генер/Мои/Склад → один Каталог с
+видами; карточка с просмотром медиа внутри аппы (телефон — слой, ПК — панель справа); исходники
+референсов в Storage (готовит бот); ниши; отложение; заметки; несколько загрузок к одному крео;
+рельса ведёт в виды каталога; черновик задачи по вводу; медиа-refresh без перерисовки. Старые имена
+состояния (`fAuthor/fStatus/hSort/hAuthor/hQ/hPub/mineTab/statsTab`) больше не существуют — при
+первом входе `loadPrefs` их игнорирует. React не потребовался: объём лёг в 4 js-файла + css.
+Решения по спорным местам: «Отложить» не трогает статус/исполнителя (вернуть = ровно туда же);
+«Готово» вручную (без файлов) оставлено как второстепенное действие исполнителя/админа;
+`set_creo_status(in_progress)` больше не умеет «перехватывать» — только `assign_creo` у админа.
+НЕ сделано осознанно (вне объёма): запуск генераций из FTask, версии генераций, аналитика публикаций.
 
 **TODO / бэклог (полный, по приоритету владельца):**
 - **[NEXT, владелец «вначале»] Админка-самообслуживание** — чтобы владелец сам добавлял/

@@ -1,6 +1,8 @@
 // kreo-api — шлюз Telegram Mini App (FTask) к реестру + админка.
 // Auth: Telegram initData (HMAC по BOT_TOKEN) → verify_jwt=false. Данные/Storage — service_role.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { statusTransition, mergePaths, normNicheName, normNicheIds, deferPatch, restorePatch,
+  normNotes, deliverExtra } from "./logic.js";
 
 const BOT_TOKEN = (Deno.env.get("BOT_TOKEN") ?? "").trim();
 const ADMIN_IDS = (Deno.env.get("KREO_ADMIN_IDS") ?? "517207658")
@@ -77,18 +79,60 @@ async function withMedia(creos: any[]) {
   for (const c of creos || []) {
     for (const p of (c.storage_paths || [])) all.push(p);
     for (const p of (c.result_paths || [])) all.push(p);
+    for (const p of (c.source_paths || [])) all.push(p);   // исходник референса (готовит бот)
     if (c.preview_poster) all.push(c.preview_poster);   // Склад: постер для сетки истории
     if (c.preview_clip) all.push(c.preview_clip);       // Склад: hover-клип
+    if (c.source_poster) all.push(c.source_poster);
+    if (c.source_clip) all.push(c.source_clip);
   }
   if (!all.length) return creos;
   const map = await signPaths(all);
   for (const c of creos) {
     c.media_urls = (c.storage_paths || []).map((p: string) => map[p]).filter(Boolean);
     c.result_urls = (c.result_paths || []).map((p: string) => map[p]).filter(Boolean);
+    c.source_urls = (c.source_paths || []).map((p: string) => map[p]).filter(Boolean);
     c.preview_url = c.preview_poster ? (map[c.preview_poster] || null) : null;
     c.clip_url = c.preview_clip ? (map[c.preview_clip] || null) : null;
+    c.source_poster_url = c.source_poster ? (map[c.source_poster] || null) : null;
+    c.source_clip_url = c.source_clip ? (map[c.source_clip] || null) : null;
   }
   return creos;
+}
+
+// niche_ids на каждое крео из join-таблицы (один запрос на bootstrap)
+// Терпимо к порядку выкладки: если миграция ftask_catalog ещё не применена (таблиц нет),
+// bootstrap не падает — ниши просто пустые. После миграции всё появляется без редеплоя.
+async function attachNiches(creos: any[]) {
+  for (const c of creos) c.niche_ids = [];
+  if (!creos.length) return;
+  try {
+    const links = await fetchAll((a, b) => db.from("creo_niches").select("creo_id, niche_id").order("creo_id").range(a, b));
+    const by: Record<string, number[]> = {};
+    for (const l of links) (by[l.creo_id] ??= []).push(l.niche_id);
+    for (const c of creos) c.niche_ids = by[c.id] ?? [];
+  } catch (e) { console.log("kreo-api niches", JSON.stringify({ reason: String((e as any)?.message ?? e).slice(0, 120) })); }
+}
+async function listNiches() {
+  try {
+    return await fetchAll((a, b) => db.from("niches").select("id, name, created_by_tg_id, created_at, updated_at").order("name").range(a, b));
+  } catch { return []; }
+}
+
+// Единый контракт смены статуса/исполнителя (logic.statusTransition) + атомарный UPDATE
+// с условием на текущего исполнителя. Пустой результат = кто-то успел раньше → перечитать.
+async function applyTransition(id: any, me: number, isAdmin: boolean, target: string, nowIso: string) {
+  for (let i = 0; i < 3; i++) {
+    const { data: cur } = await db.from("creos").select("*").eq("id", id).maybeSingle();
+    const tr = statusTransition({ cur, me, isAdmin, target, nowIso });
+    if (!tr.ok) return { error: tr.error, creo: cur };
+    if (tr.noop) return { creo: cur };
+    let q = db.from("creos").update(tr.patch).eq("id", id);
+    if (tr.cond.assignee_null) q = q.is("assignee_tg_id", null);
+    if (tr.cond.assignee != null) q = q.eq("assignee_tg_id", tr.cond.assignee);
+    const { data } = await q.select("*");
+    if (data && data.length) return { creo: data[0] };
+  }
+  return { error: "conflict" };
 }
 
 // Полная выборка постранично: PostgREST режет ответ лимитом проекта (обычно 1000 строк) —
@@ -126,8 +170,9 @@ function computeStats(creos: any[]) {
   const byStatus: Record<string, number> = { queued: 0, in_progress: 0, done: 0 };
   const byAuthor: Record<string, { submitted: number; done: number; posted: number }> = {};
   const byPoster: Record<string, number> = {};
-  let tS = 0, tN = 0, pS = 0, pN = 0, postedTotal = 0;
+  let tS = 0, tN = 0, pS = 0, pN = 0, postedTotal = 0, deferred = 0;
   for (const c of creos) {
+    if (c.deferred_at) { deferred++; continue; }   // отложенное — не в активном конвейере
     if (byStatus[c.status] != null) byStatus[c.status]++;
     const a = c.author_username || "—";
     byAuthor[a] ??= { submitted: 0, done: 0, posted: 0 };
@@ -150,7 +195,7 @@ function computeStats(creos: any[]) {
     }
   }
   return {
-    total: creos.length, byStatus, posted: postedTotal,
+    total: creos.length, byStatus, posted: postedTotal, deferred,
     byAuthor: Object.entries(byAuthor).map(([author, v]) => ({ author, ...v })).sort((a, b) => b.submitted - a.submitted),
     byPoster: Object.entries(byPoster).map(([poster, posted]) => ({ poster, posted })).sort((a, b) => b.posted - a.posted),
     avgTurnaroundHours: tN ? +(tS / tN / 3600000).toFixed(1) : null,
@@ -179,23 +224,31 @@ Deno.serve(async (req) => {
       case "list_creos": {
         const creos = await fetchAll((a, b) => db.from("creos").select("*").order("created_at", { ascending: false }).range(a, b));
         await withMedia(creos ?? []);
+        await attachNiches(creos ?? []);
         if (action === "list_creos") return json({ creos });
         const tasks = await fetchAll((a, b) => db.from("tasks").select("*")
           .order("pinned", { ascending: false }).order("position", { ascending: true }).order("created_at", { ascending: false }).range(a, b));
         const { data: members } = await db.from("members").select("tg_id, username, name, role, roles");
         (members ?? []).forEach((m: any) => m.roles = normRoles(m.roles));
-        return json({ me, isAdmin, creos, tasks, members, stats: computeStats(creos ?? []) });
+        const niches = await listNiches();
+        return json({ me, isAdmin, creos, tasks, members, niches, stats: computeStats(creos ?? []) });
       }
 
-      case "set_creo_status": {
-        const status = body.status;
-        if (!["queued", "in_progress", "done"].includes(status)) return json({ error: "bad_status" }, 400);
-        const patch: any = { status, done_at: status === "done" ? nowIso() : null };
-        if (status === "in_progress") { if (body.claim) patch.assignee_tg_id = me.tg_id; patch.claimed_at = nowIso(); }
-        if (status === "queued") { patch.assignee_tg_id = null; patch.claimed_at = null; }
-        const { data } = await db.from("creos").update(patch).eq("id", body.id).select("*").single();
-        await withMedia([data]);
-        return json({ creo: data });
+      case "set_creo_status":
+      case "claim_creo": {
+        // Один серверный контракт для всех кнопок (ревью B): самозахват только свободного,
+        // повтор своим — идемпотентен, чужое — 409 already_claimed; админ переназначает
+        // ТОЛЬКО явным assign_creo. claim=true больше ничего не значит.
+        const target = action === "claim_creo" ? "in_progress" : body.status;
+        const r = await applyTransition(body.id, me.tg_id, isAdmin, target, nowIso());
+        if (r.error) {
+          const code = r.error === "not_found" ? 404 : r.error === "bad_status" ? 400
+            : r.error === "forbidden" ? 403 : 409;
+          if (r.creo) await withMedia([r.creo]);
+          return json({ error: r.error, creo: r.creo ?? undefined }, code);
+        }
+        await withMedia([r.creo]); await attachNiches([r.creo]);
+        return json({ creo: r.creo });
       }
 
       case "toggle_posted": {
@@ -207,32 +260,19 @@ Deno.serve(async (req) => {
             : [...posters, { tg_id: me.tg_id, username: me.username, at: nowIso() }];
         });
         if (r.error) return json({ error: r.error }, r.error === "not_found" ? 404 : 409);
-        await withMedia([r.row]);
+        await withMedia([r.row]); await attachNiches([r.row]);
         return json({ creo: r.row });
       }
 
-      case "claim_creo": {
-        // Атомарно: берём только свободное крео (queued без исполнителя). Второй кликнувший
-        // получает «уже взял …», а не молча перезаписывает первого (ревью R5).
-        const patch: any = { status: "in_progress", assignee_tg_id: me.tg_id, claimed_at: nowIso() };
-        const { data: got } = await db.from("creos").update(patch).eq("id", body.id)
-          .eq("status", "queued").is("assignee_tg_id", null).select("*");
-        if (got && got.length) { await withMedia([got[0]]); return json({ creo: got[0] }); }
-        const { data: cur } = await db.from("creos").select("*").eq("id", body.id).maybeSingle();
-        if (!cur) return json({ error: "not_found" }, 404);
-        if (String(cur.assignee_tg_id) === String(me.tg_id)) { await withMedia([cur]); return json({ creo: cur }); }
-        await withMedia([cur]);
-        return json({ error: "already_claimed", creo: cur }, 409);
-      }
-
       case "assign_creo": {
+        // Явное админское переназначение — единственный путь сменить ЧУЖОГО исполнителя.
         if (!isAdmin) return json({ error: "admin_only" }, 403);
         const to = body.assignee_tg_id ? Number(body.assignee_tg_id) : null;
         const patch: any = { assignee_tg_id: to, claimed_at: to ? nowIso() : null };
-        if (to && (body.setInProgress ?? true)) patch.status = "in_progress";
-        if (!to) patch.status = "queued";
+        if (to && (body.setInProgress ?? true)) { patch.status = "in_progress"; patch.done_at = null; }
+        if (!to) { patch.status = "queued"; patch.done_at = null; }
         const { data } = await db.from("creos").update(patch).eq("id", body.id).select("*").single();
-        await withMedia([data]);
+        await withMedia([data]); await attachNiches([data]);
         return json({ creo: data });
       }
 
@@ -241,15 +281,70 @@ Deno.serve(async (req) => {
         if (!paths.length) return json({ error: "no_files" }, 400);
         // CAS по result_paths: две одновременные загрузки к одному крео не теряют файлы (R5)
         const r = await casUpdate(body.id, "result_paths",
-          (old) => [...(Array.isArray(old) ? old : []), ...paths.filter((p: string) => !(Array.isArray(old) && old.includes(p)))],
-          () => {
-            const extra: any = { status: "done", done_at: nowIso(), delivered_at: nowIso(), delivery_state: "pending" };
-            if (body.caption != null) extra.result_caption = String(body.caption).slice(0, 1024);
-            return extra;
-          });
+          (old) => mergePaths(old, paths),
+          () => deliverExtra({ caption: body.caption, nowIso: nowIso() }));
         if (r.error) return json({ error: r.error }, r.error === "not_found" ? 404 : 409);
-        await withMedia([r.row]);
+        if (Array.isArray(body.niche_ids))   // ниши из формы загрузки (полная замена набора)
+          await db.rpc("set_creo_niches", { p_creo_id: body.id, p_niche_ids: normNicheIds(body.niche_ids), p_by: me.tg_id });
+        await withMedia([r.row]); await attachNiches([r.row]);
         return json({ creo: r.row });
+      }
+
+      // -------------------------------------------------- каталог: ниши / отложение / заметки
+      case "list_niches": return json({ niches: await listNiches() });
+      case "create_niche": {
+        const name = normNicheName(body.name);
+        if (!name) return json({ error: "no_name" }, 400);
+        const { data, error } = await db.from("niches").insert({ name, created_by_tg_id: me.tg_id }).select("*").single();
+        if (error) {
+          if (String(error.code) === "23505") {   // уже есть с таким же именем (без регистра) — отдаём её
+            const { data: ex } = await db.from("niches").select("*").eq("name_key", name.toLowerCase()).maybeSingle();
+            return json({ niche: ex, existed: true });
+          }
+          return json({ error: "server", detail: error.message }, 500);
+        }
+        return json({ niche: data });
+      }
+      case "rename_niche": {
+        const name = normNicheName(body.name);
+        if (!name) return json({ error: "no_name" }, 400);
+        const { data, error } = await db.from("niches").update({ name }).eq("id", body.id).select("*").maybeSingle();
+        if (error) return json({ error: String(error.code) === "23505" ? "niche_exists" : "server", detail: error.message },
+                               String(error.code) === "23505" ? 409 : 500);
+        if (!data) return json({ error: "not_found" }, 404);
+        return json({ niche: data });
+      }
+      case "delete_niche": {
+        // Ниша исчезает, крео остаются (связи снимет FK cascade). Только админ.
+        if (!isAdmin) return json({ error: "admin_only" }, 403);
+        await db.from("niches").delete().eq("id", body.id);
+        return json({ ok: true, id: body.id });
+      }
+      case "set_creo_niches": {
+        const ids = normNicheIds(body.niche_ids);
+        const { data, error } = await db.rpc("set_creo_niches", { p_creo_id: body.id, p_niche_ids: ids, p_by: me.tg_id });
+        if (error) return json({ error: "server", detail: error.message }, 500);
+        return json({ id: body.id, niche_ids: data ?? ids });
+      }
+      case "set_notes": {
+        const notes = normNotes(body.notes);
+        const { data } = await db.from("creos").update({ notes, notes_updated_at: nowIso(), notes_by_tg_id: me.tg_id })
+          .eq("id", body.id).select("id, notes, notes_updated_at, notes_by_tg_id").maybeSingle();
+        if (!data) return json({ error: "not_found" }, 404);
+        return json({ creo: data });
+      }
+      case "defer_creo":
+      case "restore_creo": {
+        const { data: cur } = await db.from("creos").select("*").eq("id", body.id).maybeSingle();
+        const r = action === "defer_creo" ? deferPatch({ cur, me: me.tg_id, nowIso: nowIso() }) : restorePatch({ cur });
+        if (!r.ok) return json({ error: r.error }, r.error === "not_found" ? 404 : 400);
+        let row = cur;
+        if (!r.noop) {
+          const { data } = await db.from("creos").update(r.patch).eq("id", body.id).select("*").maybeSingle();
+          row = data ?? cur;
+        }
+        await withMedia([row]); await attachNiches([row]);
+        return json({ creo: row });
       }
 
       case "delete_creo": {
@@ -277,14 +372,17 @@ Deno.serve(async (req) => {
           author_tg_id: me.tg_id, author_username: me.username, kind,
           result_paths: paths, storage_paths: paths, caption: cap, result_caption: cap,
           status: "done", done_at: nowIso(), delivered_at: nowIso(), delivery_state: "pending",
+          assignee_tg_id: me.tg_id, claimed_at: nowIso(), source_state: "none",
         }).select("*").single();
-        await withMedia([data]);
+        if (data && Array.isArray(body.niche_ids) && body.niche_ids.length)
+          await db.rpc("set_creo_niches", { p_creo_id: data.id, p_niche_ids: normNicheIds(body.niche_ids), p_by: me.tg_id });
+        await withMedia([data]); await attachNiches([data]);
         return json({ creo: data });
       }
 
       case "stats": {
         const creos = await fetchAll((a, b) => db.from("creos")
-          .select("status, author_username, posters, created_at, done_at").order("id", { ascending: true }).range(a, b));
+          .select("status, author_username, posters, created_at, done_at, deferred_at").order("id", { ascending: true }).range(a, b));
         return json({ stats: computeStats(creos ?? []) });
       }
 
