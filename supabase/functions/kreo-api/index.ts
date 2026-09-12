@@ -91,6 +91,37 @@ async function withMedia(creos: any[]) {
   return creos;
 }
 
+// Полная выборка постранично: PostgREST режет ответ лимитом проекта (обычно 1000 строк) —
+// без этого поиск/статистика в аппе видели бы только первую страницу (ревью R10).
+async function fetchAll(build: (from: number, to: number) => any, page = 1000) {
+  const out: any[] = [];
+  for (let from = 0; ; from += page) {
+    const { data, error } = await build(from, from + page - 1);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < page) break;
+  }
+  return out;
+}
+
+// CAS-обновление jsonb-поля: PATCH проходит только если поле не изменилось с момента чтения
+// (тот же приём, что promote_posted в боте). Две одновременные отметки/загрузки не затирают
+// друг друга (ревью R5). Возвращает обновлённую строку или null после `tries` конфликтов.
+async function casUpdate(id: any, field: string, compute: (cur: any) => any, extra: (cur: any) => any = () => ({}), tries = 4)
+  : Promise<{ error?: string; row?: any }> {
+  for (let i = 0; i < tries; i++) {
+    const { data: row } = await db.from("creos").select("*").eq("id", id).maybeSingle();
+    if (!row) return { error: "not_found" };
+    const old = row[field];
+    const patch = { [field]: compute(old), ...extra(row) };
+    let q = db.from("creos").update(patch).eq("id", id);
+    q = old == null ? q.is(field, null) : q.filter(field, "eq", JSON.stringify(old));
+    const { data } = await q.select("*");
+    if (data && data.length) return { row: data[0] };
+  }
+  return { error: "conflict" };
+}
+
 function computeStats(creos: any[]) {
   const byStatus: Record<string, number> = { queued: 0, in_progress: 0, done: 0 };
   const byAuthor: Record<string, { submitted: number; done: number; posted: number }> = {};
@@ -146,11 +177,11 @@ Deno.serve(async (req) => {
     switch (action) {
       case "bootstrap":
       case "list_creos": {
-        const { data: creos } = await db.from("creos").select("*").order("created_at", { ascending: false });
+        const creos = await fetchAll((a, b) => db.from("creos").select("*").order("created_at", { ascending: false }).range(a, b));
         await withMedia(creos ?? []);
         if (action === "list_creos") return json({ creos });
-        const { data: tasks } = await db.from("tasks").select("*")
-          .order("pinned", { ascending: false }).order("position", { ascending: true }).order("created_at", { ascending: false });
+        const tasks = await fetchAll((a, b) => db.from("tasks").select("*")
+          .order("pinned", { ascending: false }).order("position", { ascending: true }).order("created_at", { ascending: false }).range(a, b));
         const { data: members } = await db.from("members").select("tg_id, username, name, role, roles");
         (members ?? []).forEach((m: any) => m.roles = normRoles(m.roles));
         return json({ me, isAdmin, creos, tasks, members, stats: computeStats(creos ?? []) });
@@ -168,22 +199,30 @@ Deno.serve(async (req) => {
       }
 
       case "toggle_posted": {
-        const { data: cur } = await db.from("creos").select("posters").eq("id", body.id).single();
-        let posters = Array.isArray(cur?.posters) ? cur.posters : [];
-        const has = posters.some((p: any) => String(p.tg_id) === String(me.tg_id));
-        posters = has
-          ? posters.filter((p: any) => String(p.tg_id) !== String(me.tg_id))
-          : [...posters, { tg_id: me.tg_id, username: me.username, at: nowIso() }];
-        const { data } = await db.from("creos").update({ posters }).eq("id", body.id).select("*").single();
-        await withMedia([data]);
-        return json({ creo: data });
+        const r = await casUpdate(body.id, "posters", (old) => {
+          const posters = Array.isArray(old) ? old : [];
+          const has = posters.some((p: any) => String(p.tg_id) === String(me.tg_id));
+          return has
+            ? posters.filter((p: any) => String(p.tg_id) !== String(me.tg_id))
+            : [...posters, { tg_id: me.tg_id, username: me.username, at: nowIso() }];
+        });
+        if (r.error) return json({ error: r.error }, r.error === "not_found" ? 404 : 409);
+        await withMedia([r.row]);
+        return json({ creo: r.row });
       }
 
       case "claim_creo": {
+        // Атомарно: берём только свободное крео (queued без исполнителя). Второй кликнувший
+        // получает «уже взял …», а не молча перезаписывает первого (ревью R5).
         const patch: any = { status: "in_progress", assignee_tg_id: me.tg_id, claimed_at: nowIso() };
-        const { data } = await db.from("creos").update(patch).eq("id", body.id).select("*").single();
-        await withMedia([data]);
-        return json({ creo: data });
+        const { data: got } = await db.from("creos").update(patch).eq("id", body.id)
+          .eq("status", "queued").is("assignee_tg_id", null).select("*");
+        if (got && got.length) { await withMedia([got[0]]); return json({ creo: got[0] }); }
+        const { data: cur } = await db.from("creos").select("*").eq("id", body.id).maybeSingle();
+        if (!cur) return json({ error: "not_found" }, 404);
+        if (String(cur.assignee_tg_id) === String(me.tg_id)) { await withMedia([cur]); return json({ creo: cur }); }
+        await withMedia([cur]);
+        return json({ error: "already_claimed", creo: cur }, 409);
       }
 
       case "assign_creo": {
@@ -200,16 +239,17 @@ Deno.serve(async (req) => {
       case "deliver_creo": {
         const paths = Array.isArray(body.paths) ? body.paths.filter(Boolean) : [];
         if (!paths.length) return json({ error: "no_files" }, 400);
-        const { data: cur } = await db.from("creos").select("result_paths").eq("id", body.id).single();
-        const merged = [...((cur?.result_paths as string[]) || []), ...paths];
-        const patch: any = {
-          result_paths: merged, status: "done", done_at: nowIso(),
-          delivered_at: nowIso(), delivery_state: "pending",
-        };
-        if (body.caption != null) patch.result_caption = String(body.caption).slice(0, 1024);
-        const { data } = await db.from("creos").update(patch).eq("id", body.id).select("*").single();
-        await withMedia([data]);
-        return json({ creo: data });
+        // CAS по result_paths: две одновременные загрузки к одному крео не теряют файлы (R5)
+        const r = await casUpdate(body.id, "result_paths",
+          (old) => [...(Array.isArray(old) ? old : []), ...paths.filter((p: string) => !(Array.isArray(old) && old.includes(p)))],
+          () => {
+            const extra: any = { status: "done", done_at: nowIso(), delivered_at: nowIso(), delivery_state: "pending" };
+            if (body.caption != null) extra.result_caption = String(body.caption).slice(0, 1024);
+            return extra;
+          });
+        if (r.error) return json({ error: r.error }, r.error === "not_found" ? 404 : 409);
+        await withMedia([r.row]);
+        return json({ creo: r.row });
       }
 
       case "delete_creo": {
@@ -243,8 +283,8 @@ Deno.serve(async (req) => {
       }
 
       case "stats": {
-        const { data: creos } = await db.from("creos")
-          .select("status, author_username, posters, created_at, done_at");
+        const creos = await fetchAll((a, b) => db.from("creos")
+          .select("status, author_username, posters, created_at, done_at").order("id", { ascending: true }).range(a, b));
         return json({ stats: computeStats(creos ?? []) });
       }
 
@@ -316,6 +356,9 @@ Deno.serve(async (req) => {
         if (!isAdmin) return json({ error: "admin_only" }, 403);
         const ALLOWED = ["approve", "deny", "add_user", "remove_user", "set_admin", "set_gen", "set_uniq", "set_agent"];
         if (!ALLOWED.includes(body.cmd)) return json({ error: "bad_cmd" }, 400);
+        // Повышать/понижать админов бота может только bootstrap-админ (KREO_ADMIN_IDS = владелец
+        // бота) — та же матрица, что в Telegram; бот проверяет requested_by ещё раз (ревью R9)
+        if (body.cmd === "set_admin" && !ADMIN_IDS.includes(String(me.tg_id))) return json({ error: "owner_only" }, 403);
         const payload = (body.payload && typeof body.payload === "object") ? body.payload : {};
         const { data } = await db.from("admin_queue")
           .insert({ action: body.cmd, payload, requested_by: me.tg_id }).select("id").single();
@@ -334,13 +377,13 @@ Deno.serve(async (req) => {
       // Аккаунты соцсетей → именованные invite-ссылки канала (создаёт БОТ), вступления
       // по ним пишет БОТ (chat_member) в track_joins. Edge только читает + управляет строками.
       case "track_data": {
-        const { data: accounts } = await db.from("track_accounts").select("*")
-          .order("created_at", { ascending: false });
+        const accounts = await fetchAll((a, b) => db.from("track_accounts").select("*")
+          .order("created_at", { ascending: false }).range(a, b));
         const ids = (accounts ?? []).map((a: any) => a.id);
         let joins: any[] = [];
-        if (ids.length) {
-          const { data: j } = await db.from("track_joins").select("account_id, joined_at").in("account_id", ids);
-          joins = j ?? [];
+        if (ids.length) {   // все вступления, не первая тысяча — иначе цифры расходятся с отчётом бота (R10)
+          joins = await fetchAll((a, b) => db.from("track_joins").select("account_id, joined_at")
+            .in("account_id", ids).order("id", { ascending: true }).range(a, b));
         }
         const since = Date.now() - 24 * 3600 * 1000;
         const per: Record<number, { total: number; d1: number }> = {};

@@ -193,16 +193,16 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
 пускает; иначе возвращает `null` → **403 `not_member`** (авто-добавление чужих убрано).
 Итог: админ добавляет по Telegram ID во вкладке «Люди» → человек заходит.
 
-**Actions** (текущая версия edge — **v12**):
+**Actions** (текущая версия edge — **v13**, 2026-09-12):
 | action | кто | что делает |
 |---|---|---|
 | `bootstrap` | член | вернуть `me,isAdmin,creos(+media_urls/result_urls),tasks,members,stats` |
 | `list_creos` | член | только крео |
 | `set_creo_status` | член | сменить статус; `in_progress`+`claim`→assignee=me; `posted`→poster=me |
 | `mark_posted` | член | пометить `posted` (кнопка «Залито» для всех) |
-| `claim_creo` | член | самозахват → in_progress, assignee=me |
+| `claim_creo` | член | **атомарный** самозахват: UPDATE только при `status=queued AND assignee IS NULL`; иначе 409 `already_claimed` (+ актуальное `creo`), повтор своим = ok (v13, R5) |
 | `assign_creo` | admin | переназначить/вернуть в очередь |
-| `deliver_creo` | член | «+»: result_paths += files, status=done, delivery_state=pending |
+| `deliver_creo` | член | «+»: result_paths += files (CAS по jsonb, дубли путей не добавляются), status=done, delivery_state=pending; 409 `conflict` после 4 гонок (v13) |
 | `delete_creo` | admin/автор | удалить |
 | `sign_upload` | член | signed upload URL в bucket `creos` |
 | `create_upload_creo` | член | отдельное готовое → done + delivery_state=pending |
@@ -216,6 +216,20 @@ track_joins(id, account_id FK→track_accounts cascade, tg_user_id, tg_username,
 
 Правки edge: редактируй как единый `index.ts` и деплой целиком (`deploy_edge_function`
 затирает файлы). После DDL — `get_advisors(security)`.
+
+**v13 (2026-09-12, повторное ревью R5/R9/R10):**
+- `casUpdate(id, field, compute, extra)` — CAS для jsonb-полей `creos`: читаем строку,
+  считаем новое значение, `UPDATE … WHERE id AND field = <старый json>` (`.filter(field,"eq",
+  JSON.stringify(old))`, `is null` для null), пусто → перечитать, ≤4 попыток → `conflict` (409).
+  Используют `toggle_posted` (posters) и `deliver_creo` (result_paths). Тот же приём, что
+  `promote_posted` в боте — 👍 в боте и клик в аппе больше не затирают друг друга.
+- `fetchAll(build)` — Range-пагинация по 1000 для `creos`/`tasks` в `bootstrap`, `stats`,
+  `track_accounts`/`track_joins` в `track_data`. Без неё поиск в Складе видел только первую
+  страницу, а цифры Кейтаро расходились с отчётом бота.
+- `admin_cmd set_admin` — только bootstrap-админ (`KREO_ADMIN_IDS` = владелец бота), иначе 403
+  `owner_only`. Бот (`admin_sync._apply`) проверяет `requested_by` ∈ `OWNER_IDS` ещё раз →
+  `result=owner_only`. Матрица прав совпадает с Telegram: админ ≠ владелец.
+- Фронт: `ERR.already_claimed/conflict/owner_only`; на `already_claimed` — `poll()`.
 
 ---
 
@@ -329,6 +343,21 @@ aware, не сбивает скролл/ввод); **честный async** (с�
   **отложена на React-фазу** осознанно: на ванили это двойная работа.
 - Проверка без node: `msedge --headless=new --dump-dom file:///…/index.html` → в DOM должен
   быть `class="gate"` (значит скрипт распарсился и `boot()` дошёл до конца).
+
+**Добивка по повторному ревью (2026-09-12, вечер):**
+- **`sigOf()`** сравнивает ВСЕ отображаемые изменяемые поля (posters по tg_id, caption/result_caption,
+  result_paths, превью, delivered/done_at, ready/downloaded_msg_id; у задач title/due/priority/
+  assignees; у людей name/username) — раньше только счётчики, и poll проглатывал смену постившего
+  или правку подписи без перерисовки (R11). Новое поле в карточке → добавить в `sigOf`.
+- Тап по счётчику «Опубликовано» сбрасывает `hQ`/`hAuthor` (иначе «12» открывало пустой список
+  из-за старого поиска). Клики под-вкладок (`data-sub`) зовут `savePrefs()`.
+- **Прокрутка на вкладку:** `S._scroll[tab]` — переход в другую вкладку и обратно возвращает
+  место; счётчики рельсы по-прежнему скроллят наверх (это «новый список»).
+- **Черновик задачи:** «Скрыть» сохраняет `S.tDraft` (title/due/prio) и `TASK_ASG`, кнопка
+  «＋ Новая задача» показывает бейдж «черновик»; «✕ Отменить и очистить» — единственный путь
+  потерять введённое. После успешного создания черновик чистится.
+- Карточка Склада без исполнителя пишет «автор идеи: @…», а не «сделал» (автор референса ≠
+  исполнитель). Поля «кто загрузил результат» в схеме нет — это бэклог React-фазы.
 
 **TODO / бэклог (полный, по приоритету владельца):**
 - **[NEXT, владелец «вначале»] Админка-самообслуживание** — чтобы владелец сам добавлял/

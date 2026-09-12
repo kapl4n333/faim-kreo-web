@@ -462,7 +462,7 @@ function tryReveal(){if(_splashDone&&_bootDone)document.body.classList.add("reve
 const S={me:null,creos:[],tasks:[],members:[],stats:null,tab:"all",fAuthor:"",fStatus:"",
   files:[],uploading:false,deliverTo:null,_sig:"",_cap:null,
   adminTab:"access",admin:null,hSort:"new",hAuthor:"",hQ:"",hPub:"",
-  tForm:false,tDone:false,
+  tForm:false,tDone:false,tDraft:{title:"",due:"",prio:""},_scroll:{},
   mineTab:"gen",statsTab:"keitaro",track:null,trkGroup:"person",trkPlat:"instagram",_trkLoading:false};
 /* фильтры/вкладка переживают закрытие аппы: открыл ролик, вернулся — продолжаешь оттуда же */
 const PERSIST=["tab","fAuthor","fStatus","hSort","hAuthor","hQ","hPub","mineTab","statsTab"];
@@ -502,7 +502,9 @@ function notify(t){try{tg.HapticFeedback.notificationOccurred(t||"success")}catc
 const ERR={not_member:"Тебя нет в команде FTask.",forbidden:"Недостаточно прав для этого.",
   admin_only:"Это может только админ.",bad_status:"Неверный статус.",no_files:"Нет файлов для загрузки.",
   not_found:"Крео не найдено — возможно, уже удалили.",cant_remove_self:"Себя убрать нельзя.",
-  server:"Сервер не ответил. Попробуй ещё раз.",unauthorized:"Сессия истекла — переоткрой через /app."};
+  server:"Сервер не ответил. Попробуй ещё раз.",unauthorized:"Сессия истекла — переоткрой через /app.",
+  already_claimed:"Это крео уже взял другой — список обновлён.",conflict:"Кто-то менял это одновременно — попробуй ещё раз.",
+  owner_only:"Назначать админов может только владелец бота."};
 const errMsg=e=>{const m=(e&&e.message)||"";return ERR[m]||"Не вышло. "+(m||"Попробуй ещё раз.");};
 function toast(msg,type){
   const t=document.createElement("div");t.className="toast"+(type?" "+type:"");t.textContent=msg;
@@ -542,10 +544,14 @@ const nameOf=id=>{const m=S.members.find(x=>x.tg_id===id);return m?(m.name||("@"
 /* ---------- realtime через мягкий поллинг ---------- */
 function absorb(d){Object.assign(S,{me:d.me,creos:d.creos||[],tasks:d.tasks||[],members:d.members||[],stats:d.stats});}
 function sigOf(){
+  // все ОТОБРАЖАЕМЫЕ изменяемые поля, не только счётчики: смена постившего при том же числе,
+  // правка подписи, долитый файл, превью — иначе poll проглатывал данные без перерисовки (ревью R11)
   return JSON.stringify([
-    S.creos.map(c=>[c.id,c.status,c.delivery_state,postedList(c).length,c.assignee_tg_id]),
-    S.tasks.map(t=>[t.id,t.status,t.pinned,t.position]),
-    S.members.map(m=>[m.tg_id,(m.roles||[]).join()])]);
+    S.creos.map(c=>[c.id,c.status,c.delivery_state,postedList(c).map(p=>p.tg_id).join(),c.assignee_tg_id,
+      c.caption,c.result_caption,(c.result_paths||[]).join(),c.preview_poster,c.preview_clip,c.delivered_at,c.done_at,
+      c.ready_msg_id,c.downloaded_msg_id,c.archived_at]),
+    S.tasks.map(t=>[t.id,t.status,t.pinned,t.position,t.title,t.due_date,t.priority,(t.assignee_tg_ids||[]).join(),t.done_at]),
+    S.members.map(m=>[m.tg_id,(m.roles||[]).join(),m.name,m.username])]);
 }
 function flashSync(){const s=document.getElementById("sync");if(!s)return;
   s.classList.add("on");setTimeout(()=>s.classList.remove("on"),650);}
@@ -586,13 +592,15 @@ function header(){
     '<div class="st '+cl+'" data-rail="'+k+'" role="button" style="cursor:pointer"><div class="n">'+cnt[k]+'</div><div class="l">'+l+'</div></div>').join("");
   // счётчик = фильтр: тап по «В работе — 12» открывает именно этот список
   document.querySelectorAll("#pipe .st").forEach(el=>el.onclick=()=>{haptic();const k=el.dataset.rail;
-    if(k==="posted"){S.tab="hist";S.hPub="any";}else{S.tab="all";S.fStatus=k;S.fAuthor="";}
+    // счётчик — «все такие»: старый поиск/автор Склада сбрасываем, иначе «Опубликовано 12» открывал пустой список
+    if(k==="posted"){S.tab="hist";S.hPub="any";S.hQ="";S.hAuthor="";}else{S.tab="all";S.fStatus=k;S.fAuthor="";}
     savePrefs();window.scrollTo(0,0);header();render();});
   const tabs=[["all","Крео"],["gen","Генер"],["mine","Мои"],["hist","Склад"],["stats","Стата"],["tasks","Задачи"],["members","Люди"]];
   if(admin())tabs.push(["admin","Админ"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
     '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+navIcon(k)+'<span class="lbl">'+l+'</span></button>').join("");
-  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;savePrefs();window.scrollTo(0,0);header();render();});
+  // позиция прокрутки — своя на вкладку: ушёл в Задачи, вернулся в Склад — там же, где был
+  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{S._scroll[S.tab]=window.scrollY;S.tab=b.dataset.t;savePrefs();header();render();window.scrollTo(0,S._scroll[S.tab]||0);});
 }
 
 function render(){
@@ -757,7 +765,7 @@ function bindGen(el){
   el.querySelectorAll("[data-take]").forEach(b=>b.onclick=async()=>{haptic();
     const id=+b.dataset.take;const c=S.creos.find(x=>x.id===id);
     try{const d=await api("claim_creo",{id});Object.assign(c,d.creo);S._sig=sigOf();notify();header();render();toast("Взял в работу","ok");}
-    catch(e){toast(errMsg(e),"err");}});
+    catch(e){toast(errMsg(e),"err");if(e&&e.message==="already_claimed")poll();}});
   el.querySelectorAll("[data-reassign]").forEach(s=>s.onchange=async()=>{
     const id=+s.dataset.reassign,v=s.value;if(v==="")return;
     const c=S.creos.find(x=>x.id===id);
@@ -898,7 +906,8 @@ function wCard(c){
   return '<div class="wcard"><div class="wm"'+clipAttr+openAttr+'>'+media+
     '<span class="kb">'+(KIND[c.kind]||"🎬")+'</span>'+openHint+dur+pruned+'</div>'+
     '<div class="wb">'+(cap?'<div class="wtitle'+(c.kind==="link"&&c.source_url&&cap===c.source_url?'" style="color:var(--a)':"")+'">'+esc(cap)+'</div>':'<div class="wtitle" style="opacity:.4">без подписи</div>')+
-    '<div class="wmeta"><div class="r"><span class="ic">🎬</span>сделал: <b>'+esc(madeBy(c))+'</b></div>'+
+    // без исполнителя честно пишем «автор идеи» — автор референса и тот, кто сделал результат, разные роли (ревью UX)
+    '<div class="wmeta"><div class="r"><span class="ic">🎬</span>'+(nameOf(c.assignee_tg_id)?'сделал: <b>'+esc(nameOf(c.assignee_tg_id))+'</b>':'автор идеи: <b>'+esc(c.author_username||"—")+'</b>')+'</div>'+
     '<div class="r"><span class="ic">📤</span>опубликовал: <b>'+esc(posters)+'</b></div></div>'+
     '<div class="wtime">'+t+'</div></div></div>';
 }
@@ -949,7 +958,7 @@ function bindHistory(el){
 
 /* ---------- трекер источников (Кейтаро) ---------- */
 function bindSub(el){el.querySelectorAll("[data-sub]").forEach(b=>b.onclick=()=>{
-  haptic();S[b.dataset.sub]=b.dataset.v;window.scrollTo(0,0);render();});}
+  haptic();S[b.dataset.sub]=b.dataset.v;savePrefs();window.scrollTo(0,0);render();});}
 async function loadTrack(force){
   if(S._trkLoading)return;
   if(S.track!==null&&!force)return;
@@ -1118,15 +1127,17 @@ function vTasks(){
       '</div></div>';
   };
   // сначала сами задачи; форма создания — за кнопкой, история — свёрнута (аудит UX §6)
+  const dr=S.tDraft||{};const sel=v=>dr.prio===v?' selected':'';
   const form=S.tForm
-    ? '<div class="panel"><input class="field" id="tT" placeholder="Новая задача — что сделать?" maxlength="200" style="margin-bottom:10px">'+
-      '<div class="two" style="margin-bottom:10px"><input class="field" id="tD" type="date"><select class="field" id="tP"><option value="">Приоритет</option>'+
-      '<option value="high">Высокий</option><option value="med">Средний</option><option value="low">Низкий</option></select></div>'+
+    ? '<div class="panel"><input class="field" id="tT" placeholder="Новая задача — что сделать?" maxlength="200" style="margin-bottom:10px" value="'+esc(dr.title||"")+'">'+
+      '<div class="two" style="margin-bottom:10px"><input class="field" id="tD" type="date" value="'+esc(dr.due||"")+'"><select class="field" id="tP"><option value="">Приоритет</option>'+
+      '<option value="high"'+sel("high")+'>Высокий</option><option value="med"'+sel("med")+'>Средний</option><option value="low"'+sel("low")+'>Низкий</option></select></div>'+
       '<div style="font-size:12px;color:var(--hint);margin:0 2px 8px">Кому — можно несколько · выбрано <span id="asgCnt">'+TASK_ASG.size+'</span></div>'+
       '<div class="rolechips" id="asgChips" style="margin-bottom:12px">'+
       S.members.map(m=>'<button class="rc'+(TASK_ASG.has(m.tg_id)?" creative on":"")+'" data-asg="'+m.tg_id+'">'+esc(m.name||("@"+(m.username||m.tg_id)))+'</button>').join("")+'</div>'+
-      '<div class="two"><button class="primary" id="tGo">Добавить задачу</button><button class="act" id="tHide">Скрыть</button></div></div>'
-    : '<button class="act plus" id="tShow" style="width:100%;margin-bottom:12px">＋ Новая задача</button>';
+      '<div class="two"><button class="primary" id="tGo">Добавить задачу</button><button class="act" id="tHide">Скрыть</button></div>'+
+      '<button class="act" id="tCancel" style="width:100%;margin-top:8px;color:var(--hint)">✕ Отменить и очистить</button></div>'
+    : '<button class="act plus" id="tShow" style="width:100%;margin-bottom:12px">＋ Новая задача'+(dr.title?' <span class="c">черновик</span>':'')+'</button>';
   return form+
     '<div class="hh">В работе <span class="c">'+open.length+'</span></div>'+
     (open.length?open.map((t,i)=>row(t,i,open)).join(""):'<div class="empty" style="padding:26px">Задач нет — спланируй неделю.</div>')+
@@ -1134,8 +1145,11 @@ function vTasks(){
       (S.tDone?done.map(t=>row(t)).join(""):""):"");
 }
 function bindTasks(el){
+  // «Скрыть» сохраняет черновик (текст/дата/приоритет/исполнители), «Отменить» — чистит (ревью UX)
+  const draft=()=>{S.tDraft={title:(el.querySelector("#tT")||{}).value||"",due:(el.querySelector("#tD")||{}).value||"",prio:(el.querySelector("#tP")||{}).value||""};};
   const sh=el.querySelector("#tShow");if(sh)sh.onclick=()=>{S.tForm=true;render();const t=document.getElementById("tT");if(t)t.focus();};
-  const hd=el.querySelector("#tHide");if(hd)hd.onclick=()=>{S.tForm=false;render();};
+  const hd=el.querySelector("#tHide");if(hd)hd.onclick=()=>{draft();S.tForm=false;render();};
+  const cn=el.querySelector("#tCancel");if(cn)cn.onclick=()=>{S.tDraft={title:"",due:"",prio:""};TASK_ASG=new Set();S.tForm=false;render();};
   const dh=el.querySelector("#tDoneHd");if(dh)dh.onclick=()=>{S.tDone=!S.tDone;render();};
   el.querySelectorAll("[data-asg]").forEach(b=>b.onclick=()=>{haptic();const id=+b.dataset.asg;
     if(TASK_ASG.has(id)){TASK_ASG.delete(id);b.classList.remove("creative","on");}
@@ -1145,7 +1159,7 @@ function bindTasks(el){
     const title=el.querySelector("#tT").value.trim();if(!title)return;
     try{const d=await api("create_task",{title,due_date:el.querySelector("#tD").value||null,
       priority:el.querySelector("#tP").value||null,assignee_tg_ids:[...TASK_ASG]});
-      S.tasks.unshift(d.task);TASK_ASG=new Set();S.tForm=false;S._sig=sigOf();render();toast("Задача добавлена","ok");}catch(e){toast(errMsg(e),"err");}};
+      S.tasks.unshift(d.task);TASK_ASG=new Set();S.tDraft={title:"",due:"",prio:""};S.tForm=false;S._sig=sigOf();render();toast("Задача добавлена","ok");}catch(e){toast(errMsg(e),"err");}};
   const patchTask=async(id,patch)=>{const d=await api("update_task",Object.assign({id},patch));
     const i=S.tasks.findIndex(t=>t.id===id);if(i>=0)S.tasks[i]=d.task;S._sig=sigOf();};
   el.querySelectorAll("[data-tt]").forEach(b=>b.onclick=async()=>{haptic();
