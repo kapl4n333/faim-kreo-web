@@ -263,9 +263,9 @@ Vanilla JS без сборки, но разнесён по файлам (кла�
 | `create_task`/`update_task`/`delete_task` | член (delete: admin/автор) | задачи; update поддерживает status/pinned/position |
 | `set_member_roles` | admin | заменить roles[] участника |
 | `add_member`/`remove_member` | admin | добавить/убрать участника |
-| `track_data` | член | аккаунты трекера (все) + счётчики вступлений (`joins`, `joins_24h`) |
+| `track_data` | член | аккаунты трекера (только `archived_at is null`) + счётчики вступлений (`joins`, `joins_24h`) |
 | `track_add` | член | создать соц-аккаунт (platform+account_name); генерит `code`, `invite_link=null` (ссылку создаст бот) |
-| `track_delete` | владелец строки/admin | если ссылка есть → `pending_revoke=true` (бот отзовёт+снесёт), иначе delete |
+| `track_delete` | владелец строки/admin | **soft-delete** (13.09.2026): ссылка есть → `pending_revoke=true` (бот отзовёт + поставит `archived_at`); ссылки нет → сразу `archived_at`. Физически НЕ удаляем — CASCADE снёс бы `track_joins`/атрибуцию воронки |
 
 Правки edge: `index.ts` + `logic.js` (чистые функции контракта, тестируются в `tests/run.html`);
 деплой обоих файлов одним `deploy_edge_function` (затирает набор файлов). После DDL — `get_advisors(security)`.

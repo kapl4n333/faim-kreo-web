@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-09-13
+
+### Воронка v2 (Кейтаро до покупки PPV) — Edge soft-delete источников
+
+**Что:** `track_delete` в `kreo-api` больше не удаляет `track_accounts` физически — это рушило
+`track_joins` по CASCADE и всю атрибуцию воронки. Обе ветки теперь soft-delete (`archived_at`):
+если ссылка уже есть → `pending_revoke=true` (бот отзовёт и поставит `archived_at`), если нет →
+сразу `archived_at`. `track_data` отдаёт только неархивные (`archived_at is null`), список аппы
+чистый, история в БД цела. Часть большой воронки v2 (журнал членства + отписки + импорт продаж
+Podium) живёт в боте/Supabase — см. `CreatorBot/CLAUDE.md` и спеку
+`C:\AI\Bot\reviews\2026-09-13-funnel-implementation-spec.md`.
+
+**Дальше:** задеплоить Edge (`deploy_edge_function` index.ts+logic.js).
+
 ## 2026-08-21
 
 ### Диагностика: почему Supabase MCP не работает в Zed Agent Panel

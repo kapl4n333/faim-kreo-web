@@ -498,8 +498,9 @@ Deno.serve(async (req) => {
       // Аккаунты соцсетей → именованные invite-ссылки канала (создаёт БОТ), вступления
       // по ним пишет БОТ (chat_member) в track_joins. Edge только читает + управляет строками.
       case "track_data": {
+        // архивные (soft-delete) не показываем в аппе — история остаётся в БД для атрибуции
         const accounts = await fetchAll((a, b) => db.from("track_accounts").select("*")
-          .order("created_at", { ascending: false }).range(a, b));
+          .is("archived_at", null).order("created_at", { ascending: false }).range(a, b));
         const ids = (accounts ?? []).map((a: any) => a.id);
         let joins: any[] = [];
         if (ids.length) {   // все вступления, не первая тысяча — иначе цифры расходятся с отчётом бота (R10)
@@ -543,11 +544,13 @@ Deno.serve(async (req) => {
           .select("owner_tg_id, invite_link").eq("id", body.id).maybeSingle();
         if (!a) return json({ error: "not_found" }, 404);
         if (!isAdmin && a.owner_tg_id !== me.tg_id) return json({ error: "forbidden" }, 403);
-        if (a.invite_link) {   // ссылка уже создана → бот отзовёт её в канале, потом снесёт строку
+        if (a.invite_link) {   // ссылка уже создана → бот отзовёт её и архивирует строку
           await db.from("track_accounts").update({ pending_revoke: true }).eq("id", body.id);
           return json({ ok: true, id: body.id, pending: true });
         }
-        await db.from("track_accounts").delete().eq("id", body.id);
+        // ссылки ещё нет → архивируем сразу (soft-delete: не рушим историю/атрибуцию, спека §0)
+        await db.from("track_accounts")
+          .update({ archived_at: new Date().toISOString() }).eq("id", body.id);
         return json({ ok: true, id: body.id });
       }
 
