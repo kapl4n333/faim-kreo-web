@@ -266,6 +266,7 @@ Vanilla JS без сборки, но разнесён по файлам (кла�
 | `track_data` | член | аккаунты трекера (только `archived_at is null`) + счётчики вступлений (`joins`, `joins_24h`) |
 | `track_add` | член | создать соц-аккаунт (platform+account_name); генерит `code`, `invite_link=null` (ссылку создаст бот) |
 | `track_delete` | владелец строки/admin | **soft-delete** (13.09.2026): ссылка есть → `pending_revoke=true` (бот отзовёт + поставит `archived_at`); ссылки нет → сразу `archived_at`. Физически НЕ удаляем — CASCADE снёс бы `track_joins`/атрибуцию воронки |
+| `funnel_data` | член | воронка v2 (13.09.2026): `funnel_source_v2` (источник→привёл/купили/конв/⭐/$) + `funnel_report(funnel,from,to)` за `days` (деф. 30). Агрегаты, без персональных id покупателей. UI: «Трекер → Воронка» |
 
 Правки edge: `index.ts` + `logic.js` (чистые функции контракта, тестируются в `tests/run.html`);
 деплой обоих файлов одним `deploy_edge_function` (затирает набор файлов). После DDL — `get_advisors(security)`.

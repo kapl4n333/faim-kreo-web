@@ -554,6 +554,28 @@ Deno.serve(async (req) => {
         return json({ ok: true, id: body.id });
       }
 
+      // Воронка v2: источник → вступление → покупка PPV. Агрегаты по источникам (не персональные
+      // id покупателей) + сводка funnel_report за период. Данные из вью funnel_source_v2 и RPC.
+      case "funnel_data": {
+        const days = Math.min(365, Math.max(1, Number(body.days) || 30));
+        const to = new Date();
+        const from = new Date(Date.now() - days * 864e5);
+        const { data: funnels } = await db.from("track_funnels").select("id, name").order("id");
+        const src = await fetchAll((a, b) => db.from("funnel_source_v2").select("*").range(a, b));
+        const out: any[] = [];
+        for (const f of funnels ?? []) {
+          const { data: rep } = await db.rpc("funnel_report",
+            { p_funnel_id: f.id, p_from: from.toISOString(), p_to: to.toISOString() });
+          out.push({
+            id: f.id, name: f.name, report: rep ?? null,
+            sources: (src ?? []).filter((s: any) => String(s.funnel_id) === String(f.id))
+              .sort((a: any, b: any) => (b.usd_estimate_total || 0) - (a.usd_estimate_total || 0)
+                || (b.acquired || 0) - (a.acquired || 0)),
+          });
+        }
+        return json({ funnels: out, days });
+      }
+
       default: return json({ error: "unknown_action" }, 400);
     }
   } catch (e) { return json({ error: "server", detail: String(e) }, 500); }

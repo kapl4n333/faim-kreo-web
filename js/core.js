@@ -32,6 +32,7 @@ const S={me:null,creos:[],tasks:[],members:[],niches:[],stats:null,
   adminTab:"access",admin:null,
   tForm:false,tDone:false,tDraft:{title:"",due:"",prio:"",asg:[]},_scroll:{},
   keitTab:"joins",teamTab:"people",track:null,trkGroup:"person",trkPlat:"instagram",_trkLoading:false,
+  funnel:null,funnelDays:30,_fnLoading:false,
   _notesTimer:null,_notesState:""};
 /* всё, что переживает закрытие аппы: вкладка, вид каталога, фильтры, черновик задачи */
 const PERSIST=["tab","view","mine","q","niche","author","sort","pub","adminTab","keitTab","teamTab","tDraft","open"];
@@ -203,7 +204,7 @@ function header(){
     S.tab="cat";S.q="";S.author="";S.niche="";S.mine=false;
     if(k==="posted"){S.view="done";S.pub="any";}else{S.view=k;S.pub="";}
     savePrefs();window.scrollTo(0,0);header();render();});
-  const tabs=[["cat","Каталог"],["tasks","Задачи"],["keitaro","Кейтаро"],["team","Команда"]];
+  const tabs=[["cat","Каталог"],["tasks","Задачи"],["keitaro","Трекер"],["team","Команда"]];
   if(admin())tabs.push(["admin","Админ"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
     '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+navIcon(k)+'<span class="lbl">'+l+'</span></button>').join("");

@@ -1,4 +1,4 @@
-/* FTask — остальные разделы: Задачи, Кейтаро (вступления + мои аккаунты), Команда (люди + статистика), Админка. */
+/* FTask — остальные разделы: Задачи, Трекер (вступления + воронка + мои аккаунты), Команда (люди + статистика), Админка. */
 
 /* ---------- под-вкладки ---------- */
 function bindSub(el){el.querySelectorAll("[data-sub]").forEach(b=>b.onclick=()=>{
@@ -80,7 +80,7 @@ function bindTasks(el){
     try{await patchTask(id,{position:(above.position||0)-1});render();}catch(e){toast(errMsg(e),"err");}});
 }
 
-/* ---------- Кейтаро: [Вступления][Мои аккаунты] ---------- */
+/* ---------- Трекер: [Вступления][Воронка][Мои аккаунты] ---------- */
 async function loadTrack(force){
   if(S._trkLoading)return;
   if(S.track!==null&&!force)return;
@@ -89,14 +89,24 @@ async function loadTrack(force){
   catch(e){if(S.track===null)S.track=[];toast(errMsg(e),"err");}
   finally{S._trkLoading=false;render();}
 }
+async function loadFunnel(force){
+  if(S._fnLoading)return;
+  if(S.funnel!==null&&!force)return;
+  S._fnLoading=true;
+  try{const d=await api("funnel_data",{days:S.funnelDays});S.funnel=d.funnels||[];}
+  catch(e){if(S.funnel===null)S.funnel=[];toast(errMsg(e),"err");}
+  finally{S._fnLoading=false;render();}
+}
 function vKeitaroTab(){
-  return subnav("keitTab",[["joins","Вступления"],["acc","Мои аккаунты"]])+(S.keitTab==="acc"?vAccounts():vKeitaro());
+  const sub=subnav("keitTab",[["joins","Вступления"],["funnel","Воронка"],["acc","Мои аккаунты"]]);
+  const body=S.keitTab==="acc"?vAccounts():S.keitTab==="funnel"?vFunnel():vKeitaro();
+  return sub+body;
 }
 function bindKeitaroTab(el){
   bindSub(el);
-  if(S.keitTab==="acc")bindAccounts(el);
-  else{const r=el.querySelector("#kRef");if(r)r.onclick=()=>{haptic();loadTrack(true);};}
-  if(S.track===null)loadTrack();
+  if(S.keitTab==="acc"){bindAccounts(el);if(S.track===null)loadTrack();}
+  else if(S.keitTab==="funnel"){bindFunnel(el);if(S.funnel===null)loadFunnel();}
+  else{const r=el.querySelector("#kRef");if(r)r.onclick=()=>{haptic();loadTrack(true);};if(S.track===null)loadTrack();}
 }
 function vAccounts(){
   const mine=(S.track||[]).filter(a=>String(a.owner_tg_id)===String(S.me.tg_id));
@@ -190,6 +200,60 @@ function vKeitaro(){
     '<div class="track"><div class="bar" style="width:'+Math.round(r.n/max*100)+'%"></div></div>'+
     '<div class="num">'+r.n+(r.d1?' <span class="d1">+'+r.d1+'</span>':"")+'</div></div>').join("");
   return h;
+}
+
+/* ---------- Трекер → Воронка: источник → вступление → покупка PPV ---------- */
+const _fstat=(n,l)=>'<div class="stat"><div class="n">'+esc(String(n))+'</div><div class="l">'+esc(l)+'</div></div>';
+const _usd=v=>{const x=Number(v||0);return (Math.round(x*100)/100).toString();};
+function vFunnel(){
+  const D=[[7,"7д"],[30,"30д"],[90,"90д"]];
+  let h='<div class="subnav sub2">'+D.map(([d,l])=>'<button class="'+(S.funnelDays===d?"on":"")+'" data-fnd="'+d+'">'+l+'</button>').join("")+
+    '<button class="miniref" id="fnRef" title="Обновить">↻</button></div>';
+  if(S.funnel===null)return h+'<div class="empty" style="padding:34px"><div class="spin"></div></div>';
+  if(!S.funnel.length)return h+'<div class="empty"><div class="e-ic">🫥</div><div class="e-h">Воронок пока нет</div>'+
+    'Заведи трек-ссылки в «Мои аккаунты» и подключи импорт продаж — тут появится путь от источника до покупки.</div>';
+  for(const f of S.funnel){
+    const r=f.report||{};
+    const srcs=f.sources||[];
+    const attrBuyers=srcs.reduce((s,x)=>s+(+x.buyers||0),0);
+    h+='<div class="hh">'+esc(f.name||"Воронка")+'</div>';
+    h+='<div class="sgrid two2">'+
+      _fstat(r.acquisition_unique_users||0,"пришло за период")+
+      _fstat(r.buyers||0,"покупателей")+
+      _fstat("★"+(r.gross_stars||0),"звёзд (оборот)")+
+      _fstat("$"+_usd(r.usd_estimate),"оценка, не прибыль")+
+      _fstat((r.net_observed_movement>0?"+":"")+(r.net_observed_movement||0),"чистое движение")+
+      _fstat(r.churn_count||0,"вышло (отписки)")+'</div>';
+    h+='<div class="note" style="margin:6px 2px">'+
+      (r.last_successful_pull_at?"Продажи обновлены "+ago(r.last_successful_pull_at)+" назад":
+        "⚠ Импорт продаж ещё не запускался — цифры покупок появятся после первого прогона.")+'</div>';
+    h+='<div class="hh">Источники <span class="c">'+srcs.length+'</span></div>';
+    if(!srcs.length){h+='<div class="empty">Пока никто из отслеживаемых источников не привёл покупателя.</div>';}
+    else{
+      const max=Math.max(1,...srcs.map(s=>+s.acquired||0));
+      h+=srcs.map(s=>{
+        const label=s.source_account?(platIcon(s.source_platform)+" "+s.source_account):"❔ источник неизвестен";
+        return '<div class="lead"><div class="nm">'+esc(label)+
+          '<span class="ls">привёл '+(s.acquired||0)+' · купили '+(s.buyers||0)+' · конв '+(s.conv_pct||0)+'% · $'+_usd(s.usd_estimate_total)+'</span></div>'+
+          '<div class="track"><div class="bar" style="width:'+Math.round((+s.acquired||0)/max*100)+'%"></div></div>'+
+          '<div class="num">'+(s.buyers||0)+'/'+(s.acquired||0)+'</div></div>';
+      }).join("");
+      h+='<div class="note" style="margin:8px 2px">Атрибутировано покупателей: <b>'+attrBuyers+'</b> из '+(r.buyers||0)+
+        ' — остальные пришли до трекинга или органикой. Выручка — оборот по звёздам, <b>не прибыль</b>. '+
+        'Привязка по аккаунту-источнику, не по конкретному рилсу.</div>';
+    }
+    const geo=r.geo_rows;
+    if(geo&&Object.keys(geo).length){
+      const items=Object.entries(geo).sort((a,b)=>b[1]-a[1]);
+      h+='<div class="hh">Страны покупателей</div>'+
+        '<div class="note" style="margin:2px">'+items.map(([cc,n])=>esc(cc)+": "+n).join(" · ")+'</div>';
+    }
+  }
+  return h;
+}
+function bindFunnel(el){
+  el.querySelectorAll("[data-fnd]").forEach(b=>b.onclick=()=>{haptic();S.funnelDays=+b.dataset.fnd;S.funnel=null;render();loadFunnel(true);});
+  const r=el.querySelector("#fnRef");if(r)r.onclick=()=>{haptic();loadFunnel(true);};
 }
 
 /* ---------- Команда: [Люди][Статистика] ---------- */

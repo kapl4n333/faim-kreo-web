@@ -139,6 +139,13 @@ export function makeServer(meId = 1, fx) {
         case "track_data": return { accounts: clone(db.accounts) };
         case "track_add": { const a = { id: 50 + db.accounts.length, owner_tg_id: meId, platform: p.platform, account_name: p.account_name, invite_link: null, joins: 0, joins_24h: 0 }; db.accounts.unshift(a); return { account: clone(a) }; }
         case "track_delete": db.accounts = db.accounts.filter((a) => a.id !== +p.id); return { ok: true };
+        case "funnel_data": return { days: p.days || 30, funnels: [{ id: 1, name: "Ava Carter",
+          report: { acquisition_unique_users: 59, buyers: 4, gross_stars: 1500, usd_estimate: 19.5,
+            net_observed_movement: 5, churn_count: 2, last_successful_pull_at: nowIso(), geo_rows: { GB: 1, US: 1 } },
+          sources: (db.accounts || []).map((a, i) => ({ funnel_id: 1, source_account_id: a.id,
+            source_account: a.account_name, source_platform: a.platform, acquired: a.joins || 0,
+            buyers: i === 0 ? 1 : 0, conv_pct: i === 0 ? 2.1 : 0, stars_total: i === 0 ? 200 : 0,
+            usd_estimate_total: i === 0 ? 2.6 : 0 })) }] };
         case "admin_data": return { users: [{ tg_id: 1, name: "Каплан", username: "kaplan", approved: true, is_admin: true, is_owner: true, agent_ok: true }, { tg_id: 2, name: "Оля", approved: true, is_admin: false, no_gen: false, no_uniq: true }], requests: [{ tg_id: 9, name: "Новичок" }], workflows: [{ key: "krea2_face_swap", title: "🎭 Krea2 Face Swap", enabled: true, instance_type: null }] };
         case "admin_cmd": return { ok: true, id: 1 };
         case "set_workflow": return { workflow: Object.assign({ key: p.key, title: "🎭 Krea2 Face Swap" }, p) };
