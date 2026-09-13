@@ -1,7 +1,7 @@
 // Фикстуры + локальный «сервер» для tests/demo.html и tests/run.html.
 // Использует ТУ ЖЕ логику, что Edge (logic.js), чтобы фронт проверялся против настоящего контракта.
 // К настоящему API не обращается. Не подключать в production.
-import { statusTransition, mergePaths, normNicheName, nicheKey, normNicheIds, deferPatch, restorePatch, normNotes, deliverExtra }
+import { statusTransition, mergePaths, normNicheName, nicheKey, normNicheIds, deferPatch, restorePatch, normNotes, deliverExtra, downloadTarget }
   from "../supabase/functions/kreo-api/logic.js";
 
 const svg = (bg, txt) => "data:image/svg+xml;utf8," + encodeURIComponent(
@@ -55,10 +55,12 @@ export function makeFixtures(meId = 1) {
   return { members, niches, creos, tasks, accounts };
 }
 
-/** Подписанные URL «сервера»: меняются с каждым bootstrap (как настоящие signed URL). */
+/** Подписанные URL «сервера»: меняются с каждым bootstrap (как настоящие signed URL).
+ *  db.unsigned — Set путей, которые «не подписались» → слот null (выравнивание по индексу, как в edge). */
 function sign(db, c) {
   const t = db.urlGen;
-  const u = (p, i) => svg(["#8A6135", "#5B8C7E", "#9A6B96", "#B05C5C", "#3f5f8a"][(p.length + i) % 5], p.split("/").pop().slice(0, 14)) + "#s=" + t;
+  const u = (p, i) => (db.unsigned && db.unsigned.has(p)) ? null
+    : svg(["#8A6135", "#5B8C7E", "#9A6B96", "#B05C5C", "#3f5f8a"][(p.length + i) % 5], p.split("/").pop().slice(0, 14)) + "#s=" + t;
   c.source_urls = (c.source_paths || []).map((p, i) => u(p, i));
   c.result_urls = (c.result_paths || []).map((p, i) => u(p, i));
   c.media_urls = (c.storage_paths || []).map((p, i) => u(p, i));
@@ -102,6 +104,12 @@ export function makeServer(meId = 1, fx) {
         case "toggle_posted": { const c = find(p.id); const has = c.posters.some((x) => x.tg_id === meId);
           c.posters = has ? c.posters.filter((x) => x.tg_id !== meId) : c.posters.concat([{ tg_id: meId, username: me().username, at: nowIso() }]); return { creo: out(c) }; }
         case "sign_upload": return { path: meId + "/" + Date.now() + "_" + Math.random().toString(36).slice(2, 6) + "_" + p.name, signedUrl: null, token: null };
+        case "sign_download": {   // тот же узкий контракт, что edge: путь только из массива крео
+          const t = downloadTarget({ cur: find(p.id), field: p.field, index: p.index }); if (!t.ok) fail(t.error);
+          db.dlGen = (db.dlGen || 0) + 1;
+          const url = server.dlUrl ? server.dlUrl(t) : svg("#2f4f4f", "dl " + t.name.slice(0, 12)) + "#dl=" + db.dlGen + "&download=" + encodeURIComponent(t.name);
+          return { id: +p.id, field: p.field, index: +p.index, path: t.path, name: t.name, url, expires_in: 600 };
+        }
         case "deliver_creo": { const c = find(p.id); if (!c) fail("not_found"); c.result_paths = mergePaths(c.result_paths, p.paths);
           Object.assign(c, deliverExtra({ caption: p.caption, nowIso: nowIso() }));
           if (Array.isArray(p.niche_ids)) c.niche_ids = normNicheIds(p.niche_ids).filter((id) => db.niches.some((n) => n.id === id)); return { creo: out(c) }; }

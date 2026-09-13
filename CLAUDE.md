@@ -168,6 +168,9 @@ Vanilla JS без сборки, но разнесён по файлам (кла�
   (`poll`/`sigOf`), `refreshMedia` (E), `header()` (рельса + нав), `render()` (роутер).
 - `js/catalog.js` — каталог (`catList`, `vCatalog`, `ccard`, `tileMedia`, клипы) + карточка
   (`openDetail`/`renderDetail`/`closeDetail`, `frames`), действия (`creoAction`, ниши, заметки).
+- `js/download.js` — скачивание исходников/результатов на устройство; грузится после `catalog.js`,
+  до `boot()`. Системный Save As с постоянным `id=ftask-downloads` (без сброса `startIn`),
+  иначе Telegram `downloadFile` / браузер. Папку в fallback контролирует клиент, не FTask.
 - `js/upload.js` — FAB + лист загрузки с чипами ниш (`S.upNiches`).
 - `js/views.js` — Задачи, Кейтаро (вступления + мои аккаунты), Команда (люди + статистика), Админка (+ «Ниши»).
 - `supabase/functions/kreo-api/logic.js` — чистая логика edge; фронт её НЕ грузит, но тесты — да.
@@ -212,7 +215,7 @@ Vanilla JS без сборки, но разнесён по файлам (кла�
 (`deliver_creo`) или `null` (FAB «+» → `create_upload_creo`). Чипы ниш с множественным выбором,
 существующие ниши крео подставлены, «＋ Новая ниша». Файл → `sign_upload` → PUT → пути + `niche_ids` в edge.
 
-**Тесты (без node):** `tests/run.html` — 40 проверок logic.js + сценариев фронта на фикстурах
+**Тесты (без node):** `tests/run.html` — 58 проверок logic.js + сценариев фронта на фикстурах
 (`tests/demo-data.js`, «сервер» на той же `logic.js`). Запуск:
 `msedge --headless=new --allow-file-access-from-files --window-size=390,844 --virtual-time-budget=30000 --dump-dom tests/run.html`
 (и `?split=1` при 1440×900) → `<title>RESULT: N passed, M failed`. `tests/demo.html` — визуальная

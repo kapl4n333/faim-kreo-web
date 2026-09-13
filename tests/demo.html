@@ -29,7 +29,7 @@ window.__FTASK_DEMO__ = (a, p) => srv.handle(a, p);
 window.__DEMO_SERVER__ = srv;
 try { localStorage.removeItem("ftask.prefs"); sessionStorage.setItem("splashSeen", "1"); } catch (e) {}
 const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
-for (const f of ["core", "catalog", "upload", "views"]) await load("../js/" + f + ".js?v=dev");
+for (const f of ["core", "catalog", "download", "upload", "views"]) await load("../js/" + f + ".js?v=dev");
 await boot();
 if (q.get("tab")) S.tab = q.get("tab");
 if (q.get("view")) S.view = q.get("view");

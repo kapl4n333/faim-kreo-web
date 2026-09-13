@@ -1,5 +1,5 @@
 /* FTask — ядро: состояние, API, синк, шапка/навигация, роутер. Классические скрипты
-   (без модулей) — порядок подключения в index.html: core → catalog → upload → views.
+   (без модулей) — порядок подключения в index.html: core → catalog → download → upload → views.
    Версия ресурсов — в index.html (?v=), бампать при каждой правке js/css. */
 const API="https://xgkyuxjvwwstsuhtwhpv.supabase.co/functions/v1/kreo-api";
 const CHAT_INTERNAL="3863967700",LINKS_THREAD=3209,READY_THREAD=3;
@@ -126,7 +126,9 @@ function absorb(d){Object.assign(S,{me:d.me,creos:d.creos||[],tasks:d.tasks||[],
 function sigOf(){
   return JSON.stringify([
     S.creos.map(c=>[c.id,c.status,c.delivery_state,postedList(c).map(p=>p.tg_id).join(),c.assignee_tg_id,
-      c.caption,c.result_caption,(c.result_paths||[]).join(),(c.source_paths||[]).join(),c.source_state,c.preview_poster,c.preview_clip,
+      c.caption,c.result_caption,(c.result_paths||[]).join(),(c.source_paths||[]).join(),(c.storage_paths||[]).join(),c.source_state,c.preview_poster,c.preview_clip,
+      // null → URL требует построить просмотрщик вместо заглушки; ротация URL — только refreshMedia.
+      [c.source_urls,c.media_urls,c.result_urls].map(u=>(u||[]).map(Boolean)),
       c.source_poster,c.source_clip,c.delivered_at,c.done_at,c.ready_msg_id,c.downloaded_msg_id,c.archived_at,
       (c.niche_ids||[]).join(),c.deferred_at,c.notes,c.notes_updated_at]),
     S.tasks.map(t=>[t.id,t.status,t.pinned,t.position,t.title,t.due_date,t.priority,(t.assignee_tg_ids||[]).join(),t.done_at]),

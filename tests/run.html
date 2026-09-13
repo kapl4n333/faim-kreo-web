@@ -59,7 +59,7 @@ const srv = makeServer(1);
 window.__FTASK_DEMO__ = (a, p) => srv.handle(a, p);
 try { localStorage.removeItem("ftask.prefs"); } catch (e) {}
 const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
-for (const f of ["core", "catalog", "upload", "views"]) await load("../js/" + f + ".js?v=dev");
+for (const f of ["core", "catalog", "download", "upload", "views"]) await load("../js/" + f + ".js?v=dev");
 await boot();
 const split = new URLSearchParams(location.search).get("split") === "1";
 const cardsN = () => document.querySelectorAll(".cc").length;
@@ -112,7 +112,7 @@ await T("удаление ниши не трогает крео", async () => { 
   return S.creos.length === before && !S.niches.some((n) => n.id === 3) && S.creos.every((c) => !c.niche_ids.includes(3)) || "len"; });
 await T("несколько загрузок: новые результаты первыми, старые доступны", async () => { openDetail(5); await srv.handle("deliver_creo", { id: 5, paths: ["2/9_zz_v3.jpg"], caption: "v3", niche_ids: [1] });
   const d = await srv.handle("bootstrap"); absorb(d); S._sig = sigOf(); renderDetail();
-  const rows = [...document.querySelectorAll("#detail .rrow .rn")].map((x) => x.textContent); const c = S.creos.find((x) => x.id === 5);
+  const rows = [...document.querySelectorAll("#detail .result-files .rrow .rn")].map((x) => x.textContent); const c = S.creos.find((x) => x.id === 5);
   return c.result_paths.length === 3 && rows.length === 3 && rows[0].startsWith("v3.jpg") && rows[0].includes("последний") && rows[2].includes("результат 1 из 3")
     && $("#detail .rrow.new") && frames(c).filter((f) => f.res)[0].n === 3 || rows.join("|"); });
 await T("заметки: автосохранение после ввода, переживает перерисовку", async () => { openDetail(1); const n = $("#dnotes"); n.value = "переделать свет"; n.dispatchEvent(new Event("input")); await sleep(950);
@@ -136,6 +136,8 @@ await T("Команда: люди и статистика", () => { S.tab = "tea
 await T("лист загрузки: ниши крео подставлены, «+ Новая ниша» есть", () => { openSheet(5); const on = [...document.querySelectorAll('#sheet [data-un].on')].map((b) => +b.dataset.un); const add = !!$('#sheet [data-un="new"]'); closeSheet(); return eq(on.sort(), [1]) && add || on.join(","); });
 await T("удаление крео закрывает карточку", async () => { openDetail(10); window.confirm = () => true; await delCreo(10); return S.open === null && !S.creos.some((c) => c.id === 10); });
 
+const {runDownloadTests} = await import("./download-tests.js");
+await runDownloadTests(T);
 document.title = "RESULT: " + pass + " passed, " + fail + " failed";
 R.innerHTML += "\n" + document.title;
 </script>

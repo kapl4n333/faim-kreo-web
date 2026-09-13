@@ -75,6 +75,35 @@ export function normNotes(raw) {
   return s.trim() ? s : null;
 }
 
+/** Скачивание файла крео на устройство (action sign_download). Узкий контракт: подписываем
+ *  ТОЛЬКО путь из массива выбранного крео по разрешённому полю и индексу — никакого «подпиши
+ *  произвольный path». Поля = те же, что отдаёт bootstrap (source/media/result → *_paths). */
+export const DL_FIELDS = { source: "source_paths", media: "storage_paths", result: "result_paths" };
+export function downloadTarget({ cur, field, index }) {
+  if (!cur) return { ok: false, error: "not_found" };
+  const col = Object.hasOwn(DL_FIELDS, field) ? DL_FIELDS[field] : null;
+  if (!col) return { ok: false, error: "bad_field" };
+  if (typeof index !== "number") return { ok: false, error: "no_file" };
+  const i = index;
+  const arr = Array.isArray(cur[col]) ? cur[col] : [];
+  if (!Number.isInteger(i) || i < 0 || i >= arr.length || !arr[i] || typeof arr[i] !== "string") return { ok: false, error: "no_file" };
+  return { ok: true, path: arr[i], name: downloadName({ id: cur.id, field, index: i, path: arr[i] }) };
+}
+
+/** Имя файла при сохранении: ftask-<id>-<src|res|med>-<n>[-<исходное имя>].<ext>.
+ *  Только из ПУТИ в Storage (никаких query подписанных URL), ascii-safe, расширение из пути.
+ *  Та же функция продублирована на фронте (js/download.js: dlName) — тест сверяет их. */
+export function downloadName({ id, field, index, path }) {
+  const base = String(path || "").split("?")[0].split("#")[0].split("/").pop() || "";
+  const m = /\.([a-z0-9]{1,5})$/i.exec(base);
+  const ext = m ? m[1].toLowerCase() : "bin";
+  let stem = (m ? base.slice(0, -m[0].length) : base).replace(/^\d+_[a-z0-9]+_/, "");  // префикс sign_upload
+  stem = stem.replace(/[^\w.\-]+/g, "_").replace(/^[._-]+|[._-]+$/g, "").slice(0, 40);
+  if (/^\d*$/.test(stem)) stem = "";                                                  // sources/<id>/0.mp4 → без хвоста
+  const tag = field === "source" ? "src" : field === "result" ? "res" : "med";
+  return "ftask-" + Number(id) + "-" + tag + "-" + (Number(index) + 1) + (stem ? "-" + stem : "") + "." + ext;
+}
+
 /** Патч доставки: набор полей при загрузке результата (без result_paths — они через CAS). */
 export function deliverExtra({ caption, nowIso }) {
   const extra = { status: "done", done_at: nowIso, delivered_at: nowIso, delivery_state: "pending" };

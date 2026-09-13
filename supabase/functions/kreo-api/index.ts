@@ -2,7 +2,7 @@
 // Auth: Telegram initData (HMAC по BOT_TOKEN) → verify_jwt=false. Данные/Storage — service_role.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { statusTransition, mergePaths, normNicheName, normNicheIds, deferPatch, restorePatch,
-  normNotes, deliverExtra } from "./logic.js";
+  normNotes, deliverExtra, downloadTarget } from "./logic.js";
 
 const BOT_TOKEN = (Deno.env.get("BOT_TOKEN") ?? "").trim();
 const ADMIN_IDS = (Deno.env.get("KREO_ADMIN_IDS") ?? "517207658")
@@ -22,7 +22,8 @@ const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
 async function hmac(keyData: ArrayBuffer | Uint8Array, msg: string) {
-  const key = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const bytes = Uint8Array.from(keyData instanceof Uint8Array ? keyData : new Uint8Array(keyData));
+  const key = await crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
 }
 const toHex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -87,10 +88,13 @@ async function withMedia(creos: any[]) {
   }
   if (!all.length) return creos;
   const map = await signPaths(all);
+  // *_urls выровнены по индексу с *_paths: неподписанный слот = null (НЕ выкидываем), иначе
+  // фронт спутает файлы при скачивании/просмотре альбома, где одна ссылка не подписалась.
+  const aligned = (paths: any) => (Array.isArray(paths) ? paths : []).map((p: string) => map[p] || null);
   for (const c of creos) {
-    c.media_urls = (c.storage_paths || []).map((p: string) => map[p]).filter(Boolean);
-    c.result_urls = (c.result_paths || []).map((p: string) => map[p]).filter(Boolean);
-    c.source_urls = (c.source_paths || []).map((p: string) => map[p]).filter(Boolean);
+    c.media_urls = aligned(c.storage_paths);
+    c.result_urls = aligned(c.result_paths);
+    c.source_urls = aligned(c.source_paths);
     c.preview_url = c.preview_poster ? (map[c.preview_poster] || null) : null;
     c.clip_url = c.preview_clip ? (map[c.preview_clip] || null) : null;
     c.source_poster_url = c.source_poster ? (map[c.source_poster] || null) : null;
@@ -126,6 +130,7 @@ async function applyTransition(id: any, me: number, isAdmin: boolean, target: st
     const tr = statusTransition({ cur, me, isAdmin, target, nowIso });
     if (!tr.ok) return { error: tr.error, creo: cur };
     if (tr.noop) return { creo: cur };
+    if (!tr.patch || !tr.cond) return { error: "conflict", creo: cur };
     let q = db.from("creos").update(tr.patch).eq("id", id);
     if (tr.cond.assignee_null) q = q.is("assignee_tg_id", null);
     if (tr.cond.assignee != null) q = q.eq("assignee_tg_id", tr.cond.assignee);
@@ -361,6 +366,24 @@ Deno.serve(async (req) => {
         const { data, error } = await db.storage.from(BUCKET).createSignedUploadUrl(path);
         if (error) return json({ error: "sign_failed", detail: error.message }, 500);
         return json({ path, signedUrl: data.signedUrl, token: data.token });
+      }
+
+      case "sign_download": {
+        // Свежая короткая подписанная ссылка на ОДИН файл крео для скачивания на устройство.
+        // Путь берётся только из массива самого крео (logic.downloadTarget) — это не оракул
+        // «подпиши что угодно». `download=<имя>` → Storage отдаёт Content-Disposition: attachment
+        // (нужно fallback-режимам без File System Access). Статус/исполнитель не важны:
+        // исходник качает любой член команды, не забирая крео в работу.
+        const { data: cur, error: lookupError } = await db.from("creos")
+          .select("id, source_paths, storage_paths, result_paths").eq("id", body.id).maybeSingle();
+        if (lookupError) return json({ error: "lookup_failed" }, 500);
+        if (!cur) return json({ error: "not_found" }, 404);
+        const t = downloadTarget({ cur, field: body.field, index: body.index });
+        if (!t.ok || !t.path) return json({ error: t.error }, t.error === "bad_field" ? 400 : 404);
+        const { data, error } = await db.storage.from(BUCKET).createSignedUrl(t.path, 600, { download: t.name });
+        if (error || !data?.signedUrl) return json({ error: "sign_failed", detail: error?.message }, 500);
+        return json({ id: cur.id, field: body.field, index: Number(body.index), path: t.path, name: t.name,
+          url: data.signedUrl, expires_in: 600 });
       }
 
       case "create_upload_creo": {

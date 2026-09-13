@@ -33,22 +33,24 @@ function catList(v){
 }
 
 /* ---------- медиа карточки ---------- */
-const lastRes=c=>{const u=c.result_urls||[];return u.length?u.length-1:-1;};
+/* индекс последнего результата — по путям (result_urls выровнены по индексу, слот может быть null) */
+const lastRes=c=>{const p=c.result_paths||[];return p.length?p.length-1:-1;};
 /* что показать на плитке: у референса — исходник, у готового — последний результат */
 function tileMedia(c){
   const ri=lastRes(c);
   if(c.status==="done"&&ri>=0){
-    const p=(c.result_paths||[])[ri]||"",u=c.result_urls[ri];
-    if(!isVid(p))return {img:u,ref:[c.id,"result_urls",ri],clip:c.clip_url,clipRef:[c.id,"clip_url",0],lbl:"результат"};
+    const p=(c.result_paths||[])[ri]||"",u=(c.result_urls||[])[ri];
+    if(!isVid(p)&&u)return {img:u,ref:[c.id,"result_urls",ri],clip:c.clip_url,clipRef:[c.id,"clip_url",0],lbl:"результат"};
     if(c.preview_url)return {img:c.preview_url,ref:[c.id,"preview_url",0],clip:c.clip_url,clipRef:[c.id,"clip_url",0],lbl:"результат"};
-    return {vid:u,ref:[c.id,"result_urls",ri],lbl:"результат"};
+    if(u)return {vid:u,ref:[c.id,"result_urls",ri],lbl:"результат"};
   }
   if(c.source_poster_url)return {img:c.source_poster_url,ref:[c.id,"source_poster_url",0],clip:c.source_clip_url,clipRef:[c.id,"source_clip_url",0],lbl:"исходник"};
   const su=c.source_urls||[],sp=c.source_paths||[];
-  for(let i=0;i<su.length;i++)if(!isVid(sp[i]))return {img:su[i],ref:[c.id,"source_urls",i],lbl:"исходник"};
+  for(let i=0;i<su.length;i++)if(su[i]&&!isVid(sp[i]))return {img:su[i],ref:[c.id,"source_urls",i],lbl:"исходник"};
   const mu=c.media_urls||[],mp=c.storage_paths||[];
-  for(let i=0;i<mu.length;i++)if(!isVid(mp[i]))return {img:mu[i],ref:[c.id,"media_urls",i],lbl:"исходник"};
-  if(su.length)return {vid:su[0],ref:[c.id,"source_urls",0],lbl:"исходник"};
+  for(let i=0;i<mu.length;i++)if(mu[i]&&!isVid(mp[i]))return {img:mu[i],ref:[c.id,"media_urls",i],lbl:"исходник"};
+  const sv=su.findIndex(Boolean);
+  if(sv>=0)return {vid:su[sv],ref:[c.id,"source_urls",sv],lbl:"исходник"};
   if(c.status==="done"&&ri>=0&&c.preview_url)return {img:c.preview_url,ref:[c.id,"preview_url",0],lbl:"результат"};
   return {none:true};
 }
@@ -102,8 +104,17 @@ function primaryAct(c){
   if(c.status==="queued")return canClaim()?['claim',"Взять","take"]:null;
   if(c.status==="in_progress")return isMine(c)?['upload',"📤 Загрузить результат","plus"]:null;
   const ri=lastRes(c);
-  if(ri>=0)return ['download',"⬇ Скачать","",c.result_urls[ri]];
+  if(ri>=0)return ['download',"⬇ Скачать",""];
   return ['upload',"📤 Загрузить результат","plus"];
+}
+/* Прямое скачивание исходника с плитки (без claim): один файл → сразу качаем, альбом → в карточку,
+   где каждый файл отдельно. У готового на плитке главное — результат; исходник остаётся в карточке. */
+function tileDl(c){
+  if(c.status==="done")return "";
+  const items=dlSourceItems(c);
+  if(!items.length)return "";
+  if(items.length===1)return dlButton(c,items[0].field,items[0].i,{label:"⬇",cls:"sm",title:"Скачать исходник: "+items[0].name});
+  return '<button class="act dlb sm" data-act="files" data-id="'+c.id+'" title="Скачать файлы исходника по одному">⬇ '+items.length+'</button>';
 }
 function ccard(c){
   const capUrl=c.kind==="link"&&c.source_url&&!c.caption;
@@ -114,8 +125,9 @@ function ccard(c){
   const nn=nicheNames(c);
   const chips=nn.length?'<div class="nchips">'+nn.slice(0,2).map(n=>'<span class="nc">'+esc(n)+'</span>').join("")+
     (nn.length>2?'<span class="nc">+'+(nn.length-2)+'</span>':"")+'</div>':"";
-  const pa=primaryAct(c);
-  const act=pa?'<div class="ca"><button class="act '+pa[2]+'" data-act="'+pa[0]+'" data-id="'+c.id+'"'+(pa[3]?' data-url="'+esc(pa[3])+'"':"")+'>'+pa[1]+'</button></div>':"";
+  const pa=primaryAct(c),td=tileDl(c);
+  const mainAct=pa?(pa[0]==="download"?dlButton(c,"result",lastRes(c),{label:pa[1]}):'<button class="act '+pa[2]+'" data-act="'+pa[0]+'" data-id="'+c.id+'">'+pa[1]+'</button>'):"";
+  const act=(pa||td)?'<div class="ca">'+mainAct+td+'</div>':"";
   const post=postedList(c).length?' · <span style="color:var(--o)">✓ опубл.</span>':"";
   return '<div class="cc'+(S.open===c.id?" open":"")+(isMine(c)&&c.status==="in_progress"?" mine":"")+'" data-open="'+c.id+'">'+mediaBox(c)+
     '<div class="cb"><div class="ct'+(capUrl?" url":"")+'">'+(cap?esc(cap):'<span style="opacity:.4">без подписи</span>')+'</div>'+
@@ -157,19 +169,22 @@ function bindCatalog(el){
   const ca=el.querySelector("#ca");if(ca)ca.onchange=()=>{S.author=ca.value;savePrefs();render();};
   const cs=el.querySelector("#cs");if(cs)cs.onchange=()=>{S.sort=cs.value;savePrefs();render();};
   el.querySelectorAll("[data-pub]").forEach(b=>b.onclick=()=>{haptic();S.pub=b.dataset.pub;savePrefs();render();});
-  el.querySelectorAll("[data-act]").forEach(b=>b.onclick=e=>{e.stopPropagation();creoAction(b.dataset.act,+b.dataset.id,b.dataset.url);});
+  el.querySelectorAll("[data-act]").forEach(b=>b.onclick=e=>{e.stopPropagation();creoAction(b.dataset.act,+b.dataset.id);});
   el.querySelectorAll("[data-open]").forEach(cd=>cd.onclick=e=>{if(e.target.closest("button"))return;openDetail(+cd.dataset.open);});
+  bindDl(el);
   bindClips(el);
 }
 
 /* ---------- действия (единый контракт с сервером: logic.statusTransition) ---------- */
 function upd(c,d){if(d&&d.creo)Object.assign(c,d.creo);S._sig=sigOf();header();render();}
-async function creoAction(act,id,url){
-  const c=S.creos.find(x=>x.id===id);if(!c)return;haptic();
+async function creoAction(act,id){
+  const c=S.creos.find(x=>x.id===id);if(!c)return;
+  if(act==="download"){downloadFile(id,"result",lastRes(c));return;}   // без haptic/await до picker (activation)
+  if(act==="files"){openDetail(id);return;}
+  haptic();
   try{
     if(act==="claim"){const d=await api("claim_creo",{id});upd(c,d);notify();toast("Взял в работу","ok");}
     else if(act==="upload")openSheet(id);
-    else if(act==="download"){openExt(url||c.result_urls[lastRes(c)]);}
     else if(act==="restore"){const d=await api("restore_creo",{id});upd(c,d);toast("Вернул в каталог","ok");}
     else if(act==="defer"){const d=await api("defer_creo",{id});upd(c,d);toast("Отложено — вид «Отложенные»","ok");}
     else if(act==="queue"){const d=await api("set_creo_status",{id,status:"queued"});upd(c,d);toast("Вернул в свободные","ok");}
@@ -250,14 +265,16 @@ function closeDetail(silent){
   else if(!silent)setTimeout(()=>{d.innerHTML="";},300);
 }
 /* просмотрщик: список кадров = исходник (source_urls / media_urls) + результаты (новые первыми) */
+/* Итерируем по ПУТЯМ: *_urls выровнены по индексу, слот может быть null (ссылка не подписалась /
+   ещё не пришла) — кадр всё равно есть, скачать его можно (sign_download подпишет заново). */
 function frames(c){
   const out=[];
   const sp=c.source_paths||[],su=c.source_urls||[];
-  su.forEach((u,i)=>out.push({f:"source_urls",i,u,p:sp[i]||"",lbl:"исходник",vid:isVid(sp[i]||u)}));
+  sp.forEach((p,i)=>out.push({f:"source_urls",dl:"source",i,u:su[i]||null,p:p||"",lbl:"исходник",vid:isVid(p)}));
   const mp=c.storage_paths||[],mu=c.media_urls||[];
-  mu.forEach((u,i)=>{if(!(c.result_paths||[]).includes(mp[i]))out.push({f:"media_urls",i,u,p:mp[i]||"",lbl:"исходник",vid:isVid(mp[i]||u)});});
+  mp.forEach((p,i)=>{if(!(c.result_paths||[]).includes(p))out.push({f:"media_urls",dl:"media",i,u:mu[i]||null,p:p||"",lbl:"исходник",vid:isVid(p)});});
   const rp=c.result_paths||[],ru=c.result_urls||[];
-  for(let i=ru.length-1;i>=0;i--)out.push({f:"result_urls",i,u:ru[i],p:rp[i]||"",lbl:"результат",vid:isVid(rp[i]||ru[i]),res:true,n:i+1});
+  for(let i=rp.length-1;i>=0;i--)out.push({f:"result_urls",dl:"result",i,u:ru[i]||null,p:rp[i]||"",lbl:"результат",vid:isVid(rp[i]),res:true,n:i+1});
   return out;
 }
 function defaultFrame(fr,c){
@@ -280,11 +297,15 @@ function renderDetail(){
   const dsig=JSON.stringify([c.id,cur&&cur.f,cur&&cur.i,cur&&cur.u,fr.map(x=>x.u)]);
   const viewerHtml=()=>{
     if(!cur){const s=srcState(c);return '<div class="viewer"><div class="vna"><div class="big">'+s.big+'</div>'+esc(s.txt)+'</div></div>';}
-    const main=cur.vid?'<video class="vmain" controls playsinline preload="metadata" src="'+esc(cur.u)+'"'+mref([c.id,cur.f,cur.i])+'></video>'
+    const main=!cur.u?'<div class="vna"><div class="big">⏳</div>ссылка на файл обновляется…</div>'
+      :cur.vid?'<video class="vmain" controls playsinline preload="metadata" src="'+esc(cur.u)+'"'+mref([c.id,cur.f,cur.i])+'></video>'
       :'<img class="vmain" src="'+esc(cur.u)+'"'+mref([c.id,cur.f,cur.i])+'>';
     const th=fr.length>1?'<div class="thumbs2">'+fr.map(x=>'<div class="th2'+(x===cur?" on":"")+'" data-fr="'+x.f+'|'+x.i+'">'+
-      (x.vid?'<div class="vf">🎬</div>':'<img src="'+esc(x.u)+'"'+mref([c.id,x.f,x.i])+'>')+'<span class="lb">'+(x.res?"рез. "+x.n:"исх.")+'</span></div>').join("")+'</div>':"";
-    return '<div class="viewer"><span class="vlbl">'+cur.lbl+(cur.res?" "+cur.n:"")+'</span>'+main+'</div>'+th;
+      (x.vid||!x.u?'<div class="vf">'+(x.vid?"🎬":"⏳")+'</div>':'<img src="'+esc(x.u)+'"'+mref([c.id,x.f,x.i])+'>')+'<span class="lb">'+(x.res?"рез. "+x.n:"исх.")+'</span></div>').join("")+'</div>':"";
+    // скачать ровно текущий кадр — исходник доступен без claim и после загрузки результатов
+    const dlrow='<div class="vdl"><span class="vfn">'+esc(fname(cur.p)||"файл")+'</span>'+
+      dlButton(c,cur.dl,cur.i,{label:"⬇ Скачать этот файл",cls:"cur"})+'</div>';
+    return '<div class="viewer"><span class="vlbl">'+cur.lbl+(cur.res?" "+cur.n:"")+'</span>'+main+'</div>'+th+dlrow;
   };
   const cap=c.caption||"";const rcap=c.result_caption||"";
   const links='<div class="dlinks">'+
@@ -309,10 +330,17 @@ function renderDetail(){
     S.members.map(m=>'<option value="'+m.tg_id+'"'+(String(m.tg_id)===String(c.assignee_tg_id)?" selected":"")+'>'+esc(m.name||("@"+(m.username||m.tg_id)))+'</option>').join("")+'</select></div>';
   const sel=new Set(c.niche_ids||[]);
   const results=(c.result_paths||[]).map((p,i)=>({p,u:(c.result_urls||[])[i],i})).reverse();
-  const rlist=results.length?'<div class="rlist">'+results.map((r,k)=>'<div class="rrow'+(k===0?" new":"")+'"><div class="ri">'+
+  const rlist=results.length?'<div class="rlist result-files">'+results.map((r,k)=>'<div class="rrow'+(k===0?" new":"")+'"><div class="ri">'+
       (isVid(r.p)?"🎬":(r.u?'<img loading="lazy" src="'+esc(r.u)+'"'+mref([c.id,"result_urls",r.i])+'>':"🖼"))+'</div>'+
       '<div class="rn">'+esc(fname(r.p))+'<small>'+(k===0?"последний · ":"")+'результат '+(r.i+1)+' из '+results.length+'</small></div>'+
-      (r.u?'<button class="act" data-dl="'+esc(r.u)+'">⬇</button>':"")+'</div>').join("")+'</div>':'<div class="note">Результатов ещё нет.</div>';
+      dlButton(c,"result",r.i,{title:"Скачать: "+dlName(c.id,"result",r.i,r.p)})+'</div>').join("")+'</div>':'<div class="note">Результатов ещё нет.</div>';
+  // исходник референса: каждый файл (альбом — по одному) качается без claim; нет файлов — честное состояние
+  const srcs=dlSourceItems(c);
+  const slist=srcs.length?'<div class="rlist">'+srcs.map(x=>'<div class="rrow"><div class="ri">'+
+      (x.vid?"🎬":(mediaUrl(c.id,DL_URLF[x.field],x.i)?'<img loading="lazy" src="'+esc(mediaUrl(c.id,DL_URLF[x.field],x.i))+'"'+mref([c.id,DL_URLF[x.field],x.i])+'>':"🖼"))+'</div>'+
+      '<div class="rn">'+esc(fname(x.p))+'<small>'+esc(x.name)+'</small></div>'+dlButton(c,x.field,x.i,{title:"Скачать: "+x.name})+'</div>').join("")+'</div>'
+    :'<div class="note">'+esc(srcState(c).txt)+(c.source_state==="too_big"||c.source_state==="failed"||(c.source_state==="none"&&c.source_msg_id)?" — кнопка «Исходник в Telegram» выше.":"")+'</div>';
+  const ssec='<div class="dsec"><div class="dh">Исходник <span class="c">'+srcs.length+'</span></div>'+slist+'<div class="note dlnote">'+esc(dlModeNote())+'</div></div>';
   const dl=c.delivery_state==="pending"?'<div class="dl pend"><span class="dspin"></span> Уходит в AvaCarter Ready…</div>'
     :(c.delivery_state==="sent"&&c.ready_msg_id)?'<button class="dl sent" data-dact="ready">✓ В Ready · открыть ↗</button>':"";
   const ps=postedList(c),pm=iPosted(c);
@@ -331,7 +359,7 @@ function renderDetail(){
       '<div class="dmeta"><span>автор <b>'+esc(c.author_username||"—")+'</b></span><span>добавлено <b>'+ago(c.created_at)+'</b></span>'+
       (c.assignee_tg_id?'<span>исполнитель <b>'+esc(nameOf(c.assignee_tg_id)||"?")+'</b></span>':"")+
       (c.done_at?'<span>готово <b>'+ago(c.done_at)+'</b></span>':"")+'</div>'+links+'</div>'+
-    '<div class="dsec"><div class="dh">Действия</div><div class="dacts">'+acts+'</div></div>'+
+    '<div class="dsec"><div class="dh">Действия</div><div class="dacts">'+acts+'</div></div>'+ssec+
     '<div class="dsec"><div class="dh">Ниши <span class="c">'+sel.size+'</span>'+(sel.size?'<button class="rt act" style="padding:4px 9px;font-size:11px" data-dact="niche-rename">✎</button>':"")+'</div>'+nicheChips(sel,{attr:"dn"})+'</div>'+
     '<div class="dsec"><div class="dh">Заметки</div><textarea class="notes" id="dnotes" placeholder="Коротко: что переделать, откуда звук, куда постить…" maxlength="4000">'+esc(notes)+'</textarea>'+
       '<div class="nstate'+(S._notesState==="saved"?" sv":"")+'" id="nstate">'+(S._notesState==="saving"?"сохраняю…":S._notesState==="error"?"не сохранилось — ещё раз":nst)+'</div></div>'+
@@ -356,7 +384,7 @@ function bindDetail(d,c){
     const v=b.dataset.dn;const cur=new Set(c.niche_ids||[]);
     if(v==="new"){const n=await newNiche();if(n){cur.add(n.id);setNiches(c.id,[...cur]);}return;}
     if(cur.has(+v))cur.delete(+v);else cur.add(+v);setNiches(c.id,[...cur]);});
-  d.querySelectorAll("[data-dl]").forEach(b=>b.onclick=()=>openExt(b.dataset.dl));
+  bindDl(d);
   const dp=d.querySelector("#dpost");if(dp)dp.onclick=()=>togglePosted(c.id);
   const dd=d.querySelector("#ddel");if(dd)dd.onclick=()=>delCreo(c.id);
   const n=d.querySelector("#dnotes");if(n)n.oninput=()=>notesChanged(c.id,n.value);
