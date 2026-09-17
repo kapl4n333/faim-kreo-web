@@ -1,8 +1,7 @@
 // Фикстуры + локальный «сервер» для tests/demo.html и tests/run.html.
 // Использует ТУ ЖЕ логику, что Edge (logic.js), чтобы фронт проверялся против настоящего контракта.
 // К настоящему API не обращается. Не подключать в production.
-import { statusTransition, mergePaths, normNicheName, nicheKey, normNicheIds, deferPatch, restorePatch, normNotes, deliverExtra, downloadTarget,
-  pickAsset, publishTransition, normReelUrl, replanWarning, slotConflicts, UNIQ_LEVELS, DELIVERY_MODES }
+import { statusTransition, mergePaths, normNicheName, nicheKey, normNicheIds, deferPatch, restorePatch, normNotes, deliverExtra, downloadTarget }
   from "../supabase/functions/kreo-api/logic.js";
 
 const svg = (bg, txt) => "data:image/svg+xml;utf8," + encodeURIComponent(
@@ -75,7 +74,7 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 
 /** Локальный сервер. opts.fail = {action: Error|true} — имитация сети/ошибки. */
 export function makeServer(meId = 1, fx) {
-  const db = Object.assign({ urlGen: 1, nextId: 100, nextNiche: 10, nextTask: 10, nextPub: 1, publications: [], log: [] }, fx || makeFixtures(meId));
+  const db = Object.assign({ urlGen: 1, nextId: 100, nextNiche: 10, nextTask: 10, log: [] }, fx || makeFixtures(meId));
   const me = () => db.members.find((m) => m.tg_id === meId);
   const isAdmin = () => me().roles.includes("admin");
   const nowIso = () => new Date().toISOString();
@@ -147,52 +146,6 @@ export function makeServer(meId = 1, fx) {
             source_account: a.account_name, source_platform: a.platform, acquired: a.joins || 0,
             buyers: i === 0 ? 1 : 0, conv_pct: i === 0 ? 2.1 : 0, stars_total: i === 0 ? 200 : 0,
             usd_estimate_total: i === 0 ? 2.6 : 0 })) }] };
-        case "pub_list": return { publications: clone(db.publications) };
-        case "pub_preview": {
-          const drafts = p.drafts || [];
-          const ids = [...new Set(drafts.map((d) => d.creo_id))];
-          const existing = db.publications.filter((x) => ids.includes(x.creo_id));
-          const warns = drafts.map((d) => ({ creo_id: d.creo_id, account_id: d.account_id,
-            ...replanWarning({ account_id: d.account_id, existing: existing.filter((e) => String(e.creo_id) === String(d.creo_id)) }) }));
-          return { conflicts: slotConflicts({ drafts, existing }), warns };
-        }
-        case "pub_plan": {
-          const created = (p.drafts || []).map((d) => {
-            const creo = find(d.creo_id); const kind = d.source_kind === "source" ? "source" : "result";
-            const asset = pickAsset({ creo, kind, index: +d.source_index || 0 });
-            const row = { id: db.nextPub++, creo_id: +d.creo_id, account_id: d.account_id != null ? +d.account_id : null,
-              source_kind: kind, source_index: +d.source_index || 0, source_path: asset.ok ? asset.path : null,
-              planned_at: d.planned_at || null, tz: d.tz || null, uniq_level: UNIQ_LEVELS.includes(d.uniq_level) ? d.uniq_level : null,
-              process_flip: !!d.process_flip, caption: d.caption || null, note: d.note || null,
-              delivery_mode: DELIVERY_MODES.includes(d.delivery_mode) ? d.delivery_mode : "on_ready", delivery_lead_min: d.delivery_lead_min ?? null,
-              needs_edits: !!d.needs_edits, edits_note: d.edits_note || null, prepared_state: "queue", prepared_version: 0,
-              final_path: null, delivery_state: "pending", publish_state: "planned", published_at: null, reel_url: null,
-              confirmed_by_tg_id: null, created_by_tg_id: meId, state_version: 0 };
-            db.publications.push(row); return row;
-          });
-          return { created: clone(created) };
-        }
-        case "pub_update": case "pub_reschedule": case "pub_set_state": case "pub_regenerate": case "pub_attach_final": {
-          const row = db.publications.find((x) => x.id === +p.id); if (!row) fail("not_found");
-          if (!(isAdmin() || row.created_by_tg_id === meId)) fail("forbidden");
-          if (action === "pub_set_state") { const tr = publishTransition({ cur: row, me: meId, isAdmin: isAdmin(), target: p.target, nowIso: nowIso(), reelUrl: p.reel_url });
-            if (!tr.ok) fail(tr.error); if (!tr.noop) Object.assign(row, tr.patch); }
-          else if (action === "pub_reschedule") { row.planned_at = p.planned_at || null; row.tz = p.tz || row.tz; row.reminder_count = 0; if (row.delivery_state !== "sent") row.delivery_state = "pending"; }
-          else if (action === "pub_regenerate") { row.prepared_state = "queue"; row.prepared_path = null; row.prepared_version = (row.prepared_version || 0) + 1; if (row.delivery_state !== "sent") row.delivery_state = "pending"; }
-          else if (action === "pub_attach_final") { if (!p.path) fail("no_path"); row.final_path = p.path; row.needs_edits = false; if (row.delivery_state !== "sent") row.delivery_state = "pending"; }
-          else { for (const k of ["planned_at", "caption", "note", "delivery_mode", "needs_edits", "edits_note", "uniq_level", "source_index", "source_kind"]) if (k in p) row[k] = p[k]; }
-          row.state_version = (row.state_version || 0) + 1;
-          return { publication: clone(row) };
-        }
-        case "pub_delete": db.publications = db.publications.filter((x) => x.id !== +p.id); return { ok: true };
-        case "pub_attach_legacy": {
-          const dup = db.publications.find((x) => x.creo_id === +p.creo_id && x.account_id === +p.account_id && x.publish_state !== "cancelled");
-          if (dup) return { publication: clone(dup), existed: true };
-          const row = { id: db.nextPub++, creo_id: +p.creo_id, account_id: +p.account_id, source_kind: "result", source_index: 0,
-            publish_state: "published", published_at: nowIso(), confirmed_by_tg_id: meId, delivery_state: "sent", prepared_state: "skip",
-            created_by_tg_id: meId, state_version: 0 };
-          db.publications.push(row); return { publication: clone(row) };
-        }
         case "admin_data": return { users: [{ tg_id: 1, name: "Каплан", username: "kaplan", approved: true, is_admin: true, is_owner: true, agent_ok: true }, { tg_id: 2, name: "Оля", approved: true, is_admin: false, no_gen: false, no_uniq: true }], requests: [{ tg_id: 9, name: "Новичок" }], workflows: [{ key: "krea2_face_swap", title: "🎭 Krea2 Face Swap", enabled: true, instance_type: null }] };
         case "admin_cmd": return { ok: true, id: 1 };
         case "set_workflow": return { workflow: Object.assign({ key: p.key, title: "🎭 Krea2 Face Swap" }, p) };

@@ -33,11 +33,9 @@ const S={me:null,creos:[],tasks:[],members:[],niches:[],stats:null,
   tForm:false,tDone:false,tDraft:{title:"",due:"",prio:"",asg:[]},_scroll:{},
   keitTab:"joins",teamTab:"people",track:null,trkGroup:"person",trkPlat:"instagram",_trkLoading:false,
   funnel:null,funnelDays:30,_fnLoading:false,
-  pubTab:"lib",pubs:null,_pubLoading:false,pubAcc:"",pubFilter:"",pubWeek:0,
-  batchSel:[],batchDraft:null,
   _notesTimer:null,_notesState:""};
 /* всё, что переживает закрытие аппы: вкладка, вид каталога, фильтры, черновик задачи */
-const PERSIST=["tab","view","mine","q","niche","author","sort","pub","adminTab","keitTab","teamTab","tDraft","open","pubTab","pubAcc","pubFilter"];
+const PERSIST=["tab","view","mine","q","niche","author","sort","pub","adminTab","keitTab","teamTab","tDraft","open"];
 function loadPrefs(){try{const p=JSON.parse(localStorage.getItem("ftask.prefs")||"{}");
   PERSIST.forEach(k=>{if(p[k]!=null)S[k]=p[k];});
   if(!S.tDraft||typeof S.tDraft!=="object")S.tDraft={title:"",due:"",prio:"",asg:[]};
@@ -206,7 +204,7 @@ function header(){
     S.tab="cat";S.q="";S.author="";S.niche="";S.mine=false;
     if(k==="posted"){S.view="done";S.pub="any";}else{S.view=k;S.pub="";}
     savePrefs();window.scrollTo(0,0);header();render();});
-  const tabs=[["cat","Каталог"],["tasks","Задачи"],["publish","Публикации"],["keitaro","Трекер"],["team","Команда"]];
+  const tabs=[["cat","Каталог"],["tasks","Задачи"],["keitaro","Трекер"],["team","Команда"]];
   if(admin())tabs.push(["admin","Админ"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
     '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+navIcon(k)+'<span class="lbl">'+l+'</span></button>').join("");
@@ -223,7 +221,6 @@ function render(){
   document.body.classList.toggle("split",isSplit()&&S.tab==="cat");
   if(S.tab==="tasks"){el.innerHTML=vTasks();bindTasks(el);return;}
   if(S.tab==="keitaro"){el.innerHTML=vKeitaroTab();bindKeitaroTab(el);return;}
-  if(S.tab==="publish"){el.innerHTML=vPublish();bindPublish(el);return;}
   if(S.tab==="team"){el.innerHTML=vTeamTab();bindTeamTab(el);return;}
   if(S.tab==="admin"){el.innerHTML=vAdmin();bindAdmin(el);if(!S.admin)loadAdmin();return;}
   el.innerHTML=vCatalog();bindCatalog(el);fab();

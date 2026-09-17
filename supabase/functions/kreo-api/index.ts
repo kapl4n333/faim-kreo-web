@@ -2,9 +2,7 @@
 // Auth: Telegram initData (HMAC по BOT_TOKEN) → verify_jwt=false. Данные/Storage — service_role.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { statusTransition, mergePaths, normNicheName, normNicheIds, deferPatch, restorePatch,
-  normNotes, deliverExtra, downloadTarget,
-  UNIQ_LEVELS, DELIVERY_MODES, pickAsset, publishTransition, normReelUrl,
-  replanWarning, slotConflicts } from "./logic.js";
+  normNotes, deliverExtra, downloadTarget } from "./logic.js";
 
 const BOT_TOKEN = (Deno.env.get("BOT_TOKEN") ?? "").trim();
 const ADMIN_IDS = (Deno.env.get("KREO_ADMIN_IDS") ?? "517207658")
@@ -208,20 +206,6 @@ function computeStats(creos: any[]) {
     avgTurnaroundHours: tN ? +(tS / tN / 3600000).toFixed(1) : null,
     avgPostLagHours: pN ? +(pS / pN / 3600000).toFixed(1) : null,
   };
-}
-
-// Публикации: загрузка с проверкой доступа (создатель/админ) + CAS по state_version.
-async function loadPub(id: any, meId: number, isAdmin: boolean) {
-  const { data: cur } = await db.from("publications").select("*").eq("id", Number(id)).maybeSingle();
-  if (!cur) return { err: json({ error: "not_found" }, 404) };
-  if (!(isAdmin || String(cur.created_by_tg_id) === String(meId))) return { err: json({ error: "forbidden" }, 403) };
-  return { cur };
-}
-async function pubCas(id: any, cur: any, patch: any) {
-  patch.state_version = (cur.state_version || 0) + 1;
-  const { data } = await db.from("publications").update(patch)
-    .eq("id", Number(id)).eq("state_version", cur.state_version).select("*");
-  return (data && data.length) ? data[0] : null;
 }
 
 Deno.serve(async (req) => {
@@ -590,165 +574,6 @@ Deno.serve(async (req) => {
           });
         }
         return json({ funnels: out, days });
-      }
-
-      // -------------------------------------------------- ПУБЛИКАЦИИ (учёт по аккаунтам)
-      // Три независимых статуса: prepared_state (обработка) / delivery_state (доставка) /
-      // publish_state (публикация). Наступление времени и отправка файла ≠ публикация.
-      case "pub_list": {
-        const pubs = await fetchAll((a, b) => db.from("publications").select("*")
-          .order("planned_at", { ascending: true, nullsFirst: false }).range(a, b));
-        return json({ publications: pubs ?? [] });
-      }
-
-      case "pub_preview": {   // конфликты слотов + предупреждения о повторе (без записи)
-        const drafts = Array.isArray(body.drafts) ? body.drafts : [];
-        const creoIds = [...new Set(drafts.map((d: any) => Number(d.creo_id)).filter(Boolean))];
-        let existing: any[] = [];
-        if (creoIds.length) existing = await fetchAll((a, b) => db.from("publications")
-          .select("id,creo_id,account_id,planned_at,publish_state").in("creo_id", creoIds).range(a, b));
-        const conflicts = slotConflicts({ drafts, existing });
-        const warns = drafts.map((d: any) => ({
-          creo_id: d.creo_id, account_id: d.account_id,
-          ...replanWarning({ account_id: d.account_id, existing: existing.filter((e) => String(e.creo_id) === String(d.creo_id)) }),
-        }));
-        return json({ conflicts, warns });
-      }
-
-      case "pub_plan": {      // создать пачку публикаций из черновиков
-        const drafts = Array.isArray(body.drafts) ? body.drafts : [];
-        if (!drafts.length) return json({ error: "no_drafts" }, 400);
-        const rows: any[] = [];
-        for (const d of drafts) {
-          const creo_id = Number(d.creo_id);
-          if (!creo_id) continue;
-          const { data: creo } = await db.from("creos").select("id, source_paths, result_paths").eq("id", creo_id).maybeSingle();
-          if (!creo) continue;
-          const kind = d.source_kind === "source" ? "source" : "result";
-          const idx = Number(d.source_index) || 0;
-          const asset = pickAsset({ creo, kind, index: idx });
-          rows.push({
-            creo_id, account_id: d.account_id != null ? Number(d.account_id) : null,
-            source_kind: kind, source_index: idx, source_path: asset.ok ? asset.path : null,
-            planned_at: d.planned_at || null, tz: d.tz || null,
-            uniq_level: UNIQ_LEVELS.includes(d.uniq_level) ? d.uniq_level : null,
-            process_flip: !!d.process_flip,
-            caption: d.caption != null ? String(d.caption).slice(0, 1024) : null,
-            note: d.note != null ? String(d.note).slice(0, 2000) : null,
-            delivery_mode: DELIVERY_MODES.includes(d.delivery_mode) ? d.delivery_mode : "on_ready",
-            delivery_lead_min: d.delivery_lead_min != null ? Number(d.delivery_lead_min) : null,
-            needs_edits: !!d.needs_edits,
-            edits_note: d.edits_note != null ? String(d.edits_note).slice(0, 1000) : null,
-            created_by_tg_id: me.tg_id, prepared_state: "queue",
-          });
-        }
-        if (!rows.length) return json({ error: "nothing_valid" }, 400);
-        const { data, error } = await db.from("publications").insert(rows).select("*");
-        if (error) return json({ error: "insert_failed", detail: error.message }, 500);
-        return json({ created: data ?? [] });
-      }
-
-      case "pub_update": {    // правка одной публикации (CAS по state_version)
-        const g = await loadPub(body.id, me.tg_id, isAdmin); if (g.err) return g.err;
-        const cur = g.cur, patch: any = {};
-        if ("planned_at" in body) patch.planned_at = body.planned_at || null;
-        if ("tz" in body) patch.tz = body.tz || null;
-        if ("caption" in body) patch.caption = body.caption != null ? String(body.caption).slice(0, 1024) : null;
-        if ("note" in body) patch.note = body.note != null ? String(body.note).slice(0, 2000) : null;
-        if ("delivery_mode" in body && DELIVERY_MODES.includes(body.delivery_mode)) patch.delivery_mode = body.delivery_mode;
-        if ("delivery_lead_min" in body) patch.delivery_lead_min = body.delivery_lead_min != null ? Number(body.delivery_lead_min) : null;
-        if ("needs_edits" in body) patch.needs_edits = !!body.needs_edits;
-        if ("edits_note" in body) patch.edits_note = body.edits_note != null ? String(body.edits_note).slice(0, 1000) : null;
-        let reprep = false;
-        if ("source_kind" in body || "source_index" in body) {
-          const kind = (body.source_kind ?? cur.source_kind) === "source" ? "source" : "result";
-          const idx = body.source_index != null ? Number(body.source_index) : cur.source_index;
-          const { data: creo } = await db.from("creos").select("id,source_paths,result_paths").eq("id", cur.creo_id).maybeSingle();
-          const asset = pickAsset({ creo, kind, index: idx });
-          patch.source_kind = kind; patch.source_index = idx; patch.source_path = asset.ok ? asset.path : null; reprep = true;
-        }
-        if ("uniq_level" in body) { patch.uniq_level = UNIQ_LEVELS.includes(body.uniq_level) ? body.uniq_level : null; reprep = true; }
-        if ("process_flip" in body) { patch.process_flip = !!body.process_flip; reprep = true; }
-        if (reprep) {   // смена ассета/обработки → новая подготовка и повторная доставка (если ещё не отправлено)
-          patch.prepared_state = "queue"; patch.prepared_path = null; patch.prepared_error = null;
-          patch.prepared_version = (cur.prepared_version || 0) + 1;
-          if (cur.delivery_state !== "sent") patch.delivery_state = "pending";
-        }
-        const row = await pubCas(cur.id, cur, patch);
-        return row ? json({ publication: row }) : json({ error: "conflict" }, 409);
-      }
-
-      case "pub_reschedule": {   // «Перенести»: новое время, отменяет устаревшие задания доставки/напоминаний
-        const g = await loadPub(body.id, me.tg_id, isAdmin); if (g.err) return g.err;
-        const cur = g.cur, patch: any = { planned_at: body.planned_at || null, tz: body.tz || cur.tz, reminder_count: 0 };
-        if (cur.delivery_state !== "sent") patch.delivery_state = "pending";   // уже отправленный файл не пере-отправляем
-        if (cur.publish_state === "awaiting_confirm") patch.publish_state = "planned";
-        const row = await pubCas(cur.id, cur, patch);
-        return row ? json({ publication: row }) : json({ error: "conflict" }, 409);
-      }
-
-      case "pub_set_state": {    // публикация: published / awaiting_confirm / cancelled / planned
-        const g = await loadPub(body.id, me.tg_id, isAdmin); if (g.err) return g.err;
-        const tr = publishTransition({ cur: g.cur, me: me.tg_id, isAdmin, target: body.target, nowIso: nowIso(), reelUrl: body.reel_url });
-        if (!tr.ok) return json({ error: tr.error }, tr.error === "forbidden" ? 403 : tr.error === "not_found" ? 404 : 400);
-        if (tr.noop) return json({ publication: g.cur });
-        const row = await pubCas(g.cur.id, g.cur, tr.patch);
-        return row ? json({ publication: row }) : json({ error: "conflict" }, 409);
-      }
-
-      case "pub_regenerate": {   // «Создать новую версию» — переподготовить обработчиком
-        const g = await loadPub(body.id, me.tg_id, isAdmin); if (g.err) return g.err;
-        const cur = g.cur;
-        const patch: any = {
-          prepared_state: "queue", prepared_path: null, prepared_error: null, prepared_attempts: 0,
-          prepared_version: (cur.prepared_version || 0) + 1,
-        };
-        if (cur.delivery_state !== "sent") patch.delivery_state = "pending";
-        const row = await pubCas(cur.id, cur, patch);
-        return row ? json({ publication: row }) : json({ error: "conflict" }, 409);
-      }
-
-      case "pub_attach_final": { // прикрепить финальный файл после ручного монтажа (Edits)
-        const g = await loadPub(body.id, me.tg_id, isAdmin); if (g.err) return g.err;
-        const cur = g.cur;
-        const path = String(body.path ?? "");
-        if (!path) return json({ error: "no_path" }, 400);
-        const patch: any = { final_path: path, final_by_tg_id: me.tg_id, final_at: nowIso(), needs_edits: false };
-        if (cur.delivery_state !== "sent") patch.delivery_state = "pending";   // доставим финал вместо подготовленного
-        const row = await pubCas(cur.id, cur, patch);
-        return row ? json({ publication: row }) : json({ error: "conflict" }, 409);
-      }
-
-      case "pub_delete": {
-        const g = await loadPub(body.id, me.tg_id, isAdmin); if (g.err) return g.err;
-        await db.from("publications").delete().eq("id", g.cur.id);
-        return json({ ok: true, id: g.cur.id });
-      }
-
-      case "pub_attach_legacy": { // массово привязать старую отметку (creos.posters[]) к аккаунту
-        const creo_id = Number(body.creo_id), account_id = Number(body.account_id);
-        if (!creo_id || !account_id) return json({ error: "bad_args" }, 400);
-        // не плодим дубль: если по этому крео+аккаунту уже есть неотменённая публикация — вернём её
-        const { data: dup } = await db.from("publications").select("*")
-          .eq("creo_id", creo_id).eq("account_id", account_id).neq("publish_state", "cancelled").maybeSingle();
-        if (dup) return json({ publication: dup, existed: true });
-        const { data: creo } = await db.from("creos").select("id, posters, result_paths, source_paths").eq("id", creo_id).maybeSingle();
-        if (!creo) return json({ error: "not_found" }, 404);
-        const posters = Array.isArray(creo.posters) ? creo.posters : [];
-        const p = body.poster_tg_id != null ? posters.find((x: any) => String(x.tg_id) === String(body.poster_tg_id)) : posters[0];
-        const asset = pickAsset({ creo, kind: "result", index: 0 });
-        const { data, error } = await db.from("publications").insert({
-          creo_id, account_id, source_kind: "result", source_index: 0,
-          source_path: asset.ok ? asset.path : null,
-          publish_state: "published",
-          published_at: (p && p.at) || nowIso(),
-          confirmed_by_tg_id: (p && p.tg_id) || me.tg_id,
-          delivery_state: "sent",   // легаси уже опубликовано — файл не досылаем
-          prepared_state: "skip",
-          created_by_tg_id: me.tg_id,
-        }).select("*").single();
-        if (error) return json({ error: "insert_failed", detail: error.message }, 500);
-        return json({ publication: data });
       }
 
       default: return json({ error: "unknown_action" }, 400);
