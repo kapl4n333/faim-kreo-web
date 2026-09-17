@@ -129,7 +129,7 @@ function ccard(c){
   const mainAct=pa?(pa[0]==="download"?dlButton(c,"result",lastRes(c),{label:pa[1]}):'<button class="act '+pa[2]+'" data-act="'+pa[0]+'" data-id="'+c.id+'">'+pa[1]+'</button>'):"";
   const act=(pa||td)?'<div class="ca">'+mainAct+td+'</div>':"";
   const post=postedList(c).length?' · <span style="color:var(--o)">✓ опубл.</span>':"";
-  return '<div class="cc'+(S.open===c.id?" open":"")+(isMine(c)&&c.status==="in_progress"?" mine":"")+'" data-open="'+c.id+'">'+mediaBox(c)+
+  return '<div class="cc'+(S.open===c.id?" open":"")+(isMine(c)&&c.status==="in_progress"?" mine":"")+'" data-open="'+c.id+'">'+deliveryPickBadge(c)+mediaBox(c)+
     '<div class="cb"><div class="ct'+(capUrl?" url":"")+'">'+(cap?esc(cap):'<span style="opacity:.4">без подписи</span>')+'</div>'+
     chips+'<div class="cm">'+who+post+'<span class="ago">'+ago(c.status==="done"?(c.delivered_at||c.done_at||c.created_at):c.created_at)+'</span></div>'+act+'</div></div>';
 }
@@ -147,7 +147,7 @@ function vCatalog(){
       S.niches.map(n=>'<option value="'+n.id+'"'+(String(S.niche)===String(n.id)?" selected":"")+'>'+esc(n.name)+'</option>').join("")+'</select>'+
     '<select id="ca"><option value="">Все авторы</option>'+authors.map(a=>'<option'+(S.author===a?" selected":"")+'>'+esc(a)+'</option>').join("")+'</select>'+
     '<select id="cs"><option value="new"'+(S.sort!=="old"?" selected":"")+'>Свежие сверху</option><option value="old"'+(S.sort==="old"?" selected":"")+'>Сначала старые</option></select></div>'+
-    (S.view==="done"?'<div class="nchips">'+PUB.map(([k,l])=>'<button class="nc'+((S.pub||"")===k?" on":"")+'" data-pub="'+k+'">'+l+'</button>').join("")+'</div>':"")+
+    (S.view==="done"?'<div class="nchips">'+PUB.map(([k,l])=>'<button class="nc'+((S.pub||"")===k?" on":"")+'" data-pub="'+k+'">'+l+'</button>').join("")+'</div>'+deliveryPickBar():"")+
     '</div>';
   if(!list.length){
     const any=S.q||S.niche||S.author||S.mine||S.pub;
@@ -173,6 +173,7 @@ function bindCatalog(el){
   el.querySelectorAll("[data-open]").forEach(cd=>cd.onclick=e=>{if(e.target.closest("button"))return;openDetail(+cd.dataset.open);});
   bindDl(el);
   bindClips(el);
+  bindDeliveryCatalog(el);
 }
 
 /* ---------- действия (единый контракт с сервером: logic.statusTransition) ---------- */
@@ -333,6 +334,7 @@ function renderDetail(){
   const rlist=results.length?'<div class="rlist result-files">'+results.map((r,k)=>'<div class="rrow'+(k===0?" new":"")+'"><div class="ri">'+
       (isVid(r.p)?"🎬":(r.u?'<img loading="lazy" src="'+esc(r.u)+'"'+mref([c.id,"result_urls",r.i])+'>':"🖼"))+'</div>'+
       '<div class="rn">'+esc(fname(r.p))+'<small>'+(k===0?"последний · ":"")+'результат '+(r.i+1)+' из '+results.length+'</small></div>'+
+      (isVid(r.p)?'<button class="act uqone" data-uqpath="'+dEscapeAttr(r.p)+'" data-uqcid="'+c.id+'">Уникализировать</button>':'')+
       dlButton(c,"result",r.i,{title:"Скачать: "+dlName(c.id,"result",r.i,r.p)})+'</div>').join("")+'</div>':'<div class="note">Результатов ещё нет.</div>';
   // исходник референса: каждый файл (альбом — по одному) качается без claim; нет файлов — честное состояние
   const srcs=dlSourceItems(c);
@@ -375,6 +377,7 @@ function bindDetail(d,c){
   const bk=d.querySelector("#dback");if(bk)bk.onclick=()=>{haptic();closeDetail();};
   const cl=d.querySelector("#dclose");if(cl)cl.onclick=()=>{haptic();closeDetail();};
   d.querySelectorAll("[data-fr]").forEach(t=>t.onclick=()=>{const [f,i]=t.dataset.fr.split("|");S.dview={f,i:+i};renderDetail();});
+  d.querySelectorAll("[data-uqpath]").forEach(b=>b.onclick=()=>openSingleDelivery(c,b.dataset.uqpath));
   d.querySelectorAll("[data-dact]").forEach(b=>b.onclick=()=>{
     const a=b.dataset.dact;
     if(a==="niche-rename"){const ids=c.niche_ids||[];if(ids.length===1)renameNiche(ids[0]);else{const n=prompt("ID/название ниши для переименования:\n"+ids.map(i=>i+" — "+(nicheOf(i)||{}).name).join("\n"));const id=+String(n||"").split(" ")[0];if(id)renameNiche(id);}return;}

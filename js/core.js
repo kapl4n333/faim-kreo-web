@@ -25,7 +25,7 @@ function tryReveal(){if(_splashDone&&_bootDone)document.body.classList.add("reve
 
 /* ---------- состояние ---------- */
 const S={me:null,creos:[],tasks:[],members:[],niches:[],stats:null,
-  tab:"cat",                                   // cat | tasks | keitaro | team | admin
+  tab:"cat",                                   // cat | plan | tasks | keitaro | team | admin
   view:"free",mine:false,q:"",niche:"",author:"",sort:"new",pub:"",   // каталог
   open:null,dview:null,_dsig:"",              // открытая карточка, выбранный кадр в просмотрщике
   files:[],uploading:false,deliverTo:null,_cap:null,upNiches:[],_sig:"",
@@ -33,7 +33,9 @@ const S={me:null,creos:[],tasks:[],members:[],niches:[],stats:null,
   tForm:false,tDone:false,tDraft:{title:"",due:"",prio:"",asg:[]},_scroll:{},
   keitTab:"joins",teamTab:"people",track:null,trkGroup:"person",trkPlat:"instagram",_trkLoading:false,
   funnel:null,funnelDays:30,_fnLoading:false,
-  _notesTimer:null,_notesState:""};
+  _notesTimer:null,_notesState:"",
+  batches:[],deliveryAccounts:[],deliveryLoaded:false,deliveryLoading:false,_deliverySig:"",
+  deliveryPick:[],deliveryPickMode:false,deliveryDraft:null,deliveryOpen:false};
 /* всё, что переживает закрытие аппы: вкладка, вид каталога, фильтры, черновик задачи */
 const PERSIST=["tab","view","mine","q","niche","author","sort","pub","adminTab","keitTab","teamTab","tDraft","open"];
 function loadPrefs(){try{const p=JSON.parse(localStorage.getItem("ftask.prefs")||"{}");
@@ -77,7 +79,10 @@ const ERR={not_member:"Тебя нет в команде FTask.",forbidden:"Не
   server:"Сервер не ответил. Попробуй ещё раз.",unauthorized:"Сессия истекла — переоткрой через /app.",
   already_claimed:"Это крео уже взял другой — список обновлён.",conflict:"Кто-то менял это одновременно — попробуй ещё раз.",
   owner_only:"Назначать админов может только владелец бота.",no_name:"Пустое название.",niche_exists:"Такая ниша уже есть.",
-  network:"Нет сети. Проверь соединение."};
+  network:"Нет сети. Проверь соединение.",bad_timezone:"Укажи часовой пояс.",bad_level:"Выбери степень уникализации.",
+  bad_batch_size:"В пачке должно быть от 1 до 10 видео.",bad_delivery_time:"Проверь дату и время доставки.",
+  bad_items:"Проверь выбранные видео.",bad_asset:"Выбранная версия больше недоступна.",not_ready:"Видео ещё не готово.",
+  bad_account:"Аккаунт недоступен.",batch_locked:"Пачка уже отправляется или закрыта."};
 const errMsg=e=>{const m=(e&&e.message)||"";if(/failed to fetch|networkerror|load failed/i.test(m))return ERR.network;return ERR[m]||"Не вышло. "+(m||"Попробуй ещё раз.");};
 function toast(msg,type){
   const t=document.createElement("div");t.className="toast"+(type?" "+type:"");t.textContent=msg;
@@ -99,7 +104,7 @@ async function boot(){
     absorb(d);
     loadPrefs();
     if(S.tab==="admin"&&!admin())S.tab="cat";
-    if(!["cat","tasks","keitaro","team","admin"].includes(S.tab))S.tab="cat";
+    if(!["cat","plan","tasks","keitaro","team","admin"].includes(S.tab))S.tab="cat";
     if(S.open&&!S.creos.find(c=>c.id===S.open))S.open=null;
     document.getElementById("hdr").classList.remove("hidden");
     document.getElementById("nav").classList.remove("hidden");
@@ -139,7 +144,7 @@ function sigOf(){
 function flashSync(){const s=document.getElementById("sync");if(!s)return;
   s.classList.add("on");setTimeout(()=>s.classList.remove("on"),650);}
 async function poll(){
-  if(!S.me||document.hidden||S.uploading)return;
+  if(!S.me||document.hidden||S.uploading||S.deliveryOpen)return;
   if(document.getElementById("scrim").classList.contains("show"))return;   // открыт лист — не мешаем
   const f=document.activeElement;
   if(f&&/^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName))return;                 // идёт ввод — не перерисовываем
@@ -148,6 +153,7 @@ async function poll(){
   const sig=sigOf();
   if(sig!==S._sig){S._sig=sig;const y=window.scrollY;header();render();window.scrollTo(0,y);}
   else refreshMedia(document);                                               // только свежие подписанные ссылки (E)
+  if(S.tab==="plan")await loadDeliveries(true);
   flashSync();
 }
 function startSync(){
@@ -186,6 +192,7 @@ document.addEventListener("error",e=>{const t=e.target;if(t&&t.dataset&&t.datase
 const NAVICON={
   cat:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
   tasks:'<path d="M4 6l1.6 1.6L8.5 4.7M4 17.4l1.6 1.6 2.9-2.9M12 6.5h8M12 16.5h8"/>',
+  plan:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h3M13 14h3M8 18h3"/>',
   keitaro:'<path d="M5 20V11M12 20V4M19 20V14"/>',
   team:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0111 0"/><path d="M16 5.2a3.2 3.2 0 010 6M15.2 15.6A5.5 5.5 0 0120.5 20"/>',
   admin:'<path d="M4 21v-6M4 11V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M2 15h4M10 8h4M18 16h4"/>'};
@@ -204,7 +211,7 @@ function header(){
     S.tab="cat";S.q="";S.author="";S.niche="";S.mine=false;
     if(k==="posted"){S.view="done";S.pub="any";}else{S.view=k;S.pub="";}
     savePrefs();window.scrollTo(0,0);header();render();});
-  const tabs=[["cat","Каталог"],["tasks","Задачи"],["keitaro","Трекер"],["team","Команда"]];
+  const tabs=[["cat","Каталог"],["plan","Планирование"],["tasks","Задачи"],["keitaro","Трекер"],["team","Команда"]];
   if(admin())tabs.push(["admin","Админ"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
     '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+navIcon(k)+'<span class="lbl">'+l+'</span></button>').join("");
@@ -219,6 +226,7 @@ function onLayoutChange(){document.body.classList.toggle("split",isSplit()&&S.ta
 function render(){
   const el=document.getElementById("app");killFab();
   document.body.classList.toggle("split",isSplit()&&S.tab==="cat");
+  if(S.tab==="plan"){el.innerHTML=vPlanning();bindPlanning(el);return;}
   if(S.tab==="tasks"){el.innerHTML=vTasks();bindTasks(el);return;}
   if(S.tab==="keitaro"){el.innerHTML=vKeitaroTab();bindKeitaroTab(el);return;}
   if(S.tab==="team"){el.innerHTML=vTeamTab();bindTeamTab(el);return;}

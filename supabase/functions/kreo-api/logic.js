@@ -110,3 +110,53 @@ export function deliverExtra({ caption, nowIso }) {
   if (caption != null) extra.result_caption = String(caption).slice(0, 1024);
   return extra;
 }
+
+/* ======================== Пачки уникализации и доставки ======================== */
+export const DELIVERY_LEVELS = ["weak", "medium", "strong"];
+export const DELIVERY_MAX_ITEMS = 10; // один Telegram sendMediaGroup; один файл идёт sendDocument
+const VIDEO_RE = /\.(mp4|mov|webm|m4v|avi|mkv)(?:[?#].*)?$/i;
+
+export function isVideoPath(path) {
+  return typeof path === "string" && VIDEO_RE.test(path);
+}
+
+/** result_paths дополняется в конец (mergePaths), поэтому последняя видео-версия —
+ *  первый video path при обходе массива с конца. Фото в смешанном массиве пропускаются. */
+export function latestVideoPath(creo) {
+  const paths = Array.isArray(creo && creo.result_paths) ? creo.result_paths : [];
+  for (let i = paths.length - 1; i >= 0; i--) if (isVideoPath(paths[i])) return { path: paths[i], index: i };
+  return null;
+}
+
+export function deliveryOwner(batch, me, isAdmin) {
+  return !!batch && (isAdmin || String(batch.created_by_tg_id) === String(me));
+}
+
+export function normalizeDeliveryDraft(body) {
+  const mode = body && body.mode === "scheduled" ? "scheduled" : "immediate";
+  const timezone = String((body && body.timezone) || "").trim().slice(0, 64);
+  const level = body && DELIVERY_LEVELS.includes(body.default_level) ? body.default_level : null;
+  const items = Array.isArray(body && body.items) ? body.items : [];
+  if (!timezone) return { ok: false, error: "bad_timezone" };
+  if (!level) return { ok: false, error: "bad_level" };
+  if (!items.length || items.length > DELIVERY_MAX_ITEMS) return { ok: false, error: "bad_batch_size" };
+  const deliverAt = mode === "scheduled" ? new Date(body.deliver_at || "") : null;
+  if (mode === "scheduled" && (!deliverAt || Number.isNaN(deliverAt.getTime()))) return { ok: false, error: "bad_delivery_time" };
+  const seen = new Set(), clean = [];
+  for (let position = 0; position < items.length; position++) {
+    const x = items[position] || {}, creo_id = Number(x.creo_id);
+    if (!creo_id || seen.has(creo_id)) return { ok: false, error: "bad_items" };
+    seen.add(creo_id);
+    clean.push({
+      creo_id, position,
+      source_path: typeof x.source_path === "string" ? x.source_path : null,
+      uniq_level: DELIVERY_LEVELS.includes(x.uniq_level) ? x.uniq_level : level,
+    });
+  }
+  return { ok: true, value: { mode, timezone, default_level: level,
+    deliver_at: deliverAt ? deliverAt.toISOString() : null, items: clean } };
+}
+
+export function mutableDeliveryBatch(batch) {
+  return !!batch && !["sending", "sent", "cancelled"].includes(batch.status);
+}

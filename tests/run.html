@@ -52,6 +52,9 @@ await T("defer/restore: не трогают статус и исполнител
   return d.ok && !("status" in d.patch) && !("assignee_tg_id" in d.patch) && d2.noop && r.patch.deferred_at === null && r2.noop || JSON.stringify([d, d2, r, r2]); });
 await T("normNotes: пустое → null, обрезка 4000, CRLF", () => L.normNotes("  ") === null && L.normNotes("a\r\nb") === "a\nb" && L.normNotes("x".repeat(5000)).length === 4000);
 await T("deliverExtra: done+pending, подпись ≤1024", () => { const e = L.deliverExtra({ caption: "c".repeat(2000), nowIso: now }); return e.status === "done" && e.delivery_state === "pending" && e.result_caption.length === 1024; });
+await T("latestVideoPath: берёт последнее видео и пропускает фото", () => { const r=L.latestVideoPath({result_paths:["a.mp4","b.jpg","c.mov","d.png"]});return r.path==="c.mov"&&r.index===2; });
+await T("normalizeDeliveryDraft: 1–10, явный уровень, порядок и индивидуальный приоритет", () => { const r=L.normalizeDeliveryDraft({mode:"immediate",timezone:"Europe/Warsaw",default_level:"medium",items:[{creo_id:7},{creo_id:8,uniq_level:"strong"}]});return r.ok&&r.value.items[0].position===0&&r.value.items[0].uniq_level==="medium"&&r.value.items[1].uniq_level==="strong"&&!L.normalizeDeliveryDraft({timezone:"UTC",default_level:"none",items:[{creo_id:1}]}).ok; });
+await T("normalizeDeliveryDraft: дата планирования хранится UTC, дубль крео запрещён", () => { const a=L.normalizeDeliveryDraft({mode:"scheduled",deliver_at:"2026-10-25T16:00:00Z",timezone:"Europe/Warsaw",default_level:"weak",items:[{creo_id:1}]});const b=L.normalizeDeliveryDraft({mode:"immediate",timezone:"UTC",default_level:"weak",items:[{creo_id:1},{creo_id:1}]});return a.ok&&a.value.deliver_at==="2026-10-25T16:00:00.000Z"&&b.error==="bad_items"; });
 
 /* ================= 2. фронт на фикстурах (demo-сервер = та же логика) ================= */
 R.innerHTML += "\n== фронт ==\n";
@@ -59,7 +62,7 @@ const srv = makeServer(1);
 window.__FTASK_DEMO__ = (a, p) => srv.handle(a, p);
 try { localStorage.removeItem("ftask.prefs"); } catch (e) {}
 const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
-for (const f of ["core", "catalog", "download", "upload", "views"]) await load("../js/" + f + ".js?v=dev");
+for (const f of ["core", "catalog", "download", "upload", "views", "delivery"]) await load("../js/" + f + ".js?v=dev");
 await boot();
 const split = new URLSearchParams(location.search).get("split") === "1";
 const cardsN = () => document.querySelectorAll(".cc").length;
@@ -81,6 +84,10 @@ await T("фильтр «Без ниши» / по нише", () => { S.view = "wo
 await T("плитка референса показывает исходник, готового — результат, недоступное — состояние", () => {
   const m1 = tileMedia(S.creos.find((c) => c.id === 1)), m5 = tileMedia(S.creos.find((c) => c.id === 5)), m2 = tileMedia(S.creos.find((c) => c.id === 2));
   return m1.lbl === "исходник" && m1.ref[1] === "source_poster_url" && m5.lbl === "результат" && m2.none === true && srcState(S.creos.find((c) => c.id === 2)).txt.includes("20 МБ") || JSON.stringify([m1, m5, m2]); });
+await T("режим выбора есть только в «Готовых», карточка остаётся открываемой", () => {S.view="done";S.deliveryPickMode=true;S.deliveryPick=[];render();const c=S.creos.find(x=>x.id===5),card=document.querySelector('.cc[data-open="5"]');const badge=card.querySelector('[data-dpick="5"]');badge.click();const selected=pickHas(5)&&S.deliveryPick.length===1;card.click();const opened=S.open===5;closeDetail(true);S.deliveryPickMode=false;S.deliveryPick=[];S.view="free";render();return selected&&opened&&!document.querySelector(".pickbar");});
+await T("последняя версия видео в смешанных result_paths выбирается с конца", () => {const c={id:99,result_paths:["v1.mp4","photo.jpg","v2.webm","new.png"],result_urls:["1","2","3","4"]};const v=latestVideo(c);return v.source_path==="v2.webm"&&v.source_index===2&&v.url==="3";});
+await T("Europe/Warsaw DST: локальное время переводится в правильный UTC; несуществующее отклоняется", () => zonedToIso("2026-09-20T17:00","Europe/Warsaw")==="2026-09-20T15:00:00.000Z"&&zonedToIso("2026-03-29T02:30","Europe/Warsaw")===null);
+await T("одиночная уникализация открывает тот же мастер и может стать отложенной", async () => {const c=S.creos.find(x=>x.id===5),v=latestVideo(c);await openDeliveryWizard("immediate",[v]);const scheduled=document.querySelector('[data-dmode="scheduled"]');scheduled.click();const ok=S.deliveryDraft.mode==="scheduled"&&!!document.getElementById("dwtime")&&!!document.getElementById("dwtz");closeDeliveryWizard();return ok;});
 await T("открытие карточки: на телефоне — слой поверх, список не перерисован; закрытие возвращает", async () => {
   S.view = "work"; render(); const grid = $(".cgrid"); openDetail(3); await sleep(50);
   const d = $("#detail"); const shown = split ? d.classList.contains("empty") === false : d.classList.contains("show");

@@ -29,12 +29,14 @@ window.__FTASK_DEMO__ = (a, p) => srv.handle(a, p);
 window.__DEMO_SERVER__ = srv;
 try { localStorage.removeItem("ftask.prefs"); sessionStorage.setItem("splashSeen", "1"); } catch (e) {}
 const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
-for (const f of ["core", "catalog", "download", "upload", "views"]) await load("../js/" + f + ".js?v=dev");
+for (const f of ["core", "catalog", "download", "upload", "views", "delivery"]) await load("../js/" + f + ".js?v=dev");
 await boot();
 if (q.get("tab")) S.tab = q.get("tab");
 if (q.get("view")) S.view = q.get("view");
 if (q.get("open")) S.open = +q.get("open");
+if (q.get("pick")==="1") S.deliveryPickMode = true;
 if (q.get("tab") || q.get("view") || q.get("open")) { header(); render(); }
+if (q.get("wizard")==="1") { const c=S.creos.find(x=>x.id===5); await openDeliveryWizard(q.get("mode")==="scheduled"?"scheduled":"immediate",[latestVideo(c)]); }
 document.body.classList.add("revealed");
 document.title = "FTask demo ready";
 </script>

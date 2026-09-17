@@ -2,7 +2,8 @@
 // Auth: Telegram initData (HMAC по BOT_TOKEN) → verify_jwt=false. Данные/Storage — service_role.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { statusTransition, mergePaths, normNicheName, normNicheIds, deferPatch, restorePatch,
-  normNotes, deliverExtra, downloadTarget } from "./logic.js";
+  normNotes, deliverExtra, downloadTarget, normalizeDeliveryDraft, latestVideoPath,
+  isVideoPath, deliveryOwner, mutableDeliveryBatch, DELIVERY_LEVELS } from "./logic.js";
 
 const BOT_TOKEN = (Deno.env.get("BOT_TOKEN") ?? "").trim();
 const ADMIN_IDS = (Deno.env.get("KREO_ADMIN_IDS") ?? "517207658")
@@ -151,6 +152,61 @@ async function fetchAll(build: (from: number, to: number) => any, page = 1000) {
     if (!data || data.length < page) break;
   }
   return out;
+}
+
+async function deliveryBatch(id: any, me: number, isAdmin: boolean) {
+  const { data: batch } = await db.from("delivery_batches").select("*").eq("id", Number(id)).maybeSingle();
+  if (!batch) return { error: "not_found" };
+  if (!deliveryOwner(batch, me, isAdmin)) return { error: "forbidden" };
+  const { data: items } = await db.from("delivery_batch_items").select("*")
+    .eq("batch_id", batch.id).order("position");
+  return { batch, items: items ?? [] };
+}
+
+async function deliveryAccount(id: any, me: number, isAdmin: boolean) {
+  if (id == null || id === "") return { account: null };
+  const { data: account } = await db.from("track_accounts").select("id,owner_tg_id,platform,account_name,archived_at")
+    .eq("id", Number(id)).is("archived_at", null).maybeSingle();
+  if (!account) return { error: "bad_account" };
+  if (!isAdmin && String(account.owner_tg_id) !== String(me)) return { error: "forbidden" };
+  return { account };
+}
+
+async function resolveDeliveryItems(items: any[]) {
+  const ids = [...new Set(items.map((x: any) => Number(x.creo_id)).filter(Boolean))];
+  const { data: creos, error } = await db.from("creos").select("id,status,caption,result_caption,result_paths,preview_poster,preview_clip")
+    .in("id", ids);
+  if (error) throw error;
+  const by = new Map((creos ?? []).map((c: any) => [Number(c.id), c]));
+  const out: any[] = [];
+  for (const x of items) {
+    const c: any = by.get(Number(x.creo_id));
+    if (!c || c.status !== "done") return { error: "not_ready" };
+    let path = x.source_path;
+    if (path == null) path = latestVideoPath(c)?.path;
+    if (!isVideoPath(path) || !(c.result_paths || []).includes(path)) return { error: "bad_asset" };
+    out.push({ creo: c, creo_id: c.id, position: x.position, source_path: path,
+      source_name: c.result_caption || c.caption || `Видео #${c.id}`, uniq_level: x.uniq_level });
+  }
+  return { items: out };
+}
+
+async function attachDeliveryMedia(batches: any[]) {
+  const paths: string[] = [];
+  for (const b of batches) for (const i of (b.items || [])) {
+    if (i.source_path) paths.push(i.source_path);
+    if (i.prepared_path) paths.push(i.prepared_path);
+    if (i.preview_poster) paths.push(i.preview_poster);
+    if (i.preview_clip) paths.push(i.preview_clip);
+  }
+  const signed = await signPaths(paths);
+  for (const b of batches) for (const i of (b.items || [])) {
+    i.source_url = signed[i.source_path] || null;
+    i.prepared_url = signed[i.prepared_path] || null;
+    i.poster_url = signed[i.preview_poster] || null;
+    i.clip_url = signed[i.preview_clip] || null;
+  }
+  return batches;
 }
 
 // CAS-обновление jsonb-поля: PATCH проходит только если поле не изменилось с момента чтения
@@ -552,6 +608,162 @@ Deno.serve(async (req) => {
         await db.from("track_accounts")
           .update({ archived_at: new Date().toISOString() }).eq("id", body.id);
         return json({ ok: true, id: body.id });
+      }
+
+      // -------------------------------------------------- подготовка и доставка пачек видео
+      case "delivery_list": {
+        let q: any = db.from("delivery_batches").select("*").order("created_at", { ascending: false }).limit(200);
+        if (!isAdmin) q = q.eq("created_by_tg_id", me.tg_id);
+        const { data: batches, error } = await q;
+        if (error) throw error;
+        const ids = (batches ?? []).map((b: any) => b.id);
+        let items: any[] = [];
+        if (ids.length) {
+          const { data, error: ie } = await db.from("delivery_batch_items").select("*").in("batch_id", ids).order("position");
+          if (ie) throw ie; items = data ?? [];
+        }
+        const creoIds = [...new Set(items.map((i: any) => i.creo_id))];
+        let creos: any[] = [];
+        if (creoIds.length) {
+          const { data } = await db.from("creos").select("id,caption,result_caption,preview_poster,preview_clip").in("id", creoIds);
+          creos = data ?? [];
+        }
+        const cm = new Map(creos.map((c: any) => [String(c.id), c]));
+        const bm = new Map((batches ?? []).map((b: any) => [String(b.id), { ...b, items: [] }]));
+        for (const i of items) {
+          const c: any = cm.get(String(i.creo_id)) || {};
+          (bm.get(String(i.batch_id)) as any)?.items.push({ ...i, title: i.source_name || c.result_caption || c.caption || `Видео #${i.creo_id}`,
+            preview_poster: c.preview_poster || null, preview_clip: c.preview_clip || null });
+        }
+        const out = [...bm.values()]; await attachDeliveryMedia(out);
+        let aq: any = db.from("track_accounts").select("id,owner_tg_id,platform,account_name").is("archived_at", null).order("account_name");
+        if (!isAdmin) aq = aq.eq("owner_tg_id", me.tg_id);
+        const { data: accounts } = await aq;
+        return json({ batches: out, accounts: accounts ?? [] });
+      }
+
+      case "delivery_create": {
+        const norm = normalizeDeliveryDraft(body);
+        if (!norm.ok) return json({ error: norm.error }, 400);
+        const draft: any = norm.value;
+        const key = String(body.idempotency_key || "").trim().slice(0, 100);
+        if (!key) return json({ error: "no_idempotency_key" }, 400);
+        const ar: any = await deliveryAccount(body.account_id, me.tg_id, isAdmin);
+        if (ar.error) return json({ error: ar.error }, ar.error === "forbidden" ? 403 : 400);
+        const rr: any = await resolveDeliveryItems(draft.items);
+        if (rr.error) return json({ error: rr.error }, 400);
+        const accountLabel = ar.account ? `${ar.account.platform}:${ar.account.account_name}` : null;
+        const { data: batch, error } = await db.from("delivery_batches").insert({
+          created_by_tg_id: me.tg_id, account_id: ar.account?.id ?? null, account_label: accountLabel,
+          mode: draft.mode, deliver_at: draft.deliver_at, timezone: draft.timezone,
+          default_level: draft.default_level, idempotency_key: key,
+        }).select("*").single();
+        if (error) {
+          if (String(error.code) === "23505") {
+            const { data: old } = await db.from("delivery_batches").select("*")
+              .eq("created_by_tg_id", me.tg_id).eq("idempotency_key", key).maybeSingle();
+            if (old) return json({ batch: old, existed: true });
+          }
+          return json({ error: "insert_failed" }, 500);
+        }
+        const rows = rr.items.map((x: any) => ({ batch_id: batch.id, creo_id: x.creo_id, position: x.position,
+          source_path: x.source_path, source_name: x.source_name, uniq_level: x.uniq_level }));
+        const { data: created, error: itemError } = await db.from("delivery_batch_items").insert(rows).select("*");
+        if (itemError) { await db.from("delivery_batches").delete().eq("id", batch.id); return json({ error: "insert_failed" }, 500); }
+        return json({ batch: { ...batch, items: created ?? [] } });
+      }
+
+      case "delivery_update": {
+        const got: any = await deliveryBatch(body.id, me.tg_id, isAdmin);
+        if (got.error) return json({ error: got.error }, got.error === "forbidden" ? 403 : 404);
+        if (!mutableDeliveryBatch(got.batch)) return json({ error: "batch_locked" }, 409);
+        const norm = normalizeDeliveryDraft({
+          mode: body.mode ?? got.batch.mode, deliver_at: "deliver_at" in body ? body.deliver_at : got.batch.deliver_at,
+          timezone: body.timezone ?? got.batch.timezone, default_level: body.default_level ?? got.batch.default_level,
+          items: Array.isArray(body.items) ? body.items : got.items,
+        });
+        if (!norm.ok) return json({ error: norm.error }, 400);
+        const draft: any = norm.value;
+        const ar: any = await deliveryAccount("account_id" in body ? body.account_id : got.batch.account_id, me.tg_id, isAdmin);
+        if (ar.error) return json({ error: ar.error }, ar.error === "forbidden" ? 403 : 400);
+        const rr: any = await resolveDeliveryItems(draft.items);
+        if (rr.error) return json({ error: rr.error }, 400);
+        const payload = { account_id: ar.account?.id ?? null,
+          account_label: ar.account ? `${ar.account.platform}:${ar.account.account_name}` : null,
+          mode: draft.mode, deliver_at: draft.deliver_at, timezone: draft.timezone,
+          default_level: draft.default_level };
+        const items = rr.items.map((x: any) => ({ creo_id: x.creo_id, position: x.position,
+          source_path: x.source_path, source_name: x.source_name, uniq_level: x.uniq_level }));
+        const { data, error } = await db.rpc("update_delivery_batch", { p_batch_id: got.batch.id,
+          p_expected_revision: got.batch.revision, p_batch: payload, p_items: items });
+        if (error) {
+          const locked = String(error.message || "").includes("delivery_locked");
+          return json({ error: locked ? "batch_locked" : "conflict" }, 409);
+        }
+        return json({ batch: data });
+      }
+
+      case "delivery_refresh_sources": {
+        const got: any = await deliveryBatch(body.id, me.tg_id, isAdmin);
+        if (got.error) return json({ error: got.error }, got.error === "forbidden" ? 403 : 404);
+        if (!mutableDeliveryBatch(got.batch)) return json({ error: "batch_locked" }, 409);
+        const ids = got.items.map((x: any) => x.creo_id);
+        const { data: creos } = await db.from("creos").select("id,status,result_paths,caption,result_caption").in("id", ids);
+        const cm = new Map((creos ?? []).map((c: any) => [String(c.id), c])); const items: any[] = []; let changed = 0;
+        for (const i of got.items) {
+          const c: any = cm.get(String(i.creo_id)), latest = c && c.status === "done" ? latestVideoPath(c) : null;
+          if (!latest) return json({ error: "not_ready" }, 400);
+          if (latest.path !== i.source_path) changed++;
+          items.push({ creo_id: i.creo_id, position: i.position, source_path: latest.path,
+            source_name: c.result_caption || c.caption || i.source_name, uniq_level: i.uniq_level });
+        }
+        if (changed) {
+          const payload = { account_id: got.batch.account_id, account_label: got.batch.account_label,
+            mode: got.batch.mode, deliver_at: got.batch.deliver_at, timezone: got.batch.timezone,
+            default_level: got.batch.default_level };
+          const { error } = await db.rpc("update_delivery_batch", { p_batch_id: got.batch.id,
+            p_expected_revision: got.batch.revision, p_batch: payload, p_items: items });
+          if (error) return json({ error: "conflict" }, 409);
+        }
+        return json({ ok: true, changed });
+      }
+
+      case "delivery_send_now":
+      case "delivery_cancel":
+      case "delivery_retry_failed":
+      case "delivery_redeliver": {
+        const got: any = await deliveryBatch(body.id, me.tg_id, isAdmin);
+        if (got.error) return json({ error: got.error }, got.error === "forbidden" ? 403 : 404);
+        const b = got.batch;
+        if (action === "delivery_cancel") {
+          if (["sending", "sent", "cancelled"].includes(b.status)) return json({ error: "batch_locked" }, 409);
+          const { data } = await db.from("delivery_batches").update({ status: "cancelled", revision: b.revision + 1,
+            lease_token: null, lease_until: null }).eq("id", b.id).eq("revision", b.revision)
+            .neq("status", "sending").neq("status", "sent").neq("status", "cancelled").select("*");
+          return data?.length ? json({ batch: data[0] }) : json({ error: "conflict" }, 409);
+        }
+        if (action === "delivery_retry_failed") {
+          if (["sending", "sent", "cancelled"].includes(b.status)) return json({ error: "batch_locked" }, 409);
+          if (!got.items.some((i: any) => i.prep_state === "failed")) return json({ error: "nothing_to_retry" }, 409);
+          const reset = await db.from("delivery_batch_items").update({ prep_state: "queued", prep_attempts: 0,
+            prep_error: null, lease_token: null, lease_until: null }).eq("batch_id", b.id).eq("prep_state", "failed");
+          if (reset.error) return json({ error: "db_error" }, 500);
+          const { data, error } = await db.from("delivery_batches").update({ status: "preparing",
+            revision: b.revision + 1, error_code: null, error_message: null }).eq("id", b.id)
+            .eq("revision", b.revision).neq("status", "sending").neq("status", "sent").neq("status", "cancelled").select("*");
+          if (error) return json({ error: "db_error" }, 500);
+          return data?.length ? json({ batch: data[0] }) : json({ error: "conflict" }, 409);
+        }
+        const allReady = got.items.length > 0 && got.items.every((i: any) => i.prep_state === "ready" && i.prepared_path);
+        if (action === "delivery_redeliver" && !allReady) return json({ error: "not_ready" }, 409);
+        if (action === "delivery_redeliver" && !["sent", "failed", "delivery_unknown"].includes(b.status)) return json({ error: "bad_status" }, 409);
+        if (action === "delivery_send_now" && ["sending", "sent", "cancelled"].includes(b.status)) return json({ error: "batch_locked" }, 409);
+        if (action === "delivery_send_now" && got.items.some((i: any) => i.prep_state === "failed")) return json({ error: "retry_failed_first" }, 409);
+        const { data } = await db.from("delivery_batches").update({ mode: "immediate", deliver_at: null,
+          status: allReady ? "ready" : "preparing", revision: b.revision + 1, error_code: null,
+          error_message: null, lease_token: null, lease_until: null }).eq("id", b.id).eq("revision", b.revision)
+          .neq("status", "sending").neq("status", "cancelled").select("*");
+        return data?.length ? json({ batch: data[0] }) : json({ error: "conflict" }, 409);
       }
 
       // Воронка v2: источник → вступление → покупка PPV. Агрегаты по источникам (не персональные

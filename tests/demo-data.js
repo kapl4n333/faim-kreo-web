@@ -52,7 +52,14 @@ export function makeFixtures(meId = 1) {
     { id: 1, owner_tg_id: meId, platform: "instagram", account_name: "@ava.daily", code: "ins_avadaily_a1b2c", invite_link: "https://t.me/+AbCdEf123", joins: 42, joins_24h: 3, created_at: ago(200) },
     { id: 2, owner_tg_id: 2, platform: "tiktok", account_name: "@ava.tt", code: "tik_avatt_x9y8z", invite_link: "https://t.me/+ZyXwV987", joins: 17, joins_24h: 0, created_at: ago(150) },
   ];
-  return { members, niches, creos, tasks, accounts };
+  const batches = [
+    {id:301,created_by_tg_id:meId,account_id:1,account_label:"instagram:ava.daily",mode:"scheduled",deliver_at:new Date(now+18*3600e3).toISOString(),timezone:"Europe/Warsaw",default_level:"medium",status:"preparing",revision:1,created_at:ago(1),updated_at:ago(.2),items:[
+      {id:1,batch_id:301,creo_id:5,position:0,source_path:"2/2_b2_final_v2.mp4",source_name:"Новый свет",uniq_level:"medium",prep_state:"ready",poster_url:svg("#8A6135","01")},
+      {id:2,batch_id:301,creo_id:15,position:1,source_path:"2/15.mp4",source_name:"Кафе",uniq_level:"strong",prep_state:"processing",poster_url:svg("#5B8C7E","02")},
+      {id:3,batch_id:301,creo_id:18,position:2,source_path:"2/18.mp4",source_name:"Неон",uniq_level:"medium",prep_state:"queued",poster_url:svg("#9A6B96","03")}]},
+    {id:298,created_by_tg_id:meId,account_id:null,account_label:null,mode:"immediate",deliver_at:null,timezone:"Europe/Warsaw",default_level:"weak",status:"sent",revision:1,created_at:ago(30),updated_at:ago(28),sent_at:ago(28),items:[
+      {id:4,batch_id:298,creo_id:5,position:0,source_path:"2/2_b2_final_v2.mp4",prepared_path:"deliveries/298/4/v1.mp4",source_name:"Новый свет",uniq_level:"weak",prep_state:"ready",poster_url:svg("#3f5f8a","01")}]}];
+  return { members, niches, creos, tasks, accounts, batches };
 }
 
 /** Подписанные URL «сервера»: меняются с каждым bootstrap (как настоящие signed URL).
@@ -92,6 +99,7 @@ export function makeServer(meId = 1, fx) {
       if (server.fail && server.fail[action]) { const f = server.fail[action]; if (f === true) throw new Error("Failed to fetch"); throw f; }
       switch (action) {
         case "bootstrap": db.urlGen++; return { me: clone(me()), isAdmin: isAdmin(), creos: db.creos.map(out), tasks: clone(db.tasks), members: clone(db.members), niches: clone(db.niches), stats: stats() };
+        case "delivery_list": return {batches:clone(db.batches||[]),accounts:clone(db.accounts.filter(a=>isAdmin()||a.owner_tg_id===meId))};
         case "claim_creo": case "set_creo_status": {
           const cur = find(p.id); const target = action === "claim_creo" ? "in_progress" : p.status;
           const tr = statusTransition({ cur, me: meId, isAdmin: isAdmin(), target, nowIso: nowIso() });
