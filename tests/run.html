@@ -59,7 +59,7 @@ const srv = makeServer(1);
 window.__FTASK_DEMO__ = (a, p) => srv.handle(a, p);
 try { localStorage.removeItem("ftask.prefs"); } catch (e) {}
 const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
-for (const f of ["core", "catalog", "download", "upload", "views"]) await load("../js/" + f + ".js?v=dev");
+for (const f of ["core", "catalog", "download", "upload", "views", "publish"]) await load("../js/" + f + ".js?v=dev");
 await boot();
 const split = new URLSearchParams(location.search).get("split") === "1";
 const cardsN = () => document.querySelectorAll(".cc").length;
@@ -136,8 +136,20 @@ await T("Команда: люди и статистика", () => { S.tab = "tea
 await T("лист загрузки: ниши крео подставлены, «+ Новая ниша» есть", () => { openSheet(5); const on = [...document.querySelectorAll('#sheet [data-un].on')].map((b) => +b.dataset.un); const add = !!$('#sheet [data-un="new"]'); closeSheet(); return eq(on.sort(), [1]) && add || on.join(","); });
 await T("удаление крео закрывает карточку", async () => { openDetail(10); window.confirm = () => true; await delCreo(10); return S.open === null && !S.creos.some((c) => c.id === 10); });
 
+await T("Публикации: библиотека рендерит аккаунты и кандидатов", async () => { S.tab = "publish"; S.pubTab = "lib"; S.pubs = null; S.track = null; render(); await sleep(120);
+  const acc = $("#pAcc"), rows = document.querySelectorAll(".librow").length; S.tab = "cat"; header(); render(); return (!!acc && rows > 0) || ("acc=" + !!acc + " rows=" + rows); });
+await T("Публикации: пакетное планирование создаёт публикацию", async () => { const c = pubCandidates()[0];
+  S.batchDraft = { accountIds: ["1"], level: "medium", flip: false, mode: "one_per_day", date0: "2026-09-20", time: "10:00", deliveryMode: "on_ready", rows: [{ creo_id: c.id, source_index: 0, date: "" }] };
+  const drafts = buildDrafts(); await api("pub_plan", { drafts }); await loadPubs(true);
+  const ok = (S.pubs || []).some((p) => String(p.creo_id) === String(c.id) && p.uniq_level === "medium"); S.batchDraft = null; return ok || "no pub"; });
+await T("Публикации: «Опубликовал» ставит published + reel", async () => { const p = (S.pubs || [])[0];
+  const r = await api("pub_set_state", { id: p.id, target: "published", reel_url: "https://x/r" });
+  return (r.publication.publish_state === "published" && r.publication.reel_url === "https://x/r") || "state"; });
+
 const {runDownloadTests} = await import("./download-tests.js");
 await runDownloadTests(T);
+const {runPubTests} = await import("./pub-tests.js");
+await runPubTests(T);
 document.title = "RESULT: " + pass + " passed, " + fail + " failed";
 R.innerHTML += "\n" + document.title;
 </script>
