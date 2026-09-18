@@ -147,8 +147,8 @@ function vCatalog(){
       S.niches.map(n=>'<option value="'+n.id+'"'+(String(S.niche)===String(n.id)?" selected":"")+'>'+esc(n.name)+'</option>').join("")+'</select>'+
     '<select id="ca"><option value="">Все авторы</option>'+authors.map(a=>'<option'+(S.author===a?" selected":"")+'>'+esc(a)+'</option>').join("")+'</select>'+
     '<select id="cs"><option value="new"'+(S.sort!=="old"?" selected":"")+'>Свежие сверху</option><option value="old"'+(S.sort==="old"?" selected":"")+'>Сначала старые</option></select></div>'+
-    (S.view==="done"?'<div class="nchips">'+PUB.map(([k,l])=>'<button class="nc'+((S.pub||"")===k?" on":"")+'" data-pub="'+k+'">'+l+'</button>').join("")+'</div>'+deliveryPickBar():"")+
-    '</div>';
+    (S.view==="done"?'<div class="nchips">'+PUB.map(([k,l])=>'<button class="nc'+((S.pub||"")===k?" on":"")+'" data-pub="'+k+'">'+l+'</button>').join("")+'</div>':"")+
+    '</div>'+deliveryPickBar();
   if(!list.length){
     const any=S.q||S.niche||S.author||S.mine||S.pub;
     const msg={free:"Свободных референсов нет — поставь 👍 в AvaKreo Links.",work:"Никто ничего не делает прямо сейчас.",

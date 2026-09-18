@@ -34,7 +34,7 @@ await boot();
 if (q.get("tab")) S.tab = q.get("tab");
 if (q.get("view")) S.view = q.get("view");
 if (q.get("open")) S.open = +q.get("open");
-if (q.get("pick")==="1") S.deliveryPickMode = true;
+if (q.get("pick")==="1") S.deliveryPick = [latestVideo(S.creos.find(c=>c.id===5))].filter(Boolean);
 if (q.get("tab") || q.get("view") || q.get("open")) { header(); render(); }
 if (q.get("wizard")==="1") { const c=S.creos.find(x=>x.id===5); await openDeliveryWizard(q.get("mode")==="scheduled"?"scheduled":"immediate",[latestVideo(c)]); }
 document.body.classList.add("revealed");

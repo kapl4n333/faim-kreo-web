@@ -461,9 +461,15 @@ body.dopen{overflow:hidden}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* ============================ пачки уникализации ============================ */
-.pickbar{margin-top:10px;padding:10px;border-radius:14px;background:var(--surface);border:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.pickbar>.act{flex:0 0 auto}.pickbar b{font-family:var(--mono);font-size:12px}.pickacts{display:flex;gap:7px;margin-left:auto}.pickacts button{width:auto;padding:9px 12px}
-.cc{position:relative}.pickcheck{position:absolute;z-index:8;right:7px;top:7px;width:32px;height:32px;border-radius:50%;background:rgba(10,10,13,.82);border:1px solid rgba(255,255,255,.35);color:#fff;font-weight:800;font-size:17px;backdrop-filter:blur(8px)}
+.pickbar{position:sticky;top:var(--hdr-h,0px);z-index:9;margin:0 0 12px;padding:9px 10px;border-radius:14px;
+  background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);border:1px solid var(--line-soft);box-shadow:var(--sh)}
+.pickrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pickrow>.act{flex:0 0 auto;width:auto;padding:8px 11px}.pickrow b{font-family:var(--mono);font-size:12px}.pickacts{display:flex;gap:7px;margin-left:auto}.pickacts button{width:auto;padding:9px 12px}
+.pickstrip{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.pth{position:relative;flex:0 0 auto;width:44px;height:58px;border-radius:8px;overflow:hidden;padding:0;border:2px solid var(--a);background:var(--bg)}
+.pth img{width:100%;height:100%;object-fit:cover}.pth .na{display:grid;place-items:center;width:100%;height:100%;font-size:18px}
+.pth i{position:absolute;right:1px;top:1px;width:14px;height:14px;border-radius:50%;background:rgba(10,10,13,.85);color:#fff;font-size:9px;font-style:normal;display:grid;place-items:center}
+.cc{position:relative}.pickcheck{position:absolute;z-index:8;right:7px;top:7px;width:30px;height:30px;border-radius:50%;background:rgba(10,10,13,.55);border:2px solid rgba(255,255,255,.75);color:#fff;font-weight:800;font-size:16px;backdrop-filter:blur(8px);padding:0}
 .pickcheck.on{background:var(--grad-gold);color:var(--on-gold);border-color:transparent}.uqone{white-space:nowrap}
 .dmodal{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:grid;place-items:end center}
 .dw{width:min(760px,100%);max-height:94dvh;background:var(--bg);border:1px solid var(--line);border-radius:22px 22px 0 0;display:flex;flex-direction:column;box-shadow:0 -20px 60px rgba(0,0,0,.5)}

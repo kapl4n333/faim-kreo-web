@@ -35,7 +35,7 @@ const S={me:null,creos:[],tasks:[],members:[],niches:[],stats:null,
   funnel:null,funnelDays:30,_fnLoading:false,
   _notesTimer:null,_notesState:"",
   batches:[],deliveryAccounts:[],deliveryLoaded:false,deliveryLoading:false,_deliverySig:"",
-  deliveryPick:[],deliveryPickMode:false,deliveryDraft:null,deliveryOpen:false};
+  deliveryPick:[],deliveryDraft:null,deliveryOpen:false};
 /* всё, что переживает закрытие аппы: вкладка, вид каталога, фильтры, черновик задачи */
 const PERSIST=["tab","view","mine","q","niche","author","sort","pub","adminTab","keitTab","teamTab","tDraft","open"];
 function loadPrefs(){try{const p=JSON.parse(localStorage.getItem("ftask.prefs")||"{}");

@@ -1,4 +1,4 @@
-/* FTask — выбор готовых видео, настройка пачки и страница «Планирование». */
+/* FTask — выбор готовых видео (галочки на плитках + закреплённая панель), настройка пачки и страница «Планирование». */
 const DLEVELS={weak:["Бережная","Почти незаметные изменения"],medium:["Сбалансированная","Умеренная обработка"],strong:["Сильная","Более заметные изменения"]};
 const DSTATUS={preparing:"Готовится",ready:"Готово к отправке",sending:"Отправляется",sent:"Отправлено",
   failed:"Ошибка",delivery_unknown:"Нужно проверить отправку",cancelled:"Отменено"};
@@ -14,14 +14,21 @@ function pickHas(id){return (S.deliveryPick||[]).some(x=>x.creo_id===+id);}
 function deliveryPickToggle(c){const v=latestVideo(c);if(!v)return toast("В карточке нет готового видео","err");
   S.deliveryPick=S.deliveryPick||[];const i=S.deliveryPick.findIndex(x=>x.creo_id===c.id);
   if(i>=0)S.deliveryPick.splice(i,1);else if(S.deliveryPick.length>=10)return toast("В одной группе максимум 10 документов","err");else S.deliveryPick.push(v);render();}
-function deliveryPickBar(){if(S.view!=="done")return"";const n=(S.deliveryPick||[]).length;
-  return '<div class="pickbar"><button class="act" id="dpickmode">'+(S.deliveryPickMode?"✕ Закрыть выбор":"✓ Выбрать видео")+'</button>'+
-    (S.deliveryPickMode?'<b>'+n+' выбрано</b><div class="pickacts"><button class="act" id="dschedule"'+(n?"":" disabled")+'>Запланировать</button><button class="primary" id="dnow"'+(n?"":" disabled")+'>Уникализировать</button></div>':"")+'</div>';}
-function deliveryPickBadge(c){if(!S.deliveryPickMode||S.view!=="done"||!latestVideo(c))return"";
-  return '<button class="pickcheck'+(pickHas(c.id)?" on":"")+'" data-dpick="'+c.id+'" aria-label="Выбрать видео">'+(pickHas(c.id)?"✓":"＋")+'</button>';}
+function pickThumb(c){const m=tileMedia(c);const img=m.img||c.preview_url||c.source_poster_url||null;
+  return '<button class="pth" data-dpick="'+c.id+'" title="Убрать из выбора">'+(img?'<img loading="lazy" src="'+esc(img)+'">':'<span class="na">🎬</span>')+'<i>✕</i></button>';}
+function deliveryPickBar(){if(S.view!=="done")return"";const pick=S.deliveryPick||[],n=pick.length;
+  const thumbs=pick.map(x=>S.creos.find(c=>c.id===x.creo_id)).filter(Boolean).map(pickThumb).join("");
+  return '<div class="pickbar" id="pickbar"><div class="pickrow"><b>'+(n?n+' выбрано':'Отметь видео галочкой')+'</b>'+(n?'<button class="act" id="dpickclear">Сбросить</button>':'')+
+    '<div class="pickacts"><button class="act" id="dschedule"'+(n?"":" disabled")+'>Запланировать</button><button class="primary" id="dnow"'+(n?"":" disabled")+'>Уникализировать</button></div></div>'+
+    (n?'<div class="pickstrip">'+thumbs+'</div>':'')+'</div>';}
+function deliveryPickBadge(c){if(S.view!=="done"||!latestVideo(c))return"";
+  return '<button class="pickcheck'+(pickHas(c.id)?" on":"")+'" data-dpick="'+c.id+'" aria-label="Выбрать видео">'+(pickHas(c.id)?"✓":"")+'</button>';}
+function syncHdrH(){const h=document.getElementById("hdr");if(h)document.documentElement.style.setProperty("--hdr-h",h.offsetHeight+"px");}
+window.addEventListener("resize",syncHdrH);
 function bindDeliveryCatalog(el){
-  const mode=el.querySelector("#dpickmode");if(mode)mode.onclick=()=>{S.deliveryPickMode=!S.deliveryPickMode;if(!S.deliveryPickMode)S.deliveryPick=[];render();};
-  el.querySelectorAll("[data-dpick]").forEach(b=>b.onclick=e=>{e.stopPropagation();deliveryPickToggle(S.creos.find(c=>c.id===+b.dataset.dpick));});
+  syncHdrH();
+  const clr=el.querySelector("#dpickclear");if(clr)clr.onclick=()=>{S.deliveryPick=[];render();};
+  el.querySelectorAll("[data-dpick]").forEach(b=>b.onclick=e=>{e.stopPropagation();const y=window.scrollY;deliveryPickToggle(S.creos.find(c=>c.id===+b.dataset.dpick));window.scrollTo(0,y);});
   const now=el.querySelector("#dnow"),plan=el.querySelector("#dschedule");if(now)now.onclick=()=>openDeliveryWizard("immediate",S.deliveryPick);if(plan)plan.onclick=()=>openDeliveryWizard("scheduled",S.deliveryPick);
 }
 
@@ -86,7 +93,7 @@ async function saveDeliveryWizard(){const d=S.deliveryDraft;if(!d||!d.items.leng
     idempotency_key:d.idempotency_key,items:d.items.map((x,position)=>({creo_id:x.creo_id,source_path:x.source_path,uniq_level:x.uniq_level||d.default_level,position}))};
   const btn=document.getElementById("dwsave");btn.disabled=true;
   try{await api(d.id?"delivery_update":"delivery_create",payload);const n=d.items.length,when=d.mode==="scheduled"?new Intl.DateTimeFormat("ru-RU",{timeZone:d.timezone,day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"}).format(new Date(deliver_at))+" · "+d.timezone:"сразу после подготовки";
-    const a=S.deliveryAccounts.find(x=>String(x.id)===String(d.account_id));closeDeliveryWizard();S.deliveryPick=[];S.deliveryPickMode=false;await loadDeliveries(true);toast(n+" видео · "+when+(a?" · "+atName(a.account_name):""),"ok");S.tab="plan";header();render();}
+    const a=S.deliveryAccounts.find(x=>String(x.id)===String(d.account_id));closeDeliveryWizard();S.deliveryPick=[];await loadDeliveries(true);toast(n+" видео · "+when+(a?" · "+atName(a.account_name):""),"ok");S.tab="plan";header();render();}
   catch(e){btn.disabled=false;toast(errMsg(e),"err");}}
 
 function batchProgress(b){const ready=(b.items||[]).filter(i=>i.prep_state==="ready").length;return ready+"/"+(b.items||[]).length;}
@@ -105,7 +112,7 @@ function vPlanning(){if(!S.deliveryLoaded){setTimeout(()=>loadDeliveries(),0);re
   return '<div class="planhead"><div><small>ГЕНЕРАЦИЯ</small><h1>Планирование</h1><p>Подготовка начинается сразу. Дата — время доставки файлов в Telegram.</p></div><button class="primary" id="pnew">Выбрать в «Готовых»</button></div>'+
     (active.length?'<div class="batchgrid">'+active.map(batchCard).join("")+'</div>':'<div class="empty"><div class="e-ic">🗓</div><div class="e-h">Активных пачек нет</div>Выбери видео в каталоге «Готовые».</div>')+
     (hist.length?'<details class="history"><summary>История · '+hist.length+'</summary><div class="batchgrid">'+hist.map(batchCard).join("")+'</div></details>':'');}
-function bindPlanning(el){const n=el.querySelector("#pnew");if(n)n.onclick=()=>{S.tab="cat";S.view="done";S.deliveryPickMode=true;header();render();};
+function bindPlanning(el){const n=el.querySelector("#pnew");if(n)n.onclick=()=>{S.tab="cat";S.view="done";header();render();window.scrollTo(0,0);};
   el.querySelectorAll("[data-bact]").forEach(b=>b.onclick=()=>batchAction(b.dataset.bact,+b.dataset.bid));observeBatchVideos(el);}
 async function batchAction(act,id){const b=S.batches.find(x=>x.id===id);if(!b)return;
   if(act==="edit")return openDeliveryWizard(b.mode,b.items,b);if(act==="cancel"&&!confirm("Отменить пачку? Уже подготовленные файлы сохранятся, но отправки не будет."))return;
