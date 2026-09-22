@@ -42,7 +42,9 @@ function tileMedia(c){
     const p=(c.result_paths||[])[ri]||"",u=(c.result_urls||[])[ri];
     if(!isVid(p)&&u)return {img:u,ref:[c.id,"result_urls",ri],clip:c.clip_url,clipRef:[c.id,"clip_url",0],lbl:"результат"};
     if(c.preview_url)return {img:c.preview_url,ref:[c.id,"preview_url",0],clip:c.clip_url,clipRef:[c.id,"clip_url",0],lbl:"результат"};
-    if(u)return {vid:u,ref:[c.id,"result_urls",ri],lbl:"результат"};
+    // Без постера карточка не тянет исходное видео ради metadata. Полный файл
+    // открывается только в детальном просмотре по явному действию пользователя.
+    if(u)return {none:true};
   }
   if(c.source_poster_url)return {img:c.source_poster_url,ref:[c.id,"source_poster_url",0],clip:c.source_clip_url,clipRef:[c.id,"source_clip_url",0],lbl:"исходник"};
   const su=c.source_urls||[],sp=c.source_paths||[];
@@ -50,7 +52,7 @@ function tileMedia(c){
   const mu=c.media_urls||[],mp=c.storage_paths||[];
   for(let i=0;i<mu.length;i++)if(mu[i]&&!isVid(mp[i]))return {img:mu[i],ref:[c.id,"media_urls",i],lbl:"исходник"};
   const sv=su.findIndex(Boolean);
-  if(sv>=0)return {vid:su[sv],ref:[c.id,"source_urls",sv],lbl:"исходник"};
+  if(sv>=0)return {none:true};
   if(c.status==="done"&&ri>=0&&c.preview_url)return {img:c.preview_url,ref:[c.id,"preview_url",0],lbl:"результат"};
   return {none:true};
 }

@@ -1,7 +1,7 @@
 /* FTask — ядро: состояние, API, синк, шапка/навигация, роутер. Классические скрипты
    (без модулей) — порядок подключения в index.html: core → catalog → download → upload → views.
    Версия ресурсов — в index.html (?v=), бампать при каждой правке js/css. */
-const API="https://xgkyuxjvwwstsuhtwhpv.supabase.co/functions/v1/kreo-api";
+const API=window.FTASK_API||document.querySelector('meta[name="ftask-api"]')?.content||"";
 const CHAT_INTERNAL="3863967700",LINKS_THREAD=3209,READY_THREAD=3;
 const tg=window.Telegram&&window.Telegram.WebApp;
 try{tg&&tg.ready();tg&&tg.expand();
@@ -127,8 +127,8 @@ async function boot(){
 
 /* ---------- realtime через мягкий поллинг ---------- */
 function absorb(d){Object.assign(S,{me:d.me,creos:d.creos||[],tasks:d.tasks||[],members:d.members||[],niches:d.niches||[],stats:d.stats});}
-/* сигнатура = бизнес-поля (без подписанных URL — они меняются каждый bootstrap и обновляются
-   отдельно через refreshMedia, чтобы не перерисовывать экран каждые 10 секунд) */
+/* Подписанные URL нового backend стабильны внутри часового окна. Они не участвуют
+   в бизнес-сигнатуре и обновляются адресно только при реальной ротации/expiry. */
 function sigOf(){
   return JSON.stringify([
     S.creos.map(c=>[c.id,c.status,c.delivery_state,postedList(c).map(p=>p.tg_id).join(),c.assignee_tg_id,
