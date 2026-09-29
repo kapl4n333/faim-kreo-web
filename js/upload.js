@@ -45,7 +45,11 @@ function renderSheet(){
   s.querySelector("#send").onclick=doUpload;
   if(S.files.length)drawThumbs();
 }
-function addFiles(fl){for(const f of fl)S.files.push(f);renderSheet();}
+const MAX_READY_UPLOAD_BYTES=1999000000;
+function addFiles(fl){for(const f of fl){
+    if(f.size>MAX_READY_UPLOAD_BYTES){toast("Файл больше лимита 1999 MB: "+f.name,"err");continue;}
+    S.files.push(f);
+  }renderSheet();}
 function drawThumbs(){
   const t=document.getElementById("thumbs");if(!t)return;
   t.innerHTML=S.files.map((f,i)=>{const v=f.type.startsWith("video");
@@ -59,7 +63,7 @@ function putFile(url,file,onprog){
     xhr.setRequestHeader("content-type",file.type||"application/octet-stream");
     xhr.setRequestHeader("x-upsert","true");
     xhr.upload.onprogress=e=>{if(e.lengthComputable)onprog(e.loaded/e.total);};
-    xhr.onload=()=>(xhr.status>=200&&xhr.status<300)?res():rej(new Error("upload "+xhr.status));
+    xhr.onload=()=>(xhr.status>=200&&xhr.status<300)?res():rej(new Error(xhr.status===413?"файл превышает текущий лимит сервера":"upload "+xhr.status));
     xhr.onerror=()=>rej(new Error("network"));
     xhr.send(file);
   });
