@@ -488,3 +488,11 @@ aware, не сбивает скролл/ввод); **честный async** (с�
   а таблицы доступны `service_role`. Worker живёт в CreatorBot `batch_delivery.py`.
 - Локальные browser-тесты находятся в `tests/run.html`; визуальные сценарии — `tests/demo.html`
   (`?pick=1`, `?wizard=1`, страница plan). Точный порядок выкладки и post-deploy checks — `DEPLOY.md`.
+
+## Автозалив (feature/device-automation, ещё не в проде)
+
+- `js/devices.js`: страница `S.tab==="auto"`, вкладка видна ролям admin и uploader. Подвкладки «Очередь» и «ПК и телефоны». Все действия это `device_*` в `POST /api`, логика и права на сервере: `FaimGenBot/server/device/`, контракт в `FaimGenBot/docs/device-automation-contract.md`. Папку `supabase/` это не затрагивает.
+- Новый тип задачи добавляется в `AUTO_TYPES`. Для `publish_reel` файл только `.mp4`, без учёта регистра; остальные форматы видны, но недоступны, с причиной.
+- Метки ИИ в форме нет намеренно. Подпись вводится вручную, из `result_caption` не подставляется.
+- Этот раздел отменяет старое «не предлагать работу над постингом»: её поставил владелец.
+- Тесты: `tests/device-tests.js`, подключены в `tests/run.html`. Демо: `tests/demo.html?tab=auto`.
