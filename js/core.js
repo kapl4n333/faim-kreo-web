@@ -35,7 +35,8 @@ const S={me:null,creos:[],tasks:[],members:[],niches:[],stats:null,
   funnel:null,funnelDays:30,_fnLoading:false,
   _notesTimer:null,_notesState:"",
   batches:[],deliveryAccounts:[],deliveryLoaded:false,deliveryLoading:false,_deliverySig:"",
-  deliveryPick:[],deliveryDraft:null,deliveryOpen:false};
+  deliveryPick:[],deliveryDraft:null,deliveryOpen:false,
+  auto:null,autoTab:"queue",autoDraft:null,autoOpen:false,autoLoading:false,_autoSig:"",autoPair:null};
 /* всё, что переживает закрытие аппы: вкладка, вид каталога, фильтры, черновик задачи */
 const PERSIST=["tab","view","mine","q","niche","author","sort","pub","adminTab","keitTab","teamTab","tDraft","open"];
 function loadPrefs(){try{const p=JSON.parse(localStorage.getItem("ftask.prefs")||"{}");
@@ -82,7 +83,9 @@ const ERR={not_member:"Тебя нет в команде FTask.",forbidden:"Не
   network:"Нет сети. Проверь соединение.",bad_timezone:"Укажи часовой пояс.",bad_level:"Выбери степень уникализации.",
   bad_batch_size:"В пачке должно быть от 1 до 10 видео.",bad_delivery_time:"Проверь дату и время доставки.",
   bad_items:"Проверь выбранные видео.",bad_asset:"Выбранная версия больше недоступна.",not_ready:"Видео ещё не готово.",
-  bad_account:"Аккаунт недоступен.",batch_locked:"Пачка уже отправляется или закрыта."};
+  bad_account:"Аккаунт недоступен.",batch_locked:"Пачка уже отправляется или закрыта.",
+  bad_format:"Этот формат нельзя залить: нужен файл .mp4.",not_bound:"Аккаунт не привязан к телефону.",asset_missing:"Файл не найден на сервере.",caption_too_long:"Подпись слишком длинная.",
+  duplicate_asset:"Этот файл уже есть на аккаунте.",bad_kind:"Этот тип задачи недоступен для аккаунта.",bad_time:"Проверь дату и время.",no_handle:"Укажи ник на телефоне.",bad_gap:"Интервал должен быть от 0 до 1440 минут."};
 const errMsg=e=>{const m=(e&&e.message)||"";if(/failed to fetch|networkerror|load failed/i.test(m))return ERR.network;return ERR[m]||"Не вышло. "+(m||"Попробуй ещё раз.");};
 function toast(msg,type){
   const t=document.createElement("div");t.className="toast"+(type?" "+type:"");t.textContent=msg;
@@ -104,7 +107,8 @@ async function boot(){
     absorb(d);
     loadPrefs();
     if(S.tab==="admin"&&!admin())S.tab="cat";
-    if(!["cat","plan","tasks","keitaro","team","admin"].includes(S.tab))S.tab="cat";
+    if(S.tab==="auto"&&!canAuto())S.tab="cat";
+    if(!["cat","plan","auto","tasks","keitaro","team","admin"].includes(S.tab))S.tab="cat";
     if(S.open&&!S.creos.find(c=>c.id===S.open))S.open=null;
     document.getElementById("hdr").classList.remove("hidden");
     document.getElementById("nav").classList.remove("hidden");
@@ -144,7 +148,7 @@ function sigOf(){
 function flashSync(){const s=document.getElementById("sync");if(!s)return;
   s.classList.add("on");setTimeout(()=>s.classList.remove("on"),650);}
 async function poll(){
-  if(!S.me||document.hidden||S.uploading||S.deliveryOpen)return;
+  if(!S.me||document.hidden||S.uploading||S.deliveryOpen||S.autoOpen)return;
   if(document.getElementById("scrim").classList.contains("show"))return;   // открыт лист — не мешаем
   const f=document.activeElement;
   if(f&&/^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName))return;                 // идёт ввод — не перерисовываем
@@ -154,6 +158,7 @@ async function poll(){
   if(sig!==S._sig){S._sig=sig;const y=window.scrollY;header();render();window.scrollTo(0,y);}
   else refreshMedia(document);                                               // только свежие подписанные ссылки (E)
   if(S.tab==="plan")await loadDeliveries(true);
+  if(S.tab==="auto")await loadAuto(true);
   flashSync();
 }
 function startSync(){
@@ -193,6 +198,7 @@ const NAVICON={
   cat:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
   tasks:'<path d="M4 6l1.6 1.6L8.5 4.7M4 17.4l1.6 1.6 2.9-2.9M12 6.5h8M12 16.5h8"/>',
   plan:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h3M13 14h3M8 18h3"/>',
+  auto:'<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M12 7.5v6M9.5 11l2.5 2.5 2.5-2.5M11 18.5h2"/>',
   keitaro:'<path d="M5 20V11M12 20V4M19 20V14"/>',
   team:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0111 0"/><path d="M16 5.2a3.2 3.2 0 010 6M15.2 15.6A5.5 5.5 0 0120.5 20"/>',
   admin:'<path d="M4 21v-6M4 11V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M2 15h4M10 8h4M18 16h4"/>'};
@@ -211,7 +217,9 @@ function header(){
     S.tab="cat";S.q="";S.author="";S.niche="";S.mine=false;
     if(k==="posted"){S.view="done";S.pub="any";}else{S.view=k;S.pub="";}
     savePrefs();window.scrollTo(0,0);header();render();});
-  const tabs=[["cat","Каталог"],["plan","Планирование"],["tasks","Задачи"],["keitaro","Трекер"],["team","Команда"]];
+  const tabs=[["cat","Каталог"],["plan","Планирование"]];
+  if(canAuto())tabs.push(["auto","Автозалив"]);
+  tabs.push(["tasks","Задачи"],["keitaro","Трекер"],["team","Команда"]);
   if(admin())tabs.push(["admin","Админ"]);
   document.getElementById("nav").innerHTML=tabs.map(([k,l])=>
     '<button class="'+(S.tab===k?"on":"")+'" data-t="'+k+'">'+navIcon(k)+'<span class="lbl">'+l+'</span></button>').join("");
@@ -227,6 +235,7 @@ function render(){
   const el=document.getElementById("app");killFab();
   document.body.classList.toggle("split",isSplit()&&S.tab==="cat");
   if(S.tab==="plan"){el.innerHTML=vPlanning();bindPlanning(el);return;}
+  if(S.tab==="auto"){el.innerHTML=vAuto();bindAuto(el);return;}
   if(S.tab==="tasks"){el.innerHTML=vTasks();bindTasks(el);return;}
   if(S.tab==="keitaro"){el.innerHTML=vKeitaroTab();bindKeitaroTab(el);return;}
   if(S.tab==="team"){el.innerHTML=vTeamTab();bindTeamTab(el);return;}

@@ -544,3 +544,24 @@ body.revealed nav{animation:navUp .55s cubic-bezier(.22,.61,.36,1) .16s both}
 .linkerr{font-size:11px;color:var(--q)}
 .d1{color:var(--d);font-weight:600}
 .lead .nm .ls{display:block;font-size:10.5px;color:var(--hint);font-weight:400;margin-top:1px}
+
+/* Автозалив */
+.autosubs{display:flex;gap:8px;margin-bottom:14px}.autosubs button{padding:7px 13px;border-radius:20px;background:var(--raise);border:1px solid var(--line-soft);color:var(--hint);font-weight:600;font-size:12.5px}.autosubs button.on{color:var(--text);border-color:var(--line)}
+.autoh{font-size:14px;margin:4px 0 10px}
+.ast{font-size:11px;font-weight:700;padding:3px 9px;border-radius:9px;background:var(--raise);color:var(--hint);white-space:nowrap}
+.ast.unknown,.ast.needs_attention{background:rgba(224,90,90,.18);color:#f39a9a}.ast.failed,.ast.missed{background:rgba(224,166,58,.16);color:#f2c76e}.ast.confirmed,.ast.done{background:rgba(63,178,127,.16);color:#7fe0b4}.ast.sent{background:rgba(76,141,240,.16);color:#9cc1f7}
+.job .btop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.job .btop b{min-width:0;overflow-wrap:anywhere}
+.jcap{margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+.jtap{margin:8px 0;font-weight:700;font-size:13px}.jtap.maybe{color:#f2c76e}.jtap.no{color:#7fe0b4}
+.jlink{display:inline-block;margin:6px 0;color:var(--a);font-size:13px}
+.job .bacts{flex-wrap:wrap}
+.autobox{padding:13px 15px;margin-bottom:12px;border:1px solid var(--line-soft);border-radius:14px;background:var(--raise)}.autobox>b{display:block;margin-bottom:8px}
+.autorow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--line-soft)}.autorow small{color:var(--hint);flex:1 1 120px;min-width:0;overflow-wrap:anywhere}.autorow .act{flex:0 0 auto;width:auto;padding:7px 11px;font-size:12px}
+.autorow input,.autorow select{min-width:0;max-width:100%;padding:7px 9px;border-radius:9px;background:var(--bg);color:var(--text);border:1px solid var(--line-soft);font:inherit;font-size:13px}.autorow.bind b{flex:1 1 100%}.autorow .gap{display:flex;align-items:center;gap:6px;color:var(--hint);font-size:12px}.autorow .gap input{width:72px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--hint);opacity:.5;flex:0 0 auto}.dot.on{background:#3fb27f;opacity:1}
+.paircode{margin:10px 0 4px;font:700 24px/1.2 var(--mono);letter-spacing:.08em}
+.alib{display:grid;gap:6px;margin-top:8px;max-height:300px;overflow:auto}
+.apick{display:flex;align-items:center;gap:10px;padding:7px;border:1px solid var(--line-soft);border-radius:11px;background:var(--raise);text-align:left;color:var(--text);width:100%}.apick.on{border-color:var(--a)}.apick.off{opacity:.62;cursor:not-allowed}
+.apick .at{flex:0 0 auto;width:42px;height:56px;border-radius:7px;overflow:hidden;display:grid;place-items:center;background:var(--bg)}.apick .at img{width:100%;height:100%;object-fit:cover}.apick .an{flex:1;min-width:0;display:grid;gap:2px}.apick .an b{font-size:13px;overflow-wrap:anywhere}.apick .why{color:#f2c76e;font-size:11.5px}.apick i{font-style:normal;color:var(--a);font-weight:700;flex:0 0 auto}
+.aitem{display:grid;gap:7px;padding:10px 0;border-top:1px solid var(--line-soft)}.aitem b{overflow-wrap:anywhere}
+#amodal input,#amodal select,#amodal textarea{width:100%;padding:9px 11px;border-radius:10px;background:var(--raise);color:var(--text);border:1px solid var(--line-soft);font:inherit;font-size:14px}

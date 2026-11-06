@@ -94,9 +94,22 @@ export function makeServer(meId = 1, fx) {
   const fail = (e, code) => { const err = new Error(e); err.code = code; throw err; };
   const server = {
     db,
+    // Только для demo.html; тесты подставляют свой обработчик.
+    deviceHandler: async (action) => action === "device_list" ? {
+      jobs: [
+        { id: 1, kind: "publish_reel", account_name: "nokk.ksi", creo_id: 5, asset_path: "a.mp4", caption: "Подпись к видео", status: "unknown", run_at: ago(1), timezone: "Europe/Warsaw", revision: 4, tapped: null, tapped_label: "Нажатие могло быть", error_code: "lease_lost_after_commit" },
+        { id: 2, kind: "publish_reel", account_name: "nokk.ksi", creo_id: 5, asset_path: "b.mp4", caption: "", status: "queued", run_at: ago(-3), timezone: "Europe/Warsaw", revision: 1 },
+        { id: 3, kind: "publish_reel", account_name: "ava", creo_id: 5, asset_path: "c.mp4", caption: "Вторая подпись", status: "sent", run_at: ago(2), timezone: "UTC", revision: 6 },
+        { id: 4, kind: "publish_reel", account_name: "ava", creo_id: 5, asset_path: "d.mp4", caption: "", status: "confirmed", run_at: ago(26), timezone: "UTC", revision: 8, post_url: "https://example.test/r" },
+      ],
+      accounts: [{ id: 51, platform: "instagram", account_name: "nokk.ksi", phone_id: 9, expected_handle: "nokk.ksi", min_gap_minutes: 30 }, { id: 52, platform: "instagram", account_name: "ava", phone_id: null, expected_handle: null, min_gap_minutes: null }],
+      phones: [{ id: 9, serial: "32031JEGR12076", name: "Pixel 6a", worker_id: 7, online: true, mode: "RUNNING", paused: false }],
+      workers: [{ id: 7, name: "PC-1", app_version: "0.2.0", last_seen_at: new Date().toISOString(), revoked: false, paired: true }], events: [],
+    } : { ok: true },
     async handle(action, p) {
       p = p || {}; db.log.push([action, clone(p)]);
       if (server.fail && server.fail[action]) { const f = server.fail[action]; if (f === true) throw new Error("Failed to fetch"); throw f; }
+      if (action.startsWith("device_") && server.deviceHandler) return server.deviceHandler(action, p);
       switch (action) {
         case "bootstrap": db.urlGen++; return { me: clone(me()), isAdmin: isAdmin(), creos: db.creos.map(out), tasks: clone(db.tasks), members: clone(db.members), niches: clone(db.niches), stats: stats() };
         case "delivery_list": return {batches:clone(db.batches||[]),accounts:clone(db.accounts.filter(a=>isAdmin()||a.owner_tg_id===meId))};
