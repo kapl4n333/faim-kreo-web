@@ -496,3 +496,12 @@ aware, не сбивает скролл/ввод); **честный async** (с�
 - Метки ИИ в форме нет намеренно. Подпись вводится вручную, из `result_caption` не подставляется.
 - Этот раздел отменяет старое «не предлагать работу над постингом»: её поставил владелец.
 - Тесты: `tests/device-tests.js`, подключены в `tests/run.html`. Демо: `tests/demo.html?tab=auto`.
+
+## Широкая раскладка «Автозалива» (`js/wide/`, контракт FaimGenBot §15)
+- От 1280 px «Автозалив» рисует `js/wide/main.js` (ES-модули), уже — старый вид из `devices.js`/`content.js`. Выбор только по ширине (`pickLayout`). Вход в раздел: `requestFullscreen()` в Telegram Desktop при WebApp 8.0+, иначе `expand()`; выход — `exitFullscreen()`, только если включали мы.
+- Связь со старым кодом: две строки в `render()` в `core.js` (`FTWide.onTab/wants/render/unmount`) и `js/wide/bridge.js` — единственное место, где модули берут `S`, `api`, `tg`, `esc`.
+- Новый раздел: файл `js/wide/sections/<id>.js` (`load`, `render`, `bind`) + запись в `js/wide/registry.js`. Общие компоненты в `js/wide/ui/`.
+- Версии: общие модули в `importmap` в `index.html`, у каждого свой `?v=`; разделы грузятся с `?v=` от `main.js`. Правка любого файла `js/wide/` — бамп его `?v=` и `?v=` у `main.js`.
+- Опрос не перерисовывает экран, пока фокус в поле ввода или открыто меню «⋮»; консоль устройства опрашивает `device_console` раз в 3 с с `after_id`.
+- Демо на вымышленных данных: `tests/wide.html?section=dashboard|devices|content|accounts&id=1&tg=fullscreen|old|none`.
+- В `tests/run.html` тест «открытие карточки: на телефоне» падает при ширине окна ≥1024 px, а тест «Мастер: несуществующее время» иногда падает и на исходном коде: это было до широкой раскладки.

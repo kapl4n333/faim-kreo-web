@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>FTask — широкая раскладка, демо</title>
+<link rel="stylesheet" href="../css/app.css?v=dev">
+<script>
+// Свежая версия модулей на каждую загрузку демо: тот же приём, что importmap в index.html.
+window.__V = String(Date.now());
+document.write('<link rel="stylesheet" href="../css/wide.css?v=' + __V + '">');
+const files = ["bridge", "registry", "ui/accounts-rail", "ui/badge", "ui/details", "ui/empty", "ui/format", "ui/icons", "ui/table", "ui/tree"];
+document.write('<script type="importmap">' + JSON.stringify({imports: Object.fromEntries(files.map((f) => ["../js/wide/" + f + ".js", "../js/wide/" + f + ".js?v=" + __V]))}) + '<\/script>');
+</script>
+<!-- Демо широкой раскладки «Автозалива» на вымышленных данных. ?section=devices|content|accounts&id=1
+     ?tg=fullscreen|old|none — подставной Telegram: с requestFullscreen, версия 7.0 без него, без Telegram. -->
+</head>
+<body>
+<header class="hidden" id="hdr"><div class="brand"><div class="logo"><div class="mark">F</div><div class="name">FTask</div><span class="sync" id="sync"></span></div><div class="user" id="user"></div></div><div class="rail" id="pipe"></div></header>
+<nav id="nav" class="hidden"></nav>
+<main id="app"></main>
+<aside class="detail empty" id="detail"></aside>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"></div>
+<script type="module">
+import { makeServer } from "./demo-data.js";
+import { deskReply } from "./wide-fixtures.js";
+const q = new URLSearchParams(location.search);
+const kind = q.get("tg") || "fullscreen";
+window.__tgLog = [];
+if (kind !== "none") {
+  const log = (m) => window.__tgLog.push(m);
+  const handlers = {};
+  window.Telegram = { WebApp: {
+    platform: "tdesktop", version: kind === "old" ? "7.0" : "8.0", initData: "", initDataUnsafe: {}, isFullscreen: false,
+    isVersionAtLeast(v) { return parseFloat(this.version) >= parseFloat(v); },
+    ready() {}, expand() { log("expand"); }, setHeaderColor() {}, setBackgroundColor() {},
+    onEvent(n, f) { (handlers[n] ||= []).push(f); }, HapticFeedback: { impactOccurred() {}, notificationOccurred() {} },
+    contentSafeAreaInset: { top: 0 }, safeAreaInset: { top: 0 },
+    ...(kind === "old" ? {} : {
+      requestFullscreen() { log("requestFullscreen"); this.isFullscreen = true; (handlers.fullscreenChanged || []).forEach((f) => f()); },
+      exitFullscreen() { log("exitFullscreen"); this.isFullscreen = false; (handlers.fullscreenChanged || []).forEach((f) => f()); },
+    }),
+  } };
+}
+const srv = makeServer(1);
+window.__FTASK_DEMO__ = async (a, p) => deskReply(a, p || {}) ?? srv.handle(a, p);
+try { localStorage.removeItem("ftask.prefs"); localStorage.setItem("ftask.wide", JSON.stringify({ section: q.get("section") || "dashboard", params: q.get("id") ? { id: +q.get("id") } : {} })); sessionStorage.setItem("splashSeen", "1"); } catch (e) {}
+const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+for (const f of ["core", "catalog", "download", "upload", "views", "delivery", "devices", "content"]) await load("../js/" + f + ".js?v=dev");
+await boot();
+S.me.roles = ["admin"];
+await import("../js/wide/main.js?v=" + window.__V);
+S.tab = "auto"; header(); render();
+document.body.classList.add("revealed");
+</script>
+</body>
+</html>

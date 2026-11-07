@@ -235,7 +235,9 @@ function render(){
   const el=document.getElementById("app");killFab();
   document.body.classList.toggle("split",isSplit()&&S.tab==="cat");
   if(S.tab==="plan"){el.innerHTML=vPlanning();bindPlanning(el);return;}
-  if(S.tab==="auto"){el.innerHTML=vAuto();bindAuto(el);return;}
+  if(window.FTWide)FTWide.onTab(S.tab);                                       // широкая раскладка «Автозалива» (js/wide/main.js)
+  if(S.tab==="auto"&&window.FTWide&&FTWide.wants()){FTWide.render(el);return;}
+  if(S.tab==="auto"){if(window.FTWide)FTWide.unmount();el.innerHTML=vAuto();bindAuto(el);return;}
   if(S.tab==="tasks"){el.innerHTML=vTasks();bindTasks(el);return;}
   if(S.tab==="keitaro"){el.innerHTML=vKeitaroTab();bindKeitaroTab(el);return;}
   if(S.tab==="team"){el.innerHTML=vTeamTab();bindTeamTab(el);return;}
