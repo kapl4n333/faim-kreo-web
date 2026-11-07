@@ -3,7 +3,7 @@
 // и выключается при выходе, только если его включили мы. Ошибки этого режима страницу не ломают.
 import {call, errorText, isAdmin, leaveTo, legacyModalOpen, myRoles, redrawAll, state, telegram, escape} from "./bridge.js";
 import {dialogOpen} from "./ui/dialog.js";
-import {sectionById, visibleSections} from "./registry.js";
+import {HINTS, sectionById, visibleSections} from "./registry.js";
 import {bindRail, railHtml} from "./ui/accounts-rail.js";
 import {closeDetails, detailsKey} from "./ui/details.js";
 import {failed, later, loading} from "./ui/empty.js";
@@ -152,8 +152,21 @@ async function drawMain() {
   const f = document.activeElement;
   const keep = f && main.contains(f) && f.dataset?.wsearch ? {id: f.dataset.wsearch, pos: f.selectionStart} : null;
   main.innerHTML = mod.render(data, ctx);
+  addHint(main, sec.id);
   mod.bind?.(main, ctx);
   if (keep) { const i = main.querySelector(`[data-wsearch="${keep.id}"]`); if (i) { i.focus(); i.setSelectionRange(keep.pos, keep.pos); } }
+}
+
+// «Что здесь и зачем»: свёрнута, если человек её закрыл; помним это в браузере.
+function addHint(main, id) {
+  const text = HINTS[id];
+  const head = main.querySelector(".whead");
+  if (!text || !head) return;
+  let closed = false;
+  try { closed = localStorage.getItem(`whint:${id}`) === "0"; } catch { /* без памяти браузера — открыта */ }
+  head.insertAdjacentHTML("afterend", `<details class="whint"${closed ? "" : " open"}><summary>Что здесь и зачем</summary><div>${escape(text)}</div></details>`);
+  const box = head.nextElementSibling;
+  box.addEventListener("toggle", () => { try { localStorage.setItem(`whint:${id}`, box.open ? "1" : "0"); } catch { /* ничего */ } });
 }
 
 // ---------- загрузка и опрос ----------

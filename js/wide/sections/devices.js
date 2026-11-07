@@ -1,6 +1,6 @@
 // Устройства: дерево «Все → ПК → телефон → аккаунты» и живая консоль справа.
 // «+» на каждом уровне описан сервером (add.kind, add.apply, add.candidates): страница только вызывает указанный action.
-import {call, escape, isAdmin} from "../bridge.js";
+import {call, escape, isAdmin, legacy} from "../bridge.js";
 import {confirmDialog, dialog, dialogMessage, errorOf} from "../ui/dialog.js";
 import {chooseProxy} from "../ui/proxy-pick.js";
 import {badge, dot, reasonText, TYPE} from "../ui/badge.js";
@@ -48,7 +48,7 @@ function workerNode(w) {
     cells: [`${dot(w.status)}<span class="wtn-n">${escape(w.name)}</span><span class="wmute">ПК</span>`, badge(w.status), quiet(w.last_seen_at), `<span class="mono">${escape(w.app_version || "—")}</span>`, '<span class="wmute">—</span>', `<span class="wmute">${w.phones.length} тел.</span>`],
     children: phones.map(phoneNode),
     add: w.add ? {label: `Телефон${w.add.candidates.length ? ` · найдено по ADB ${w.add.candidates.length}` : ""}`, disabled: !w.add.candidates.length, title: w.add.candidates.length ? "" : "Этот ПК не видит новых телефонов по ADB"} : null,
-    menu: [{label: "Отозвать ПК", act: "revoke", admin: true}],
+    menu: [w.status === "revoked" ? null : {label: "Отозвать ПК", act: "revoke", admin: true}, w.deletable ? {label: "Удалить ПК", act: "delete_worker", admin: true} : null].filter(Boolean),
   };
 }
 
@@ -68,9 +68,11 @@ function nodes() {
   const top = [{
     key: "all",
     cells: [`<span class="wtn-n">Все устройства</span>`, "", "", "", "", `<span class="wmute">${data.workers.length} ПК</span>`],
-    children: data.workers.map(workerNode).filter(statusOk),
+    children: data.workers.filter((w) => w.status !== "revoked").map(workerNode).filter(statusOk),
     add: data.add ? {label: "ПК · код сопряжения"} : null,
   }];
+  const revoked = data.workers.filter((w) => w.status === "revoked");
+  if (revoked.length) top.push({key: "revoked-workers", cells: ['<span class="wtn-n">Отозванные ПК</span>', "", "", "", "", `<span class="wmute">${revoked.length}</span>`], children: revoked.map(workerNode)});
   if (data.unbound_phones.length) top.push({key: "unbound-phones", cells: ['<span class="wtn-n">Телефоны без ПК</span>', "", "", "", "", `<span class="wmute">${data.unbound_phones.length}</span>`], children: data.unbound_phones.map(phoneNode).filter(statusOk)});
   if (data.unbound_accounts.length) top.push({key: "unbound-accounts", cells: ['<span class="wtn-n">Аккаунты без телефона</span>', "", "", "", "", `<span class="wmute">${data.unbound_accounts.length}</span>`], children: data.unbound_accounts.filter((a) => matches(a.account_name)).map(accountNode).filter(statusOk)});
   return top;
@@ -144,7 +146,7 @@ export default {
     const tool = toolbar({
       search: {id: "q", placeholder: "Поиск: ПК, телефон, ник", value: view.q},
       filters: [{id: "status", label: "Статус", value: view.status, options: [["", "Все"], ["online", "На связи"], ["offline", "Не на связи"], ["attention", "Внимание"], ["paused", "Пауза"]]}],
-      actions: isAdmin() ? '<button class="wbtn wbtn-p" data-wpair>+ Добавить ПК</button>' : "",
+      actions: `<button class="wbtn" data-wnewjob title="Одно видео сразу на аккаунт, без пула">+ Задание сразу</button>${isAdmin() ? '<button class="wbtn wbtn-p" data-wpair>+ Добавить ПК</button>' : ""}`,
     });
     const selected = con.key || null;
     return `<div class="whead"><h1>Устройства</h1><div class="whead-s">Обновлено ${ago(d.server_now)}</div></div>${tool}<div class="wpanel">${tree(columns, nodes(), {selected})}</div>`;
@@ -163,6 +165,7 @@ export default {
     if (con.key && detailsKey() !== `console:${con.key}`) stopConsole();
     if (!con.key && ctx.params.console && !detailsKey()) openConsole(ctx, ctx.params.console);
     root.querySelector("[data-wpair]")?.addEventListener("click", () => pairDialog(ctx));
+    root.querySelector("[data-wnewjob]")?.addEventListener("click", () => legacy.openJobWizard(() => ctx.reload()));
     root.querySelectorAll("[data-wadd]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); addDialog(ctx, b.dataset.wadd); }; });
     bindPhoneButtons(root, () => ctx.reload());
   },
@@ -244,6 +247,12 @@ async function menuAction(ctx, act, key) {
     if (act === "phone_free") {
       if (!(await confirmDialog("Отвязать телефон от ПК?", "Задания на него перестанут выдаваться, пока его снова не привяжут.", {ok: "Отвязать", danger: true}))) return undefined;
       await call("device_phone_set_worker", {id: n, worker_id: null});
+      return ctx.reload();
+    }
+    if (act === "delete_worker") {
+      const w = data.workers.find((x) => x.id === n);
+      if (!(await confirmDialog("Удалить ПК?", `«${w?.name || n}» исчезнет из списка. Он ни разу не выполнял заданий, история не теряется.`, {ok: "Удалить", danger: true}))) return undefined;
+      await call("device_worker_delete", {id: n});
       return ctx.reload();
     }
     if (act === "revoke") {

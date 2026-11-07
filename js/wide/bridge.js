@@ -23,6 +23,12 @@ export const legacy = {
     const watch = new MutationObserver(() => { if (!document.getElementById("amodal")) { watch.disconnect(); onClose?.(); } });
     watch.observe(document.body, {childList: true, subtree: false});
   },
+  /** Старая форма «Новая задача»: одно видео сразу на аккаунт, без пула и планировщика. */
+  openJobWizard(onClose) {
+    openAutoWizard();
+    const watch = new MutationObserver(() => { if (!document.getElementById("amodal")) { watch.disconnect(); onClose?.(); } });
+    watch.observe(document.body, {childList: true, subtree: false});
+  },
   field: (rec, value, id, disabled) => cField(rec, value, id, disabled),
   readField: (rec, box) => cFieldRead(rec, box),
 };

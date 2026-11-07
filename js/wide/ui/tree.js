@@ -2,7 +2,8 @@
 // node: {key, cells: [html...], children?: [node], add?: {label, disabled, title}, menu?: [{label, act, disabled}], attr?}
 import {escape} from "../bridge.js";
 
-const open = new Map();
+// Отозванные ПК по умолчанию свёрнуты: это архив, а не рабочие устройства.
+const open = new Map([["revoked-workers", false]]);
 export const isOpen = (key, byDefault = true) => (open.has(key) ? open.get(key) : byDefault);
 
 export function tree(columns, nodes, {selected = null} = {}) {
