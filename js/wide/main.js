@@ -1,7 +1,8 @@
 // Широкая раскладка «Автозалива» для ПК (контракт, раздел 15).
 // Выбор раскладки только по ширине окна. Полноэкранный режим Telegram включается при входе в «Автозалив»
 // и выключается при выходе, только если его включили мы. Ошибки этого режима страницу не ломают.
-import {call, errorText, isAdmin, leaveTo, myRoles, redrawAll, state, telegram, escape} from "./bridge.js";
+import {call, errorText, isAdmin, leaveTo, legacyModalOpen, myRoles, redrawAll, state, telegram, escape} from "./bridge.js";
+import {dialogOpen} from "./ui/dialog.js";
 import {sectionById, visibleSections} from "./registry.js";
 import {bindRail, railHtml} from "./ui/accounts-rail.js";
 import {closeDetails, detailsKey} from "./ui/details.js";
@@ -79,7 +80,7 @@ try { const p = JSON.parse(localStorage.getItem(PREFS) || "{}"); if (p.section) 
 const savePrefs = () => { try { localStorage.setItem(PREFS, JSON.stringify({section: W.section, params: W.params})); } catch { /* нет хранилища */ } };
 
 const typing = () => { const f = document.activeElement; return !!f && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName); };
-const blocked = () => typing() || menuOpen();
+const blocked = () => typing() || menuOpen() || dialogOpen() || legacyModalOpen();
 
 async function moduleOf(id) {
   if (!W.modules[id]) W.modules[id] = (await import(`./sections/${id}.js?v=${V}`)).default;
@@ -90,6 +91,7 @@ const ctx = {
   call, escape, isAdmin, roles: myRoles,
   get accounts() { return W.accounts; },
   get params() { return W.params; },
+  get data() { return W.data[W.section]; },
   local: {},
   go(section, params = {}) { closeMenu(); if (W.section !== section) closeDetails(); W.section = section; W.params = params; savePrefs(); drawShell(); loadSection(true); },
   setParams(params) { W.params = {...W.params, ...params}; savePrefs(); },

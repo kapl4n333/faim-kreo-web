@@ -6,10 +6,10 @@ export const SECTIONS = [
   {id: "devices", group: "Работа", title: "Устройства", icon: "devices", roles: ["admin", "uploader"], poll: 10000},
   {id: "content", group: "Работа", title: "Контент", icon: "film", roles: ["admin", "uploader"], poll: 15000},
   {id: "accounts", group: "Работа", title: "Аккаунты", icon: "user", roles: ["admin", "uploader"], poll: 15000},
-  {id: "proxies", group: "Сеть", title: "Прокси", icon: "shield", roles: ["admin"], poll: 0, stub: true},
-  {id: "settings", group: "Настройки", title: "Общие настройки", icon: "sliders", roles: ["admin", "uploader"], poll: 0, stub: true},
-  {id: "brains", group: "Настройки", title: "Мозги", icon: "chip", roles: ["admin"], poll: 0, stub: true},
-  {id: "misc", group: "Настройки", title: "Прочие настройки", icon: "dots", roles: ["admin"], poll: 0, stub: true},
+  {id: "proxies", group: "Сеть", title: "Прокси", icon: "shield", roles: ["admin"], poll: 20000},
+  {id: "settings", group: "Настройки", title: "Общие настройки", icon: "sliders", roles: ["admin", "uploader"], poll: 0},
+  {id: "brains", group: "Настройки", title: "Мозги", icon: "chip", roles: ["admin"], poll: 30000},
+  {id: "misc", group: "Настройки", title: "Прочие настройки", icon: "dots", roles: ["admin"], poll: 0},
 ];
 
 export const visibleSections = (roles) => SECTIONS.filter((s) => s.roles.some((r) => roles.includes(r)));

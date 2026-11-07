@@ -183,3 +183,62 @@ body.wide #app{padding:0;margin:0;max-width:none}
 .wtabs{display:flex;gap:2px;border-bottom:1px solid var(--line-soft);margin-bottom:12px}
 .wtab{padding:8px 14px;color:var(--hint);border-bottom:2px solid transparent;margin-bottom:-1px;font-size:13px}
 .wtab.on{color:var(--text);border-bottom-color:var(--a)}
+
+/* кнопки и мелочи шага 3 */
+.wbtn-p{background:var(--grad-gold);color:var(--on-gold);border-color:transparent;font-weight:600}
+.wbtn-p:hover:not(:disabled){filter:brightness(1.08)}
+.wbtn-d{color:var(--w-bad);border-color:color-mix(in srgb,var(--w-bad) 45%,transparent)}
+.wbtn-s{padding:4px 9px;font-size:11.5px}
+.wok{color:var(--w-ok)}
+.wlock{color:var(--hint);font-size:11.5px;white-space:normal}
+.wpa-act{display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap}
+.wcard .wt{table-layout:fixed}
+.wcard .wt td{max-width:none}
+.wcard-free{max-height:none}
+.wm-pick{display:flex;align-items:center;gap:8px;cursor:pointer}
+.wm-it input[type=checkbox]{flex:0 0 auto}
+.wm-it [data-wopenitem]{min-width:0;cursor:pointer}
+.wsw{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+
+/* диалог */
+.wdlg-scrim{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px}
+.wdlg{width:520px;max-width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh-lg);font-size:13px}
+.wdlg-wide{width:760px}
+.wdlg-b{padding:14px 16px;overflow:auto;flex:1;min-height:0}
+.wdlg-f{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid var(--line-soft)}
+.wdlg-msg{flex:1;font-size:12px;color:var(--c,var(--hint))}
+.wdlg-p{margin:0 0 10px;line-height:1.5}
+.wcode{font-size:30px;letter-spacing:.12em;text-align:center;padding:14px;margin:12px 0 6px;border:1px dashed var(--a);border-radius:10px;color:var(--a2)}
+
+/* формы */
+.wform{display:flex;flex-direction:column;gap:10px}
+.wf{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--hint)}
+.wf-row{flex-direction:row;align-items:center;gap:8px;color:var(--text)}
+.wf-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wf input:not([type=checkbox]):not([type=radio]),.wf select,.wf textarea,.wset-f input:not([type=checkbox]):not([type=radio]),.wset-f select,.wset-f textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font:inherit;font-size:13px;width:100%;box-sizing:border-box;outline:none}
+.wf textarea,.wset-f textarea{resize:vertical;line-height:1.45}
+.wf input:focus,.wf select:focus,.wf textarea:focus,.wset-f input:focus,.wset-f textarea:focus,.wset-f select:focus{border-color:var(--a)}
+.wseg{display:flex;gap:16px;color:var(--text)}
+.wseg label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.wchecks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 12px;max-height:260px;overflow:auto}
+.wchecks label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.wchecks small{color:var(--hint);margin-left:auto}
+.wres{font-size:12px;margin-top:8px;display:flex;flex-direction:column;gap:3px;max-height:220px;overflow:auto}
+.wset-f .cinline,.wset-f .cstack{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.wset-f .cstack{flex-direction:column;align-items:stretch}
+.wset-f .cinline label,.wset-f .cstack label{display:flex;align-items:center;gap:6px;color:var(--hint);font-size:12px}
+.wset-f .ccheckrow{display:flex;align-items:center;gap:8px}
+
+/* общие настройки и мозги */
+.wsetgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.wset{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 96px;gap:10px;align-items:start;padding:9px 0;border-bottom:1px solid var(--line-soft)}
+.wset:last-child{border-bottom:0}
+.wset-big{grid-template-columns:1fr;}
+.wset-big .wset-a{justify-self:end}
+.wset-l b{font-weight:600}
+.wset-l .wmute{font-size:11.5px;margin-top:2px}
+.wset-k{font-size:10.5px;opacity:.7}
+.wset-a{display:flex;flex-direction:column;gap:4px;align-items:flex-end;font-size:11.5px}
+.wengs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.weng{border:1px solid var(--line-soft);border-radius:8px;padding:9px 11px;display:flex;flex-direction:column;gap:3px;font-size:12.5px}
+.weng b{font-family:var(--disp);font-size:13px;margin-bottom:2px}

@@ -1,6 +1,8 @@
 // Устройства: дерево «Все → ПК → телефон → аккаунты» и живая консоль справа.
-// Шаг 2: только чтение. «+» и действия меню видны, но выключены до шага 3.
-import {escape} from "../bridge.js";
+// «+» на каждом уровне описан сервером (add.kind, add.apply, add.candidates): страница только вызывает указанный action.
+import {call, escape, isAdmin} from "../bridge.js";
+import {confirmDialog, dialog, dialogMessage, errorOf} from "../ui/dialog.js";
+import {chooseProxy} from "../ui/proxy-pick.js";
 import {badge, dot, reasonText, TYPE} from "../ui/badge.js";
 import {closeDetails, detailsKey, openDetails, setDetailsBody} from "../ui/details.js";
 import {ago, localText} from "../ui/format.js";
@@ -8,7 +10,6 @@ import {bindToolbar, toolbar} from "../ui/table.js";
 import {bindTree, tree} from "../ui/tree.js";
 import {eventLabel} from "../ui/accounts-rail.js";
 
-const STEP3 = "Будет на шаге 3";
 const CONSOLE_MS = 3000;
 const view = {q: "", status: ""};
 let data = null;
@@ -23,7 +24,7 @@ function accountNode(a) {
   return {
     key: `account:${a.id}`,
     cells: [`${dot(a.status)}<span class="wtn-n">@${escape(a.account_name)}</span>`, badge(a.status, {title: reasonText(a.status_reason)}), a.last_action ? `${escape(eventLabel(a.last_action.type))} · ${ago(a.last_action.at)}` : '<span class="wmute">—</span>', '<span class="wmute">аккаунт</span>', proxyText(a.proxy), a.next_local ? localText(a.next_local) : '<span class="wmute">—</span>'],
-    menu: [{label: "Открыть консоль", act: "console"}, {label: "Карточка аккаунта", act: "card"}, {label: "Сменить телефон", disabled: true}, {label: "Назначить прокси", disabled: true}],
+    menu: [{label: "Открыть консоль", act: "console"}, {label: "Карточка аккаунта", act: "card"}, {label: "Отвязать от телефона", act: "unbind", admin: true}, {label: "Прокси аккаунта", act: "proxy_account", admin: true}],
   };
 }
 
@@ -34,8 +35,8 @@ function phoneNode(p) {
     key: `phone:${p.id}`,
     cells: [`${dot(status)}<span class="wtn-n">${phoneName(p)}</span><span class="wmute mono">${escape(p.serial)}</span>`, `${badge(status)}${p.paused ? badge("paused") : ""}`, quiet(p.last_seen_at), `<span class="mono">${escape(p.mode || "—")}</span>`, proxyText(p.proxy), `<span class="wmute">${p.accounts.length} акк.</span>`],
     children: accounts.map(accountNode),
-    add: p.add ? {label: `Аккаунт${p.add.candidates.length ? ` · свободных ${p.add.candidates.length}` : ""}`, disabled: true, title: STEP3} : null,
-    menu: [{label: "Открыть консоль", act: "console"}, {label: p.paused ? "Снять паузу" : "Пауза", disabled: true}, {label: "Назначить прокси", disabled: true}],
+    add: p.add ? {label: `Аккаунт${p.add.candidates.length ? ` · свободных ${p.add.candidates.length}` : ""}`, disabled: !p.add.candidates.length, title: p.add.candidates.length ? "" : "Свободных аккаунтов нет"} : null,
+    menu: [{label: "Открыть консоль", act: "console"}, {label: p.paused ? "Снять паузу" : "Пауза", act: p.paused ? "resume" : "pause", admin: true}, {label: "Прокси телефона", act: "proxy_phone", admin: true}, {label: "Отвязать от ПК", act: "phone_free", admin: true}],
   };
 }
 
@@ -45,8 +46,8 @@ function workerNode(w) {
     key: `worker:${w.id}`,
     cells: [`${dot(w.status)}<span class="wtn-n">${escape(w.name)}</span><span class="wmute">ПК</span>`, badge(w.status), quiet(w.last_seen_at), `<span class="mono">${escape(w.app_version || "—")}</span>`, '<span class="wmute">—</span>', `<span class="wmute">${w.phones.length} тел.</span>`],
     children: phones.map(phoneNode),
-    add: w.add ? {label: `Телефон${w.add.candidates.length ? ` · найдено по ADB ${w.add.candidates.length}` : ""}`, disabled: true, title: STEP3} : null,
-    menu: [{label: "Код сопряжения", disabled: true}, {label: "Отозвать ПК", disabled: true}],
+    add: w.add ? {label: `Телефон${w.add.candidates.length ? ` · найдено по ADB ${w.add.candidates.length}` : ""}`, disabled: !w.add.candidates.length, title: w.add.candidates.length ? "" : "Этот ПК не видит новых телефонов по ADB"} : null,
+    menu: [{label: "Отозвать ПК", act: "revoke", admin: true}],
   };
 }
 
@@ -67,7 +68,7 @@ function nodes() {
     key: "all",
     cells: [`<span class="wtn-n">Все устройства</span>`, "", "", "", "", `<span class="wmute">${data.workers.length} ПК</span>`],
     children: data.workers.map(workerNode).filter(statusOk),
-    add: data.add ? {label: "ПК · код сопряжения", disabled: true, title: STEP3} : null,
+    add: data.add ? {label: "ПК · код сопряжения"} : null,
   }];
   if (data.unbound_phones.length) top.push({key: "unbound-phones", cells: ['<span class="wtn-n">Телефоны без ПК</span>', "", "", "", "", `<span class="wmute">${data.unbound_phones.length}</span>`], children: data.unbound_phones.map(phoneNode).filter(statusOk)});
   if (data.unbound_accounts.length) top.push({key: "unbound-accounts", cells: ['<span class="wtn-n">Аккаунты без телефона</span>', "", "", "", "", `<span class="wmute">${data.unbound_accounts.length}</span>`], children: data.unbound_accounts.filter((a) => matches(a.account_name)).map(accountNode).filter(statusOk)});
@@ -140,7 +141,7 @@ export default {
     const tool = toolbar({
       search: {id: "q", placeholder: "Поиск: ПК, телефон, ник", value: view.q},
       filters: [{id: "status", label: "Статус", value: view.status, options: [["", "Все"], ["online", "На связи"], ["offline", "Не на связи"], ["attention", "Внимание"], ["paused", "Пауза"]]}],
-      actions: `<button class="wbtn" disabled title="${STEP3}">+ Добавить</button>`,
+      actions: isAdmin() ? '<button class="wbtn wbtn-p" data-wpair>+ Добавить ПК</button>' : "",
     });
     const selected = con.key || null;
     return `<div class="whead"><h1>Устройства</h1><div class="whead-s">Обновлено ${ago(d.server_now)}</div></div>${tool}<div class="wpanel">${tree(columns, nodes(), {selected})}</div>`;
@@ -152,16 +153,102 @@ export default {
       onSelect: (key) => { if (key.startsWith("phone:") || key.startsWith("account:")) openConsole(ctx, key); },
       menus: (key) => {
         const node = [...nodes()].flatMap(function flat(n) { return [n, ...(n.children || []).flatMap(flat)]; }).find((n) => n.key === key);
-        return (node?.menu || []).map((m) => ({
-          label: m.label, disabled: m.disabled, title: m.disabled ? STEP3 : "",
-          onClick: () => { if (m.act === "console") openConsole(ctx, key); if (m.act === "card") ctx.openAccount(Number(key.split(":")[1])); },
-        }));
+        return (node?.menu || []).filter((m) => !m.admin || isAdmin()).map((m) => ({label: m.label, onClick: () => menuAction(ctx, m.act, key)}));
       },
     });
     // Консоль открыта, а раздел перерисовали: таймер уже идёт, панель на месте.
     if (con.key && detailsKey() !== `console:${con.key}`) stopConsole();
     if (!con.key && ctx.params.console && !detailsKey()) openConsole(ctx, ctx.params.console);
+    root.querySelector("[data-wpair]")?.addEventListener("click", () => pairDialog(ctx));
+    root.querySelectorAll("[data-wadd]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); addDialog(ctx, b.dataset.wadd); }; });
   },
 };
 
 export const _closeConsole = () => { stopConsole(); closeDetails(); };
+
+// ---------- действия (админ; сервер проверяет права сам) ----------
+
+const allPhones = () => [...data.workers.flatMap((w) => w.phones), ...data.unbound_phones];
+const allAccounts = () => [...allPhones().flatMap((p) => p.accounts), ...data.unbound_accounts];
+
+function pairDialog(ctx) {
+  dialog({
+    subtitle: "НОВЫЙ ПК", title: "Код сопряжения",
+    body: '<label class="wf"><span>Имя ПК (видно в дереве)</span><input data-f="name" maxlength="60" placeholder="Например, OFFICE-PC"></label><div data-wcode></div>',
+    actions: [{id: "close", label: "Закрыть"}, {id: "go", label: "Получить код", primary: true}],
+    onAction: async (id, box) => {
+      if (id !== "go") return false;
+      try {
+        const r = await call("device_pair_code", {name: box.querySelector('[data-f="name"]').value});
+        box.querySelector("[data-wcode]").innerHTML = `<div class="wcode mono">${escape(r.code)}</div><p class="wmute">Введи код в PostBot на этом ПК в течение ${Math.round(r.expires_in_sec / 60)} минут. Код одноразовый.</p>`;
+        ctx.reload();
+      } catch (e) { dialogMessage(box, errorOf(e)); }
+      return false;
+    },
+  });
+}
+
+function addDialog(ctx, nodeKey) {
+  const [kind, id] = nodeKey.split(":");
+  if (nodeKey === "all") return pairDialog(ctx);
+  if (kind === "worker") {
+    const w = data.workers.find((x) => String(x.id) === id);
+    const c = w?.add?.candidates || [];
+    return dialog({
+      subtitle: `ПК ${w?.name || ""}`.toUpperCase(), title: "Привязать телефон",
+      body: `<p class="wdlg-p">Телефоны, которые этот ПК видит по ADB и которые ещё ни к одному ПК не привязаны.</p><label class="wf"><span>Телефон</span><select data-f="p">${c.map((p) => `<option value="${p.phone_id}">${escape(p.name || p.serial)} · ${escape(p.serial)}${p.online ? "" : " · не на связи"}</option>`).join("")}</select></label>`,
+      actions: [{id: "close", label: "Закрыть"}, {id: "go", label: "Привязать", primary: true}],
+      onAction: async (a, box) => {
+        if (a !== "go") return false;
+        try { await call(w.add.apply, {id: Number(box.querySelector('[data-f="p"]').value), worker_id: w.id}); ctx.reload(); return true; } catch (e) { dialogMessage(box, errorOf(e)); return false; }
+      },
+    });
+  }
+  if (kind === "phone") {
+    const p = allPhones().find((x) => String(x.id) === id);
+    const c = p?.add?.candidates || [];
+    return dialog({
+      subtitle: `ТЕЛЕФОН ${p?.name || p?.serial || ""}`.toUpperCase(), title: "Привязать аккаунт",
+      body: `<div class="wform"><label class="wf"><span>Аккаунт без телефона</span><select data-f="a">${c.map((x) => `<option value="${x.account_id}">@${escape(x.account_name)}</option>`).join("")}</select></label>
+        <label class="wf"><span>Ник на телефоне (пусто — как у аккаунта)</span><input data-f="h"></label>
+        <label class="wf"><span>Минимум между публикациями аккаунта, мин</span><input type="number" min="0" max="1440" value="30" data-f="g"></label></div>`,
+      actions: [{id: "close", label: "Закрыть"}, {id: "go", label: "Привязать", primary: true}],
+      onAction: async (a, box) => {
+        if (a !== "go") return false;
+        const f = (n) => box.querySelector(`[data-f="${n}"]`).value;
+        try { await call(p.add.apply, {account_id: Number(f("a")), phone_id: p.id, ...(f("h").trim() ? {expected_handle: f("h").trim()} : {}), min_gap_minutes: Number(f("g"))}); ctx.reload(); return true; } catch (e) { dialogMessage(box, errorOf(e)); return false; }
+      },
+    });
+  }
+  return undefined;
+}
+
+async function menuAction(ctx, act, key) {
+  const n = Number(key.split(":")[1]);
+  try {
+    if (act === "console") return openConsole(ctx, key);
+    if (act === "card") return ctx.openAccount(n);
+    if (act === "pause" || act === "resume") { await call(act === "pause" ? "device_phone_pause" : "device_phone_resume", {id: n}); return ctx.reload(); }
+    if (act === "proxy_phone") { const p = allPhones().find((x) => x.id === n); return chooseProxy(ctx, "phone", n, p?.name || p?.serial || `Телефон ${n}`, p?.proxy?.id ?? null); }
+    if (act === "proxy_account") { const a = allAccounts().find((x) => x.id === n); return chooseProxy(ctx, "account", n, `@${a?.account_name || n}`, a?.proxy_source === "account" ? a.proxy?.id : null); }
+    if (act === "unbind") {
+      const a = allAccounts().find((x) => x.id === n);
+      if (!(await confirmDialog("Отвязать аккаунт от телефона?", `@${a?.account_name || n}: новые публикации на него назначить будет нельзя, уже запланированные будут ждать телефона.`, {ok: "Отвязать", danger: true}))) return undefined;
+      await call("device_binding_delete", {account_id: n});
+      return ctx.reload();
+    }
+    if (act === "phone_free") {
+      if (!(await confirmDialog("Отвязать телефон от ПК?", "Задания на него перестанут выдаваться, пока его снова не привяжут.", {ok: "Отвязать", danger: true}))) return undefined;
+      await call("device_phone_set_worker", {id: n, worker_id: null});
+      return ctx.reload();
+    }
+    if (act === "revoke") {
+      if (!(await confirmDialog("Отозвать ПК?", "Его токен перестанет работать. Вернуть можно только новым кодом сопряжения.", {ok: "Отозвать", danger: true}))) return undefined;
+      await call("device_worker_revoke", {id: n});
+      return ctx.reload();
+    }
+  } catch (e) {
+    await confirmDialog("Не вышло", errorOf(e), {ok: "Понятно"});
+  }
+  return undefined;
+}

@@ -23,6 +23,7 @@ export const REASON = {
   account_paused: "Пауза аккаунта", phone_paused: "Пауза телефона", caption_settings_missing: "Нет промпта подписей",
   duplicate_conflict: "Дубль, нужно решение", not_logged_in: "Claude: нет входа", not_subscription: "Claude: не подписка",
   api_key_in_env: "Ключ API в окружении", limit: "Лимит исчерпан", no_free_slot: "Нет свободного места",
+  gemini_key_missing: "Gemini: нет ключа в .env", gemini_key_invalid: "Gemini: ключ не принят", gemini_unavailable: "Gemini недоступен", claude_unavailable: "Claude недоступен", bad_output: "Ответ не прошёл схему", timeout: "Нет ответа вовремя",
 };
 
 export const TYPE = {reel: "Reels", carousel: "Карусель", story: "История"};

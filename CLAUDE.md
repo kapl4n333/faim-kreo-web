@@ -505,3 +505,6 @@ aware, не сбивает скролл/ввод); **честный async** (с�
 - Опрос не перерисовывает экран, пока фокус в поле ввода или открыто меню «⋮»; консоль устройства опрашивает `device_console` раз в 3 с с `after_id`.
 - Демо на вымышленных данных: `tests/wide.html?section=dashboard|devices|content|accounts&id=1&tg=fullscreen|old|none`.
 - В `tests/run.html` тест «открытие карточки: на телефоне» падает при ширине окна ≥1024 px, а тест «Мастер: несуществующее время» иногда падает и на исходном коде: это было до широкой раскладки.
+- Шаг 3: действия в разделах. Правка времени, подписи и ссылки — `ui/schedule-edit.js` через `content_schedule_update` (с `revision`), отмена — `content_assignment_cancel`; если нельзя, рядом причина (`locked_reason`). Диалоги — `ui/dialog.js`, тексты ошибок сервера там же (`errorOf`). Выбор прокси — `ui/proxy-pick.js`. Загрузка материала — старая форма через `legacy.openAddItem` в `bridge.js`, поля настроек — `legacy.field/readField` (те же `cField/cFieldRead` из `content.js`).
+- Разделы импортируют только `../ui/*` и `../bridge.js` (они в `importmap`). Импорт раздела из раздела обходит версии — нельзя.
+- Тесты правил полноэкранного режима и раскладки: `tests/wide-tests.html` (итог в заголовке, как `run.html`).

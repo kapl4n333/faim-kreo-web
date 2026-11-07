@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>FTask — тесты широкой раскладки</title>
+<style>body{background:#000;color:#ddd;font:12px/1.5 monospace;padding:12px}.ok{color:#4CC08A}.fail{color:#ff6b6b;font-weight:700}</style>
+</head>
+<body>
+<pre id="out"></pre>
+<script type="module">
+// Правила полноэкранного режима и выбора раскладки, без сервера и без Telegram. Итог в заголовке: RESULT: N passed, M failed.
+const V = Date.now();
+const m = await import(`../js/wide/main.js?v=${V}`);
+const out = document.getElementById("out");
+let pass = 0, fail = 0;
+const t = (name, ok) => { ok ? pass++ : fail++; out.innerHTML += `<span class="${ok ? "ok" : "fail"}">${ok ? "PASS" : "FAIL"} ${name}</span>\n`; };
+const fakeTg = (o = {}) => {
+  const log = [];
+  return {log, platform: "tdesktop", isFullscreen: false, isVersionAtLeast: (v) => parseFloat(o.version ?? "8.0") >= parseFloat(v), expand() { log.push("expand"); },
+    ...(o.noFs ? {} : {requestFullscreen() { if (o.throws) throw new Error("UNSUPPORTED"); log.push("request"); this.isFullscreen = true; }, exitFullscreen() { log.push("exit"); this.isFullscreen = false; }}),
+    ...(o.platform ? {platform: o.platform} : {})};
+};
+
+t("1279 px — старый вид, 1280 и 1920 — широкий", m.pickLayout(1279) === "narrow" && m.pickLayout(1280) === "wide" && m.pickLayout(1920) === "wide");
+t("Telegram Desktop 8.0 — полноэкранный режим", m.fullscreenPlan(fakeTg()) === "fullscreen");
+t("macOS 8.0 — полноэкранный режим", m.fullscreenPlan(fakeTg({platform: "macos"})) === "fullscreen");
+t("Версия 7.0 — expand, без requestFullscreen", m.fullscreenPlan(fakeTg({version: "7.0"})) === "expand");
+t("Нет метода requestFullscreen — expand", m.fullscreenPlan(fakeTg({noFs: true})) === "expand");
+t("Android и веб — expand", m.fullscreenPlan(fakeTg({platform: "android"})) === "expand" && m.fullscreenPlan(fakeTg({platform: "weba"})) === "expand");
+t("Уже в полноэкранном — повторно не включаем", m.fullscreenPlan({...fakeTg(), isFullscreen: true}) === "already");
+t("Без Telegram — ничего не вызывается", m.fullscreenPlan(null) === "none");
+
+{ const tg = fakeTg(); m.enterFullscreen(tg); const on = tg.isFullscreen; m.exitFullscreen(tg);
+  t("Вход включает, выход выключает", on && !tg.isFullscreen && tg.log.join() === "request,exit"); }
+{ const tg = fakeTg(); tg.isFullscreen = true; m.exitFullscreen(tg);
+  t("Чужой полноэкранный режим при выходе не трогаем", tg.isFullscreen && !tg.log.includes("exit")); }
+{ const tg = fakeTg({throws: true}); let threw = false; try { m.enterFullscreen(tg); } catch { threw = true; }
+  t("Ошибка requestFullscreen не ломает страницу: перехвачена, затем expand", !threw && tg.log.join() === "expand" && m.fullscreenState().lastError === "UNSUPPORTED"); }
+{ const tg = fakeTg({version: "7.0"}); m.enterFullscreen(tg); m.exitFullscreen(tg);
+  t("Старый клиент: только expand, выход ничего не вызывает", tg.log.join() === "expand"); }
+
+document.title = `RESULT: ${pass} passed, ${fail} failed`;
+out.innerHTML += `\n${document.title}\n`;
+</script>
+</body>
+</html>
