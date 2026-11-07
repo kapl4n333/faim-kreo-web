@@ -5,6 +5,7 @@ import {badge, reasonText, TYPE} from "../ui/badge.js";
 import {noData} from "../ui/empty.js";
 import {ago, num, timeOnly, whenIso} from "../ui/format.js";
 import {table} from "../ui/table.js";
+import {bindJobButtons, jobButtons} from "../ui/job-actions.js";
 
 const tile = (label, value, tone, go) => `<button class="wkpi wb-${tone}" ${go ? `data-wgo="${go}"` : ""}><div class="wkpi-v">${num(value)}</div><div class="wkpi-l">${escape(label)}</div></button>`;
 
@@ -41,8 +42,9 @@ export default {
       {key: "account_name", label: "Аккаунт", html: (r) => `@${escape(r.account_name)}`},
       {key: "kind", label: "Что", width: "110px", html: (r) => (r.kind === "job" ? `Задание #${r.id}` : `Назначение #${r.id}`)},
       {key: "status", label: "Статус", width: "140px", html: (r) => badge(r.status)},
-      {key: "error_code", label: "Причина", html: (r) => escape(reasonText(r.error_code) || r.stage || "—")},
+      {key: "error_code", label: "Причина", html: (r) => `${escape(reasonText(r.error_code) || r.stage || "—")}${r.error_message ? `<div class="wmute wclip" title="${escape(r.error_message)}">${escape(r.error_message)}</div>` : ""}`},
       {key: "at", label: "Когда", width: "110px", html: (r) => ago(r.at)},
+      {key: "act", label: "Решение", width: "250px", sort: false, html: (r) => (r.kind === "job" ? jobButtons(r) : "")},
     ], d.decisions, {empty: "Решений не ждёт ничего"});
     const joins = table("dash-joins", [
       {key: "account_name", label: "Аккаунт", html: (r) => `@${escape(r.account_name)}`},
@@ -62,8 +64,8 @@ export default {
         <section class="wcard"><h2>Завтра · ${escape(d.tomorrow)} <span>${d.schedule.tomorrow.length}</span></h2>${dayTable("dash-tom", d.schedule.tomorrow)}</section>
         <section class="wcard"><h2>Планировщик</h2>${planner(d.planner)}</section>
       </div>
-      <div class="wgrid wgrid-4">
-        <section class="wcard"><h2>Ждут решения <span>${d.decisions.length}</span></h2>${decisions}</section>
+      ${d.decisions.length ? `<section class="wcard wcard-alert"><h2>Ждут решения <span>${d.decisions.length}</span></h2>${decisions}</section>` : ""}
+      <div class="wgrid wgrid-3">
         <section class="wcard"><h2>Вступления в канал</h2>${joins}</section>
         <section class="wcard"><h2>Просмотры</h2>${d.metrics?.views ? "" : noData("Сбора статистики с телефона пока нет.")}</section>
         <section class="wcard"><h2>Гео</h2>${d.metrics?.geo ? "" : noData("Сбора статистики с телефона пока нет.")}</section>
@@ -71,5 +73,6 @@ export default {
   },
   bind(root, ctx) {
     root.querySelectorAll("[data-wgo]").forEach((b) => { b.onclick = () => ctx.go(b.dataset.wgo); });
+    bindJobButtons(root, () => ctx.reload());
   },
 };

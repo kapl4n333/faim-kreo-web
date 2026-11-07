@@ -9,6 +9,7 @@ import {ago, localText} from "../ui/format.js";
 import {bindToolbar, toolbar} from "../ui/table.js";
 import {bindTree, tree} from "../ui/tree.js";
 import {eventLabel} from "../ui/accounts-rail.js";
+import {bindJobButtons, bindPhoneButtons, jobButtons, modeBadge, phoneButtons} from "../ui/job-actions.js";
 
 const CONSOLE_MS = 3000;
 const view = {q: "", status: ""};
@@ -33,7 +34,7 @@ function phoneNode(p) {
   const accounts = p.accounts.filter((a) => matches(a.account_name) || matches(p.name) || matches(p.serial));
   return {
     key: `phone:${p.id}`,
-    cells: [`${dot(status)}<span class="wtn-n">${phoneName(p)}</span><span class="wmute mono">${escape(p.serial)}</span>`, `${badge(status)}${p.paused ? badge("paused") : ""}`, quiet(p.last_seen_at), `<span class="mono">${escape(p.mode || "—")}</span>`, proxyText(p.proxy), `<span class="wmute">${p.accounts.length} акк.</span>`],
+    cells: [`${dot(status)}<span class="wtn-n">${phoneName(p)}</span><span class="wmute mono">${escape(p.serial)}</span>`, `${badge(status)}${p.paused ? badge("paused") : ""}`, quiet(p.last_seen_at), `${modeBadge(p.mode, p.mode_reason)} ${isAdmin() ? phoneButtons(p) : ""}`, proxyText(p.proxy), `<span class="wmute">${p.accounts.length} акк.</span>`],
     children: accounts.map(accountNode),
     add: p.add ? {label: `Аккаунт${p.add.candidates.length ? ` · свободных ${p.add.candidates.length}` : ""}`, disabled: !p.add.candidates.length, title: p.add.candidates.length ? "" : "Свободных аккаунтов нет"} : null,
     menu: [{label: "Открыть консоль", act: "console"}, {label: p.paused ? "Снять паузу" : "Пауза", act: p.paused ? "resume" : "pause", admin: true}, {label: "Прокси телефона", act: "proxy_phone", admin: true}, {label: "Отвязать от ПК", act: "phone_free", admin: true}],
@@ -77,7 +78,7 @@ function nodes() {
 
 // ---------- консоль ----------
 
-const con = {key: null, target: null, lastId: 0, timer: null, jobs: [], events: []};
+const con = {key: null, target: null, lastId: 0, timer: null, jobs: [], events: [], ctx: null};
 
 function consoleShell(title) {
   return `<div class="wscreen"><div class="wscreen-ph">Экран телефона</div><div class="wmute">появится позже</div></div>
@@ -89,9 +90,10 @@ function drawConsole(fresh) {
   const jobs = document.getElementById("wconjobs");
   const log = document.getElementById("wconlog");
   if (!jobs || !log) return;
-  jobs.innerHTML = con.jobs.length ? con.jobs.map((j) => `<div class="wconjob"><span class="mono">#${j.id}</span> ${escape(TYPE[j.content_type] || j.kind)} · @${escape(j.account_name)} ${badge(j.status)}<span class="wmute">${j.local ? localText(j.local) : ""}</span>${j.error_code ? `<span class="wbad">${escape(j.error_code)}</span>` : ""}</div>`).join("") : '<div class="wmute">Заданий не было</div>';
+  jobs.innerHTML = con.jobs.length ? con.jobs.map((j) => `<div class="wconjob"><span class="mono">#${j.id}</span> ${escape(TYPE[j.content_type] || j.kind)} · @${escape(j.account_name)} ${badge(j.status)}<span class="wmute">${j.local ? localText(j.local) : ""}</span>${j.error_code ? `<span class="wbad">${escape(reasonText(j.error_code) || j.error_code)}</span>` : ""}${j.error_message ? `<div class="wmute">${escape(j.error_message)}</div>` : ""}${jobButtons(j)}</div>`).join("") : '<div class="wmute">Заданий не было</div>';
+  bindJobButtons(jobs, () => (con.ctx ? pullConsole(con.ctx, true) : null));
   const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
-  const line = (e) => `<div class="wl"><span class="wl-t">${new Date(e.at).toLocaleTimeString("ru-RU")}</span><span class="wl-j">#${e.job_id}</span><span class="wl-s">${escape(e.source || "")}</span><span class="wl-e">${escape(e.type)}</span><span class="wl-d">${escape(detailText(e.detail))}</span></div>`;
+  const line = (e) => `<div class="wl"><span class="wl-t">${new Date(e.at).toLocaleTimeString("ru-RU")}</span><span class="wl-j">#${e.job_id}</span><span class="wl-s">${escape(e.source || "")}</span><span class="wl-e">${escape(eventLabel(e.type))}</span><span class="wl-d">${escape(detailText(e.type === "evidence" ? {экран: e.detail?.screen, причина: e.detail?.reason} : e.detail))}</span>${e.image_url ? `<a class="wshot" href="${escape(e.image_url)}" target="_blank" rel="noopener"><img src="${escape(e.image_url)}" alt="Снимок экрана" loading="lazy"></a>` : ""}</div>`;
   if (fresh) log.innerHTML = con.events.length ? con.events.map(line).join("") : '<div class="wmute">Событий нет</div>';
   else if (fresh === false && con.newEvents?.length) { if (log.querySelector(".wmute")) log.innerHTML = ""; log.insertAdjacentHTML("beforeend", con.newEvents.map(line).join("")); }
   if (atBottom || fresh) log.scrollTop = log.scrollHeight;
@@ -104,6 +106,7 @@ function detailText(d) {
 
 async function pullConsole(ctx, first) {
   if (!con.target) return;
+  con.ctx = ctx;
   const key = con.key;
   try {
     const d = await ctx.call("device_console", {...con.target, after_id: first ? 0 : con.lastId});
@@ -137,7 +140,7 @@ export default {
   load: async (ctx) => (data = await ctx.call("device_tree")),
   render(d, ctx) {
     data = d;
-    const columns = [{label: "Устройство"}, {label: "Статус", width: "170px"}, {label: "Последняя связь", width: "150px"}, {label: "Режим / версия", width: "130px"}, {label: "Прокси", width: "170px"}, {label: "Ближайшая", width: "130px"}];
+    const columns = [{label: "Устройство"}, {label: "Статус", width: "170px"}, {label: "Последняя связь", width: "150px"}, {label: "Режим / версия", width: "210px"}, {label: "Прокси", width: "170px"}, {label: "Ближайшая", width: "130px"}];
     const tool = toolbar({
       search: {id: "q", placeholder: "Поиск: ПК, телефон, ник", value: view.q},
       filters: [{id: "status", label: "Статус", value: view.status, options: [["", "Все"], ["online", "На связи"], ["offline", "Не на связи"], ["attention", "Внимание"], ["paused", "Пауза"]]}],
@@ -161,6 +164,7 @@ export default {
     if (!con.key && ctx.params.console && !detailsKey()) openConsole(ctx, ctx.params.console);
     root.querySelector("[data-wpair]")?.addEventListener("click", () => pairDialog(ctx));
     root.querySelectorAll("[data-wadd]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); addDialog(ctx, b.dataset.wadd); }; });
+    bindPhoneButtons(root, () => ctx.reload());
   },
 };
 

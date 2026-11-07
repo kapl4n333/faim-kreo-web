@@ -23,6 +23,9 @@ export const REASON = {
   account_paused: "Пауза аккаунта", phone_paused: "Пауза телефона", caption_settings_missing: "Нет промпта подписей",
   duplicate_conflict: "Дубль, нужно решение", not_logged_in: "Claude: нет входа", not_subscription: "Claude: не подписка",
   api_key_in_env: "Ключ API в окружении", limit: "Лимит исчерпан", no_free_slot: "Нет свободного места",
+  needs_attention: "Телефон остановился, нужен человек", tap_uncertain: "Неясно, было ли нажатие «Поделиться»", finished_without_tap: "Сценарий закончился без публикации",
+  operator_stop: "Остановлено вручную", scenario_error: "Сбой сценария", app_restarted: "PostBot перезапускался", tap_window_expired: "Не успели нажать в отведённое время",
+  handle_mismatch: "На телефоне открыт другой аккаунт", asset_missing: "Файла нет на сервере", download_failed: "Видео не скачалось на ПК", lease_lost: "ПК потерял задание",
   gemini_key_missing: "Gemini: нет ключа в .env", gemini_key_invalid: "Gemini: ключ не принят", gemini_unavailable: "Gemini недоступен", claude_unavailable: "Claude недоступен", bad_output: "Ответ не прошёл схему", timeout: "Нет ответа вовремя",
 };
 

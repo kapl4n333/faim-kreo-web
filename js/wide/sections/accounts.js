@@ -8,6 +8,7 @@ import {ago, localText, num, whenIso} from "../ui/format.js";
 import {bindSort, bindToolbar, table, toolbar} from "../ui/table.js";
 import {bindRowActions, rowActions} from "../ui/schedule-edit.js";
 import {eventLabel} from "../ui/accounts-rail.js";
+import {bindJobButtons, jobButtons} from "../ui/job-actions.js";
 import {chooseProxy} from "../ui/proxy-pick.js";
 
 const view = {q: "", status: "", tab: "schedule"};
@@ -61,7 +62,8 @@ function cardTab(c) {
       {key: "local", label: "Время", width: "150px", html: (j) => (j.local ? localText(j.local) : "—")},
       {key: "content_type", label: "Тип", width: "90px", html: (j) => escape(TYPE[j.content_type] || j.kind)},
       {key: "status", label: "Статус", width: "150px", html: (j) => badge(j.status)},
-      {key: "error_code", label: "Ошибка", html: (j) => escape(j.error_code || "—")},
+      {key: "error_code", label: "Ошибка", html: (j) => `${escape(reasonText(j.error_code) || j.error_code || "—")}${j.error_message ? `<div class="wmute wclip" title="${escape(j.error_message)}">${escape(j.error_message)}</div>` : ""}`},
+      {key: "act", label: "", width: "250px", sort: false, html: (j) => jobButtons(j)},
       {key: "post_url", label: "Пост", width: "80px", html: (j) => (j.post_url ? `<a href="${escape(j.post_url)}" target="_blank" rel="noopener">открыть</a>` : "—")},
     ], c.jobs, {empty: "Заданий не было"});
     const events = c.events.slice(-80).reverse().map((e) => `<div class="wl"><span class="wl-t">${whenIso(e.at)}</span><span class="wl-j">#${e.job_id}</span><span class="wl-s">${escape(e.source || "")}</span><span class="wl-e">${escape(eventLabel(e.type))}</span></div>`).join("") || '<div class="wmute">Событий нет</div>';
@@ -189,6 +191,7 @@ export default {
     const c = ctx.data?.card;
     bindToolbar(root, (id, value) => { view[id] = value; ctx.redraw(); });
     bindSort(root, ctx.redraw);
+    bindJobButtons(root, () => ctx.reload());
     root.querySelectorAll("[data-wopen]").forEach((tr) => { tr.onclick = () => ctx.openAccount(Number(tr.dataset.wopen)); });
     root.querySelectorAll("[data-wtab]").forEach((b) => { b.onclick = () => { view.tab = b.dataset.wtab; ctx.redraw(); }; });
     const back = root.querySelector("[data-wlist]");

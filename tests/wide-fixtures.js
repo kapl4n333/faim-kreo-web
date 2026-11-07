@@ -52,7 +52,7 @@ export function deskReply(action, p) {
     accounts: {working: 6, paused: 1, attention: 2, no_phone: 1}, devices: {workers: {online: 1, offline: 1}, phones: {online: 2, offline: 1}},
     schedule: {today: accounts.slice(0, 6).map((a, i) => ({source: "assignment", id: i, content_type: i % 3 ? "reel" : "story", account_name: a.account_name, title: items[i].title, local: loc(30 + i * 70), state: "scheduled", job_status: i === 0 ? "claimed" : "queued"})),
       tomorrow: accounts.slice(2, 9).map((a, i) => ({source: "assignment", id: i, content_type: "reel", account_name: a.account_name, title: items[i + 4].title, local: loc(1440 + i * 90), state: i === 3 ? "scenario_wait" : "scheduled", job_status: i === 3 ? null : "queued"}))},
-    decisions: [{kind: "job", id: 118, status: "needs_attention", stage: "after_commit", error_code: "tap_uncertain", account_name: "noksi.reels", at: at(-25)}, {kind: "assignment", id: 77, status: "duplicate_conflict", account_name: "nina.flow", at: at(-80)}],
+    decisions: [{kind: "job", id: 118, revision: 4, status: "needs_attention", stage: "after_commit", error_code: "tap_uncertain", error_message: "Ожидаемый экран не появился. Последний экран: unknown", account_name: "noksi.reels", at: at(-25)}, {kind: "assignment", id: 77, status: "duplicate_conflict", account_name: "nina.flow", at: at(-80)}],
     planner: {last_run: {started_at: at(-11), outcome: "ok", item_count: 6, accepted_count: 5, rejected_count: 1, error_code: null, next_try_at: null}, last_poll_at: at(-3), waiting: 4, offline: false},
     joins: accounts.map((a) => ({account_id: a.id, account_name: a.account_name, ...a.joins})).sort((x, y) => y.total - x.total), metrics: null,
   };
