@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>FTask live</title>
+<link rel="stylesheet" href="../css/app.css?v=dev">
+<!-- Настоящие страницы с настоящим локальным API, без Telegram. Только для проверки на этой машине:
+     ?api=http://127.0.0.1:18787&user=517207658. Сервер должен работать с ALLOW_TEST_AUTH=1, на проде этого нет. -->
+</head>
+<body>
+<header class="hidden" id="hdr">
+  <div class="brand">
+    <div class="logo"><div class="mark">F</div><div class="name">FTask</div><span class="sync" id="sync" title="обновить"></span></div>
+    <div class="user" id="user"></div>
+  </div>
+  <div class="rail" id="pipe"></div>
+</header>
+<nav id="nav" class="hidden" aria-label="Разделы"></nav>
+<main id="app"><div class="gate"><div><div class="spin"></div><div class="gh">FTask</div><p>live…</p></div></div></main>
+<aside class="detail empty" id="detail" aria-label="Карточка крео"></aside>
+<div class="scrim" id="scrim" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"></div>
+<script type="module">
+const q = new URLSearchParams(location.search);
+const base = q.get("api") || location.origin;
+if (!/^http:\/\/(127\.0\.0\.1|localhost):/.test(base)) throw new Error("local API only");
+const user = {id: Number(q.get("user") || 517207658), username: "live", first_name: "Live"};
+window.__FTASK_DEMO__ = async (action, p) => {
+  const r = await fetch(base + "/api", {method: "POST", headers: {"content-type": "application/json", "x-test-user": JSON.stringify(user)}, body: JSON.stringify({action, ...p})});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(d.error || "HTTP " + r.status); e.data = d; throw e; }
+  return d;
+};
+try { sessionStorage.setItem("splashSeen", "1"); } catch (e) {}
+const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+for (const f of ["core", "catalog", "download", "upload", "views", "delivery", "devices", "content"]) await load("../js/" + f + ".js?v=dev");
+await boot();
+if (q.get("sub")) { S.tab = "auto"; S.autoTab = q.get("sub"); header(); render(); }
+document.body.classList.add("revealed");
+</script>
+</body>
+</html>

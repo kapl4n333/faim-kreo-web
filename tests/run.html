@@ -62,7 +62,7 @@ const srv = makeServer(1);
 window.__FTASK_DEMO__ = (a, p) => srv.handle(a, p);
 try { localStorage.removeItem("ftask.prefs"); } catch (e) {}
 const load = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
-for (const f of ["core", "catalog", "download", "upload", "views", "delivery", "devices"]) await load("../js/" + f + ".js?v=dev");
+for (const f of ["core", "catalog", "download", "upload", "views", "delivery", "devices", "content"]) await load("../js/" + f + ".js?v=dev");
 await boot();
 const split = new URLSearchParams(location.search).get("split") === "1";
 const cardsN = () => document.querySelectorAll(".cc").length;
@@ -151,6 +151,8 @@ await T("удаление крео закрывает карточку", async (
 
 const {runDeviceTests} = await import("./device-tests.js");
 await runDeviceTests(T, srv);
+const {runContentTests} = await import("./content-tests.js");
+await runContentTests(T, srv);
 const {runDownloadTests} = await import("./download-tests.js");
 await runDownloadTests(T);
 document.title = "RESULT: " + pass + " passed, " + fail + " failed";

@@ -110,6 +110,7 @@ export function makeServer(meId = 1, fx) {
       p = p || {}; db.log.push([action, clone(p)]);
       if (server.fail && server.fail[action]) { const f = server.fail[action]; if (f === true) throw new Error("Failed to fetch"); throw f; }
       if (action.startsWith("device_") && server.deviceHandler) return server.deviceHandler(action, p);
+      if (action.startsWith("content_") && server.contentHandler) return server.contentHandler(action, p);
       switch (action) {
         case "bootstrap": db.urlGen++; return { me: clone(me()), isAdmin: isAdmin(), creos: db.creos.map(out), tasks: clone(db.tasks), members: clone(db.members), niches: clone(db.niches), stats: stats() };
         case "delivery_list": return {batches:clone(db.batches||[]),accounts:clone(db.accounts.filter(a=>isAdmin()||a.owner_tg_id===meId))};

@@ -13,7 +13,7 @@ const autoType=k=>AUTO_TYPES.find(t=>t.kind===k)||AUTO_TYPES[0];
 async function loadAuto(silent){
   if(S.autoLoading)return;S.autoLoading=true;
   try{const d=await api("device_list");const sig=JSON.stringify([d.jobs,d.phones,d.workers,d.accounts]);const changed=sig!==S._autoSig;S._autoSig=sig;
-    S.auto=d;if(S.tab==="auto"&&!S.autoOpen&&(!silent||changed)&&!autoTyping())render();}
+    S.auto=d;if(S.tab==="auto"&&S.autoTab!=="settings"&&!S.autoOpen&&(!silent||changed)&&!autoTyping())render();}
   catch(e){if(!silent)toast(errMsg(e),"err");}finally{S.autoLoading=false;}
 }
 const autoTyping=()=>{const f=document.activeElement;return !!f&&/^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName);};
@@ -22,9 +22,10 @@ const autoTyping=()=>{const f=document.activeElement;return !!f&&/^(INPUT|SELECT
 function vAuto(){
   if(!S.auto){setTimeout(()=>loadAuto(),0);return'<div class="gate"><div><div class="spin"></div><p>Загружаю задания…</p></div></div>';}
   const tab=S.autoTab||"queue";
-  const subs=[["queue","Очередь"],["devices","ПК и телефоны"]].map(([k,l])=>'<button class="'+(tab===k?"on":"")+'" data-autotab="'+k+'">'+l+'</button>').join("");
-  return '<div class="planhead"><div><small>ТЕЛЕФОНЫ</small><h1>Автозалив</h1><p>Сервер запускает задания по расписанию на привязанных ПК и телефонах.</p></div>'+
-    '<button class="primary" id="autonew">Новая задача</button></div><div class="autosubs">'+subs+'</div>'+(tab==="devices"?vAutoDevices():vAutoQueue());
+  const subs=[["queue","Очередь"],["pool","Пул"],["schedule","Расписание"],["settings","Настройки"],["devices","ПК и телефоны"]].map(([k,l])=>'<button class="'+(tab===k?"on":"")+'" data-autotab="'+k+'">'+l+'</button>').join("");
+  const top=tab==="pool"?'<button class="primary" id="cadd">Добавить материал</button>':tab==="queue"||tab==="devices"?'<button class="primary" id="autonew">Новая задача</button>':'';
+  const body={devices:vAutoDevices,pool:vPool,schedule:vSchedule,settings:vSettings}[tab]||vAutoQueue;
+  return '<div class="planhead"><div><small>ТЕЛЕФОНЫ</small><h1>Автозалив</h1><p>Сервер запускает задания по расписанию на привязанных ПК и телефонах.</p></div>'+top+'</div><div class="autosubs autotabs">'+subs+'</div>'+body();
 }
 function vAutoQueue(){
   const jobs=S.auto.jobs||[],need=jobs.filter(j=>AUTO_ATTENTION.includes(j.status)),act=jobs.filter(j=>AUTO_ACTIVE.includes(j.status)),hist=jobs.filter(j=>!AUTO_ATTENTION.includes(j.status)&&!AUTO_ACTIVE.includes(j.status));
@@ -73,7 +74,9 @@ function vAutoDevices(){
 }
 function bindAuto(el){
   const n=el.querySelector("#autonew");if(n)n.onclick=()=>openAutoWizard();
-  el.querySelectorAll("[data-autotab]").forEach(b=>b.onclick=()=>{S.autoTab=b.dataset.autotab;render();});
+  const add=el.querySelector("#cadd");if(add)add.onclick=()=>openAddItem();
+  el.querySelectorAll("[data-autotab]").forEach(b=>b.onclick=()=>{S.autoTab=b.dataset.autotab;S._cSig="";S.cOpenKey=null;render();});
+  bindContent(el);
   el.querySelectorAll("[data-jact]").forEach(b=>b.onclick=()=>autoAction(b.dataset.jact,+b.dataset.jid,+b.dataset.jrev));
   const go=el.querySelector("#pairgo");if(go)go.onclick=async()=>{const name=el.querySelector("#pairname").value.trim();if(!name)return toast("Укажи название ПК","err");
     try{S.autoPair=await api("device_pair_code",{name});await loadAuto(true);render();}catch(e){toast(errMsg(e),"err");}};

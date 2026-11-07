@@ -158,7 +158,7 @@ async function poll(){
   if(sig!==S._sig){S._sig=sig;const y=window.scrollY;header();render();window.scrollTo(0,y);}
   else refreshMedia(document);                                               // только свежие подписанные ссылки (E)
   if(S.tab==="plan")await loadDeliveries(true);
-  if(S.tab==="auto")await loadAuto(true);
+  if(S.tab==="auto"){await loadAuto(true);await loadContent(true);}
   flashSync();
 }
 function startSync(){
