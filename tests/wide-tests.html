@@ -21,7 +21,8 @@ const fakeTg = (o = {}) => {
     ...(o.platform ? {platform: o.platform} : {})};
 };
 
-t("1279 px — старый вид, 1280 и 1920 — широкий", m.pickLayout(1279) === "narrow" && m.pickLayout(1280) === "wide" && m.pickLayout(1920) === "wide");
+t("Новая раскладка на любой ширине, старый вид только по выбору", m.pickLayout(375, false) === "wide" && m.pickLayout(1279, false) === "wide" && m.pickLayout(1920, false) === "wide" && m.pickLayout(1920, true) === "narrow");
+t("Компактный режим ниже 1280 px", m.isCompact(375) && m.isCompact(1279) && !m.isCompact(1280));
 t("Telegram Desktop 8.0 — полноэкранный режим", m.fullscreenPlan(fakeTg()) === "fullscreen");
 t("macOS 8.0 — полноэкранный режим", m.fullscreenPlan(fakeTg({platform: "macos"})) === "fullscreen");
 t("Версия 7.0 — expand, без requestFullscreen", m.fullscreenPlan(fakeTg({version: "7.0"})) === "expand");

@@ -254,3 +254,47 @@ body.wide #app{padding:0;margin:0;max-width:none}
 .whint summary::before{content:"? ";font-weight:700}
 .whint[open] summary{border-bottom:1px solid var(--line)}
 .whint>div{padding:8px 12px 10px}
+
+/* ---------- узкие экраны: та же раскладка, меню в шторке ---------- */
+.wtopbar,.wscrim{display:none}
+@media (max-width:1279px){
+  .wshell{grid-template-columns:208px minmax(0,1fr)}
+  .wright{display:none}
+  .wgrid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wdetails{width:min(500px,100%)}
+}
+@media (max-width:900px){
+  body.wide{overflow:auto}
+  .wshell{grid-template-columns:minmax(0,1fr);height:auto;min-height:100vh}
+  .wmain{overflow:visible}
+  .wleft{position:fixed;top:var(--wide-top);bottom:auto;height:calc(100dvh - var(--wide-top));left:0;width:min(280px,85vw);z-index:60;transform:translateX(-105%);transition:transform .2s ease;background:var(--bg);box-shadow:var(--sh-lg)}
+  body.wnav-open .wleft{transform:none}
+  body.wnav-open .wscrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55}
+  .wtopbar{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20;padding:8px 12px;padding-top:calc(8px + var(--wide-top));background:var(--bg);border-bottom:1px solid var(--line-soft)}
+  .wtopbar b{font-family:var(--disp);font-size:16px}
+  .wburger{width:36px;height:36px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:18px}
+  .wmain-in{padding:12px 12px 48px}
+  .whead{flex-wrap:wrap;gap:6px 12px}
+  .whead h1{font-size:19px}
+  .wgrid-2,.wgrid-3,.wgrid-4{grid-template-columns:minmax(0,1fr)}
+  .wkpi{min-width:calc(50% - 4px);flex:1 1 calc(50% - 4px)}
+  .wkpi-gap{display:none}
+  .wtool{gap:6px}
+  .winput{min-width:0;flex:1 1 160px}
+  .wpanel,.wcard{overflow-x:auto}
+  .wt{min-width:560px}
+  .wtree{min-width:0}
+  .wtree th:nth-child(2),.wtree td:nth-child(2),.wtree th:nth-child(3),.wtree td:nth-child(3),.wtree th:nth-child(5),.wtree td:nth-child(5),.wtree th:nth-child(6),.wtree td:nth-child(6){display:none}
+  .wtree td{white-space:normal;padding:6px}
+  .wtree th{width:auto!important}
+  .wtree td:nth-child(4) .wbtn{display:block;margin-top:4px}
+  .wtree td:nth-child(2) .wb{white-space:nowrap}
+  .wtree .wtn .wmute.mono{display:none}
+  .wt td{max-width:240px}
+  .wdetails{position:fixed;top:var(--wide-top);left:0;width:100%;border-left:0;z-index:50}
+  .wmatrix .wm-item{min-width:170px;max-width:170px}
+  .wmatrix-wrap{max-height:none}
+  .wjobacts{margin-left:0}
+  .wbtn{padding:8px 12px}
+  .wmenu{max-width:calc(100vw - 16px)}
+}

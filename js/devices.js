@@ -23,7 +23,7 @@ function vAuto(){
   if(!S.auto){setTimeout(()=>loadAuto(),0);return'<div class="gate"><div><div class="spin"></div><p>Загружаю задания…</p></div></div>';}
   const tab=S.autoTab||"queue";
   const subs=[["queue","Очередь"],["pool","Пул"],["schedule","Расписание"],["settings","Настройки"],["devices","ПК и телефоны"]].map(([k,l])=>'<button class="'+(tab===k?"on":"")+'" data-autotab="'+k+'">'+l+'</button>').join("");
-  const top=tab==="pool"?'<button class="primary" id="cadd">Добавить материал</button>':tab==="queue"||tab==="devices"?'<button class="primary" id="autonew">Новая задача</button>':'';
+  const top=(window.FTWide?.useNew?'<button id="autouse_new">Новый вид</button>':'')+(tab==="pool"?'<button class="primary" id="cadd">Добавить материал</button>':tab==="queue"||tab==="devices"?'<button class="primary" id="autonew">Новая задача</button>':'');
   const body={devices:vAutoDevices,pool:vPool,schedule:vSchedule,settings:vSettings}[tab]||vAutoQueue;
   return '<div class="planhead"><div><small>ТЕЛЕФОНЫ</small><h1>Автозалив</h1><p>Сервер запускает задания по расписанию на привязанных ПК и телефонах.</p></div>'+top+'</div><div class="autosubs autotabs">'+subs+'</div>'+body();
 }
@@ -74,6 +74,7 @@ function vAutoDevices(){
 }
 function bindAuto(el){
   const n=el.querySelector("#autonew");if(n)n.onclick=()=>openAutoWizard();
+  const un=el.querySelector("#autouse_new");if(un)un.onclick=()=>window.FTWide.useNew();
   const add=el.querySelector("#cadd");if(add)add.onclick=()=>openAddItem();
   el.querySelectorAll("[data-autotab]").forEach(b=>b.onclick=()=>{S.autoTab=b.dataset.autotab;S._cSig="";S.cOpenKey=null;render();});
   bindContent(el);

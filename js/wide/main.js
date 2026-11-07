@@ -1,5 +1,5 @@
-// Широкая раскладка «Автозалива» для ПК (контракт, раздел 15).
-// Выбор раскладки только по ширине окна. Полноэкранный режим Telegram включается при входе в «Автозалив»
+// Раскладка «Автозалива» (контракт, раздел 15): одна на все экраны, на узких — меню в шторке и колонки друг под другом.
+// Старый узкий вид остаётся по кнопке «Старый вид» (запоминается в браузере). Полноэкранный режим Telegram включается при входе в «Автозалив»
 // и выключается при выходе, только если его включили мы. Ошибки этого режима страницу не ломают.
 import {call, errorText, isAdmin, leaveTo, legacyModalOpen, myRoles, redrawAll, state, telegram, escape} from "./bridge.js";
 import {dialogOpen} from "./ui/dialog.js";
@@ -17,7 +17,12 @@ const PREFS = "ftask.wide";
 
 // ---------- выбор раскладки и полноэкранный режим (чистые функции, есть тесты) ----------
 
-export const pickLayout = (width) => (width >= WIDE_MIN ? "wide" : "narrow");
+const LEGACY = "ftask.wide.legacy";
+export const legacyChosen = () => { try { return localStorage.getItem(LEGACY) === "1"; } catch { return false; } };
+export function chooseLegacy(on) { try { if (on) localStorage.setItem(LEGACY, "1"); else localStorage.removeItem(LEGACY); } catch { /* без хранилища */ } }
+/** Раньше выбор шёл по ширине; теперь новая раскладка везде, кроме явного «Старый вид». width оставлен для совместимости. */
+export const pickLayout = (width, legacy = legacyChosen()) => (legacy ? "narrow" : "wide");
+export const isCompact = (width) => width < WIDE_MIN;
 
 /** Что делать при входе в «Автозалив». Только Telegram на ПК и WebApp 8.0+ получает requestFullscreen. */
 export function fullscreenPlan(t) {
@@ -107,20 +112,25 @@ function menuHtml() {
   const groups = [...new Set(list.map((s) => s.group))];
   return `<div class="wbrand"><div class="mark">F</div><div><div class="wbrand-n">FTask</div><div class="wbrand-s">Автозалив</div></div></div>
     <div class="wnav" role="navigation">${groups.map((g) => `<div class="wnav-g">${escape(g)}</div>${list.filter((s) => s.group === g).map((s) => `<button class="wnav-i${W.section === s.id ? " on" : ""}" data-wsec="${s.id}">${icon(s.icon)}<span>${escape(s.title)}</span>${s.stub ? '<em>шаг 3</em>' : ""}</button>`).join("")}`).join("")}</div>
-    <div class="wnav-foot"><button class="wnav-i" data-wback>${icon("back")}<span>Другие разделы FTask</span></button><div class="wnav-me">${escape(state().me?.name || "")}</div></div>`;
+    <div class="wnav-foot"><button class="wnav-i" data-wback>${icon("back")}<span>Другие разделы FTask</span></button><button class="wnav-i" data-wlegacy>${icon("dots")}<span>Старый вид</span></button><div class="wnav-me">${escape(state().me?.name || "")}</div></div>`;
 }
 
 function drawShell() {
   const el = document.getElementById("app");
   if (!el) return;
   if (!W.mounted || !el.querySelector(".wshell")) {
-    el.innerHTML = `<div class="wshell"><aside class="wleft" id="wleft"></aside><section class="wmain"><div class="wmain-in" id="wmain"></div></section><aside class="wright" id="wright"></aside><aside class="wdetails" id="wdetails"></aside></div>`;
+    el.innerHTML = `<div class="wshell"><aside class="wleft" id="wleft"></aside><div class="wscrim" data-wscrim></div><section class="wmain"><header class="wtopbar"><button class="wburger" data-wburger aria-label="Меню">☰</button><b id="wtoptitle"></b></header><div class="wmain-in" id="wmain"></div></section><aside class="wright" id="wright"></aside><aside class="wdetails" id="wdetails"></aside></div>`;
     W.mounted = true;
+    el.querySelector("[data-wburger]").onclick = () => document.body.classList.toggle("wnav-open");
+    el.querySelector("[data-wscrim]").onclick = () => document.body.classList.remove("wnav-open");
   }
+  const title = document.getElementById("wtoptitle");
+  if (title) title.textContent = "FTask · Автозалив";
   const left = document.getElementById("wleft");
   left.innerHTML = menuHtml();
-  left.querySelectorAll("[data-wsec]").forEach((b) => { b.onclick = () => ctx.go(b.dataset.wsec, {}); });
-  left.querySelector("[data-wback]").onclick = () => { exitFullscreen(); leaveTo("cat"); };
+  left.querySelectorAll("[data-wsec]").forEach((b) => { b.onclick = () => { document.body.classList.remove("wnav-open"); ctx.go(b.dataset.wsec, {}); }; });
+  left.querySelector("[data-wback]").onclick = () => { document.body.classList.remove("wnav-open"); exitFullscreen(); leaveTo("cat"); };
+  left.querySelector("[data-wlegacy]").onclick = () => { document.body.classList.remove("wnav-open"); chooseLegacy(true); W.mounted = false; document.body.classList.remove("wide"); redrawAll(); };
   drawRail();
   drawMain();
 }
@@ -237,7 +247,7 @@ window.FTWide = {
   /** Вызывается старым render() при каждой отрисовке, до выбора вкладки. */
   onTab(tab) {
     if (tab === "auto" && !W.inAuto) { W.inAuto = true; enterFullscreen(); applySafeArea(); }
-    else if (tab !== "auto" && W.inAuto) { W.inAuto = false; W.mounted = false; closeDetails(); closeMenu(); exitFullscreen(); document.body.classList.remove("wide"); }
+    else if (tab !== "auto" && W.inAuto) { W.inAuto = false; W.mounted = false; closeDetails(); closeMenu(); exitFullscreen(); document.body.classList.remove("wide", "wnav-open"); }
   },
   wants: () => state().tab === "auto" && pickLayout(window.innerWidth) === "wide",
   /** Старый код зовёт render() на каждом своём опросе: каркас не пересобирается, если уже стоит. */
@@ -250,6 +260,8 @@ window.FTWide = {
   },
   unmount() { if (W.mounted) { W.mounted = false; } document.body.classList.remove("wide"); },
   state: () => ({section: W.section, mounted: W.mounted, inAuto: W.inAuto, layout: pickLayout(window.innerWidth), fullscreen: fullscreenState()}),
+  /** Кнопка «Новый вид» в старом «Автозаливе». */
+  useNew() { chooseLegacy(false); W.mounted = false; redrawAll(); },
 };
 
 listenTelegram(telegram());
