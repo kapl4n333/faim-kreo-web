@@ -10,6 +10,8 @@ const RETRY = ["failed", "missed"];
 export function jobButtons(j) {
   if (!j || j.revision == null) return "";
   const b = (act, label, cls = "") => `<button class="wbtn wbtn-s${cls}" data-wjob="${act}" data-id="${escape(j.id)}" data-rev="${escape(j.revision)}">${label}</button>`;
+  if (j.kind === "warmup_reels" && ATTENTION.includes(j.status)) return `<span class="wjobacts">${b("cancel", "Отменить", " wbtn-d")}</span>`;
+  if (j.kind === "warmup_reels" && RETRY.includes(j.status)) return "";
   if (ATTENTION.includes(j.status)) return `<span class="wjobacts">${b("not_published", "↻ В очередь")}${b("cancel", "Отменить", " wbtn-d")}${b("published", "Вышло")}</span>`;
   if (j.status === "queued") return `<span class="wjobacts">${b("cancel_job", "Отменить", " wbtn-d")}</span>`;
   if (RETRY.includes(j.status)) return `<span class="wjobacts">${b("retry", "Повторить")}</span>`;

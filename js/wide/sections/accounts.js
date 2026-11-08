@@ -12,7 +12,7 @@ import {bindJobButtons, jobButtons} from "../ui/job-actions.js";
 import {chooseProxy} from "../ui/proxy-pick.js";
 
 const view = {q: "", status: "", tab: "schedule"};
-const TABS = [["schedule", "Расписание"], ["history", "История"], ["settings", "Настройки"], ["texts", "Тексты кнопок"], ["link", "Ссылка"]];
+const TABS = [["schedule", "Расписание"], ["warmup", "Прогрев"], ["history", "История"], ["settings", "Настройки"], ["texts", "Тексты кнопок"], ["link", "Ссылка"]];
 
 function listView(d) {
   const q = view.q.trim().toLowerCase();
@@ -37,7 +37,7 @@ function settingValue(v) {
   if (v == null || v === "") return '<span class="wmute">пусто</span>';
   if (typeof v === "boolean") return v ? "да" : "нет";
   if (Array.isArray(v) && v.every((x) => x && x.from)) return v.map((x) => `${x.from}–${x.to}`).join(", ");
-  if (typeof v === "object" && "min" in v && "max" in v) return `${v.min}–${v.max} в ${v.period === "week" ? "неделю" : "день"}`;
+  if (typeof v === "object" && "min" in v && "max" in v) return `${v.min}–${v.max}${v.period ? ` в ${v.period === "week" ? "неделю" : "день"}` : ""}`;
   if (typeof v === "object" && "mode" in v) return v.mode === "percent" ? `${v.value}% историй` : `каждая ${v.value}-я`;
   if (typeof v === "object") return `<span class="mono">${escape(JSON.stringify(v))}</span>`;
   const s = String(v);
@@ -45,6 +45,7 @@ function settingValue(v) {
 }
 
 function cardTab(c) {
+  if (view.tab === "warmup") return warmupView(c);
   if (view.tab === "schedule") {
     return table("acc-sched", [
       {key: "edit_local", label: "Время", width: "150px", html: (r) => (r.edit_local ? localText(r.edit_local) : '<span class="wmute">не выбрано</span>')},
@@ -73,7 +74,7 @@ function cardTab(c) {
     const groups = [...new Set(c.settings.registry.filter((r) => r.scope !== "global").map((r) => r.group))];
     return `<div class="wgrid wgrid-2">${groups.map((g) => `<section class="wcard wcard-free"><h2>${escape(g)}</h2><table class="wt"><tbody>${c.settings.registry.filter((r) => r.group === g && r.scope !== "global").map((r) => {
       const own = Object.prototype.hasOwnProperty.call(c.settings.own, r.key);
-      const value = own ? c.settings.own[r.key] : (c.settings.global[r.key] ?? r.default);
+      const value = c.settings.effective?.[r.key] ?? (own ? c.settings.own[r.key] : (c.settings.global[r.key] ?? r.default));
       return `<tr><td>${escape(r.label)}</td><td style="width:120px">${own ? badge("working", {label: "Своё"}) : badge("empty", {label: "Как в общих"})}</td><td>${settingValue(value)}</td><td class="a-right" style="width:90px"><button class="wbtn wbtn-s" data-wset="${escape(r.key)}">Изменить</button></td></tr>`;
     }).join("")}</tbody></table></section>`).join("")}</div>`;
   }
@@ -118,8 +119,8 @@ function editSetting(ctx, c, key) {
   const rec = c.settings.registry.find((r) => r.key === key);
   if (!rec) return;
   const own = Object.prototype.hasOwnProperty.call(c.settings.own, key);
-  const value = own ? c.settings.own[key] : (c.settings.global[key] ?? rec.default);
-  const shared = c.settings.global[key] ?? rec.default;
+  const value = c.settings.effective?.[key] ?? (own ? c.settings.own[key] : (c.settings.global[key] ?? rec.default));
+  const shared = c.settings.effective_global?.[key] ?? c.settings.global[key] ?? rec.default;
   const accountOnly = rec.scope === "account";
   dialog({
     subtitle: `@${c.account.account_name}`.toUpperCase(), title: rec.label,
@@ -164,6 +165,29 @@ async function verifyAccount(ctx, c) {
     await confirmDialog("Проверка поставлена", `${name}: телефон возьмёт её в ближайшие 30 секунд. Итог — в «Истории» аккаунта: «Готово» значит ник совпал.`, {ok: "Понятно"});
   } catch (e) { await confirmDialog("Не поставлено", errorOf(e), {ok: "Понятно"}); }
   ctx.reload();
+}
+
+export function warmupView(c) {
+  const w = c.warmup || {}, empty = {sessions: 0, reels: 0, likes: 0, minutes: 0};
+  const stats = (label, s) => `<section class="wcard"><h2>${label}</h2><dl class="wdl"><dt>Сессий</dt><dd>${num(s.sessions)}</dd><dt>Роликов</dt><dd>${num(s.reels)}</dd><dt>Лайков</dt><dd>${num(s.likes)}</dd><dt>Минут</dt><dd>${num(s.minutes)}</dd></dl></section>`;
+  return `<div class="wtool"><span class="wmute">Автопрогрев ${w.enabled ? "включён" : "выключен"}. Настройки — во вкладке «Настройки», группа «Прогрев». Разовый запуск доступен и при выключенном автопрогреве.</span><button class="wbtn wbtn-p" data-wwarmup${c.account.phone ? "" : " disabled"}>Прогреть сейчас</button></div>
+    <div class="wgrid wgrid-2">${stats("Сегодня", w.today || empty)}${stats("За 7 дней", w.d7 || empty)}</div>
+    <section class="wcard wcard-free"><h2>Ближайшие сессии</h2>${table("acc-warmup", [
+      {key: "local", label: "Когда", html: (j) => localText(j.local)},
+      {key: "minutes", label: "Минут", html: (j) => num(j.minutes)},
+      {key: "status", label: "Статус", html: (j) => badge(j.status)},
+      {key: "act", label: "", html: (j) => jobButtons({...j, kind: "warmup_reels"})},
+    ], w.upcoming || [], {empty: "Запланированных сессий нет"})}</section>`;
+}
+
+async function warmupNow(ctx, c) {
+  const range = c.warmup?.default_minutes || {min: 6, max: 15};
+  const minutes = Math.round((range.min + range.max) / 2);
+  if (!(await confirmDialog("Прогреть аккаунт сейчас?", `@${c.account.account_name}: просмотр Reels и лайки по настройкам, ${minutes} мин. Телефон ${c.account.phone?.name || ""} возьмёт задание, когда освободится. Перед началом PostBot сверит ник.`, {ok: "Прогреть"}))) return;
+  try {
+    await call("device_job_create", {kind: "warmup_reels", account_id: c.account.id, minutes});
+    ctx.reload();
+  } catch (e) { await confirmDialog("Прогрев не поставлен", errorOf(e), {ok: "Понятно"}); }
 }
 
 async function changePhone(ctx, c) {
@@ -219,6 +243,7 @@ export default {
     });
     root.querySelector("[data-wphone]")?.addEventListener("click", () => changePhone(ctx, c));
     root.querySelector("[data-wverify]")?.addEventListener("click", () => verifyAccount(ctx, c));
+    root.querySelector("[data-wwarmup]")?.addEventListener("click", () => warmupNow(ctx, c));
     root.querySelector("[data-wproxy]")?.addEventListener("click", () => chooseProxy(ctx, "account", c.account.id, `@${c.account.account_name}`, c.account.proxy_source === "account" ? c.account.proxy?.id : null));
   },
 };

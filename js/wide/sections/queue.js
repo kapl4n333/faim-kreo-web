@@ -8,11 +8,11 @@ import {whenIso} from "../ui/format.js";
 const LIVE = ["queued", "claimed", "committed", "sent", "needs_attention", "unknown"];
 const WAIT = ["pending_plan", "planning", "scenario_wait", "scenario_expired"];
 
-function rowsOf(d) {
+export function rowsOf(d) {
   const a = (d.rows || []).filter((r) => (r.job_status ? LIVE.includes(r.job_status) : WAIT.includes(r.state)))
     .map((r) => ({key: `a${r.id}`, kind: "assignment", id: r.id, revision: r.revision, editable: r.editable && r.job_status !== "sent", type: r.content_type, account: r.account_name, title: r.title || r.caption || "", run_at: r.run_at, status: r.job_status || r.state, link: r.story_link, wait_reason: r.wait_reason, wait_detail: r.wait_detail, blocking_settings: r.blocking_settings}));
   const o = (d.old_form || []).filter((j) => LIVE.includes(j.job_status))
-    .map((j) => ({key: `j${j.job_id}`, kind: "job", id: j.job_id, revision: j.job_revision, editable: j.job_status === "queued", type: j.content_type, account: j.account_name, title: j.caption || "", run_at: j.run_at, status: j.job_status}));
+    .map((j) => ({key: `j${j.job_id}`, kind: "job", id: j.job_id, revision: j.job_revision, editable: j.job_status === "queued", type: j.kind === "warmup_reels" ? "warmup" : j.content_type, account: j.account_name, title: j.caption || "", run_at: j.run_at, status: j.job_status}));
   return [...a, ...o].sort((x, y) => (x.run_at ? Date.parse(x.run_at) : Infinity) - (y.run_at ? Date.parse(y.run_at) : Infinity));
 }
 
@@ -24,11 +24,13 @@ function counts(list) {
 }
 
 let shown = [];
+let kindFilter = "all";
+export const filterRows = (list, filter) => list.filter((r) => filter === "all" || (filter === "warmup" ? r.type === "warmup" : ["reel", "story", "carousel"].includes(r.type)));
 
 export default {
   load: () => call("content_schedule_list", {}),
   render(d) {
-    const list = rowsOf(d);
+    const list = filterRows(rowsOf(d), kindFilter);
     shown = list;
     const n = counts(list);
     const tile = (label, v) => `<div class="wkpi wb-mute"><div class="wkpi-v">${v}</div><div class="wkpi-l">${label}</div></div>`;
@@ -41,10 +43,12 @@ export default {
         <td>${r.editable ? `<button class="wbtn wbtn-s" data-wqcancel="${r.key}">Отменить</button>` : `<span class="wmute">${r.status === "sent" ? "Отправлено, не подтверждено" : "телефон уже взял"}</span>`}</td>
       </tr>`).join("");
     return `<div class="whead"><h1>Очередь</h1><div class="whead-s">Всё запланированное по времени: из Пула, из папки историй и из старой формы. Отмена здесь.</div></div>
+      <div class="wtool"><label>Тип <select data-wqfilter><option value="all"${kindFilter === "all" ? " selected" : ""}>Всё</option><option value="publish"${kindFilter === "publish" ? " selected" : ""}>Заливы</option><option value="warmup"${kindFilter === "warmup" ? " selected" : ""}>Прогрев</option></select></label></div>
       <div class="wkpis">${tile("Reels сегодня", n.reel)}${tile("Истории сегодня", n.story)}${tile("Карусели сегодня", n.carousel)}${tile("Всего в очереди", list.length)}</div>
       ${list.length ? `<section class="wcard wcard-free"><table class="wt"><thead><tr><th>Когда</th><th>Тип</th><th>Аккаунт</th><th>Что</th><th>Статус</th><th></th></tr></thead><tbody>${rows}</tbody></table></section>` : noData("Очередь пуста. Назначь материал в «Материалах» или загрузи фото в «Папку историй».")}`;
   },
   bind(el, ctx) {
+    el.querySelector("[data-wqfilter]")?.addEventListener("change", (e) => { kindFilter = e.target.value; ctx.redraw(); });
     const list = shown;
     el.querySelectorAll("[data-wqcancel]").forEach((b) => {
       b.onclick = async () => {

@@ -192,8 +192,10 @@ function openSchedEdit(r){const acc=(S.cSet&&S.cSet.accounts||[]).find(a=>a.id==
 function cField(rec,v,id,dis){const d=dis?" disabled":"";
   switch(rec.type){
     case"bool":return '<label class="ccheckrow"><input type="checkbox" id="'+id+'"'+(v?" checked":"")+d+'><span>Включено</span></label>';
-    case"int":return '<input type="number" id="'+id+'" min="'+rec.min+'" max="'+rec.max+'" value="'+esc(v)+'"'+d+'>';
-    case"enum":return '<select id="'+id+'"'+d+'>'+rec.options.map(o=>'<option value="'+o+'"'+(o===v?" selected":"")+'>'+esc(({auto:"Свой, иначе общий",account:"Только свой, иначе общий",global:"Общий"})[o]||o)+'</option>').join("")+'</select>';
+    case"number":case"int":return '<input type="number" step="'+(rec.type==="number"?"0.1":"1")+'" id="'+id+'" min="'+rec.min+'" max="'+rec.max+'" value="'+esc(v)+'"'+d+'>';
+    case"range":return '<div class="cinline"><label>от<input type="number" data-f="min" id="'+id+'" min="'+rec.min+'" max="'+rec.max+'" value="'+esc(v.min)+'"'+d+'></label><label>до<input type="number" data-f="max" min="'+rec.min+'" max="'+rec.max+'" value="'+esc(v.max)+'"'+d+'></label></div>';
+    case"strings":return '<textarea id="'+id+'" rows="4"'+d+'>'+esc((v||[]).join("\n"))+'</textarea>';
+    case"enum":return '<select id="'+id+'"'+d+'>'+rec.options.map(o=>'<option value="'+o+'"'+(o===v?" selected":"")+'>'+esc(({auto:"Свой, иначе общий",account:"Только свой, иначе общий",global:"Общий",calm:"Спокойный",normal:"Обычный",active:"Активный",mixed:"Смешанный",double_tap:"Двойной тап",heart:"Кнопка сердца"})[o]||o)+'</option>').join("")+'</select>';
     case"text":return rec.multiline?'<textarea id="'+id+'" rows="8"'+d+'>'+esc(v)+'</textarea>':'<input id="'+id+'" value="'+dEscapeAttr(v)+'"'+d+'>';
     case"timezone":case"url":return '<input id="'+id+'" value="'+dEscapeAttr(v==null?"":v)+'"'+d+'>';
     case"rate":return '<div class="cinline"><label>от<input type="number" min="0" data-f="min" id="'+id+'" value="'+esc(v.min)+'"'+d+'></label><label>до<input type="number" min="1" data-f="max" value="'+esc(v.max)+'"'+d+'></label><select data-f="period"'+d+'><option value="day"'+(v.period==="day"?" selected":"")+'>в день</option><option value="week"'+(v.period==="week"?" selected":"")+'>в неделю</option></select></div>';
@@ -206,7 +208,9 @@ function cField(rec,v,id,dis){const d=dis?" disabled":"";
 function cFieldRead(rec,box){const f=n=>box.querySelector('[data-f="'+n+'"]'),main=box.querySelector("input,select,textarea");
   switch(rec.type){
     case"bool":return main.checked;
-    case"int":return main.value===""?null:Number(main.value);
+    case"number":case"int":return main.value===""?null:Number(main.value);
+    case"range":return{min:Number(f("min").value),max:Number(f("max").value)};
+    case"strings":return main.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
     case"url":return main.value.trim()||null;
     case"timezone":return main.value.trim();
     case"rate":return{min:Number(f("min").value),max:Number(f("max").value),period:f("period").value};

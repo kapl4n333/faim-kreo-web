@@ -12,7 +12,7 @@ export default {
     const groups = [...new Set(list.map((r) => r.group))];
     const can = d.can_edit_global;
     const field = (r) => {
-      const value = r.key in d.global ? d.global[r.key] : r.default;
+      const value = d.effective_global?.[r.key] ?? (r.key in d.global ? d.global[r.key] : r.default);
       const big = r.key === "caption_prompt";
       const state = saved.get(r.key);
       return `<div class="wset${big ? " wset-big" : ""}" data-wkey="${escape(r.key)}">

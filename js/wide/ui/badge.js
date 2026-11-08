@@ -29,7 +29,7 @@ export const REASON = {
   gemini_key_missing: "Gemini: нет ключа в .env", gemini_key_invalid: "Gemini: ключ не принят", gemini_unavailable: "Gemini недоступен", claude_unavailable: "Claude недоступен", bad_output: "Ответ не прошёл схему", timeout: "Нет ответа вовремя",
 };
 
-export const TYPE = {reel: "Reels", carousel: "Карусель", story: "История"};
+export const TYPE = {reel: "Reels", carousel: "Карусель", story: "История", warmup: "Прогрев", warmup_reels: "Прогрев"};
 
 export function badge(status, {label, title} = {}) {
   const [text, tone] = STATUS[status] || [status || "—", "mute"];
