@@ -77,6 +77,13 @@ export function deskReply(action, p) {
   if (action === "planner_engines_get") return {shared: "claude", workers: [
       {id: 1, name: "POWER-ACER", online: true, engine: "claude", engine_source: "shared", engines: {claude: {available: true, logged_in: false, subscription: false, error: "not_logged_in", reported_at: at(-3)}, gemini: {key_set: false, model: "gemini-2.5-flash", error: null, reported_at: at(-3)}}, last_run: {at: at(-11), outcome: "failed", engine: "claude"}, last_error: {at: at(-11), code: "not_logged_in", detail: "Нужен вход по подписке"}},
       {id: 2, name: "OFFICE-NUC", online: false, engine: "gemini", engine_source: "own", engines: {claude: null, gemini: {key_set: true, model: "gemini-2.5-flash", limit_until: at(25), error: "limit", reported_at: at(-190)}}, last_run: null, last_error: null}]};
+  if (action === "content_schedule_list") {
+    const at = (h) => new Date(Date.now() + h * 3600000).toISOString();
+    return {rows: [
+      {id: 31, revision: 1, editable: true, content_type: "story", account_name: "nokk.ksi", title: "", caption: null, run_at: at(1), state: "scheduled", job_status: "queued", story_link: {enabled: true, url: "https://t.me/+demo", text: "COME TALK"}},
+      {id: 32, revision: 1, editable: true, content_type: "carousel", account_name: "nokk.ksi", title: "Хэллоуин", caption: "still not over halloween 🩸", run_at: null, state: "pending_plan", job_status: null},
+    ], old_form: [{job_id: 6, job_revision: 1, content_type: "reel", account_name: "nokk.ksi", run_at: at(2), caption: "старая форма", job_status: "queued"}]};
+  }
   if (action === "content_settings_get") return {registry: REGISTRY, global: {timezone: "Europe/Warsaw", caption_prompt: "Пиши коротко, тепло, от первого лица."}, overrides: {}, accounts: [], can_edit_global: true};
   if (/^(proxy_|planner_engine_set|content_schedule_update|content_assignment_cancel|content_assign|content_settings_set|device_)/.test(action)) {
     (window.__wideCalls ||= []).push([action, p]);
