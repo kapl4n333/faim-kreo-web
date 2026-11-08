@@ -1,6 +1,7 @@
 // Устройства: дерево «Все → ПК → телефон → аккаунты» и живая консоль справа.
 // «+» на каждом уровне описан сервером (add.kind, add.apply, add.candidates): страница только вызывает указанный action.
-import {call, escape, isAdmin, legacy} from "../bridge.js";
+import {call, errorText, escape, isAdmin, legacy, showToast} from "../bridge.js";
+/* global openExt */
 import {confirmDialog, dialog, dialogMessage, errorOf} from "../ui/dialog.js";
 import {chooseProxy} from "../ui/proxy-pick.js";
 import {badge, dot, reasonText, TYPE} from "../ui/badge.js";
@@ -146,7 +147,7 @@ export default {
     const tool = toolbar({
       search: {id: "q", placeholder: "Поиск: ПК, телефон, ник", value: view.q},
       filters: [{id: "status", label: "Статус", value: view.status, options: [["", "Все"], ["online", "На связи"], ["offline", "Не на связи"], ["attention", "Внимание"], ["paused", "Пауза"]]}],
-      actions: `${isAdmin() ? '<button class="wbtn wbtn-p" data-wpair>+ Добавить ПК</button>' : ""}`,
+      actions: `<button class="wbtn" data-wdownload title="Установщик PostBot для нового ПК: спросит папку и поставит всё сам">⬇ Скачать программу</button>${isAdmin() ? '<button class="wbtn wbtn-p" data-wpair>+ Добавить ПК</button>' : ""}`,
     });
     const selected = con.key || null;
     return `<div class="whead"><h1>Устройства</h1><div class="whead-s">Обновлено ${ago(d.server_now)}</div></div>${tool}<div class="wpanel">${tree(columns, nodes(), {selected})}</div>`;
@@ -165,6 +166,15 @@ export default {
     if (con.key && detailsKey() !== `console:${con.key}`) stopConsole();
     if (!con.key && ctx.params.console && !detailsKey()) openConsole(ctx, ctx.params.console);
     root.querySelector("[data-wpair]")?.addEventListener("click", () => pairDialog(ctx));
+    root.querySelector("[data-wdownload]")?.addEventListener("click", async () => {
+      try {
+        const r = await call("postbot_installer", {});
+        if (!r.url) throw new Error(r.error === "no_release" ? "На сервере ещё нет выпуска PostBot" : "Ссылка не получена");
+        // В Telegram ссылка открывается во внешнем браузере: там файл и скачивается.
+        openExt(r.url);
+        showToast("Скачивается install-postbot.cmd — запусти его, он спросит папку", "ok");
+      } catch (e) { showToast(errorText(e), "err"); }
+    });
     root.querySelector("[data-wnewjob]")?.addEventListener("click", () => legacy.openJobWizard(() => ctx.reload()));
     root.querySelectorAll("[data-wadd]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); addDialog(ctx, b.dataset.wadd); }; });
     bindPhoneButtons(root, () => ctx.reload());
