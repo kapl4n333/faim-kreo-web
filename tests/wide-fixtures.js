@@ -82,6 +82,7 @@ export function deskReply(action, p) {
     return {rows: [
       {id: 31, revision: 1, editable: true, content_type: "story", account_name: "nokk.ksi", title: "", caption: null, run_at: at(1), state: "scheduled", job_status: "queued", story_link: {enabled: true, url: "https://t.me/+demo", text: "COME TALK"}},
       {id: 32, revision: 1, editable: true, content_type: "carousel", account_name: "nokk.ksi", title: "Хэллоуин", caption: "still not over halloween 🩸", run_at: null, state: "pending_plan", job_status: null},
+      {id: 33, revision: 2, editable: false, content_type: "reel", account_name: "nokk.ksi", title: "Ждёт подтверждения", run_at: at(-0.1), state: "scheduled", job_status: "sent", wait_reason: "account_paused", wait_detail: "Новые публикации приостановлены", blocking_settings: ["paused"]},
     ], old_form: [{job_id: 6, job_revision: 1, content_type: "reel", account_name: "nokk.ksi", run_at: at(2), caption: "старая форма", job_status: "queued"}]};
   }
   if (action === "content_settings_get") return {registry: REGISTRY, global: {timezone: "Europe/Warsaw", caption_prompt: "Пиши коротко, тепло, от первого лица."}, overrides: {}, accounts: [], can_edit_global: true};

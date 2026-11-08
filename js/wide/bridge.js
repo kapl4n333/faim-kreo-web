@@ -1,6 +1,6 @@
 // Единственное место, где модули широкой раскладки берут общие переменные старого кода (core.js, content.js).
 // Старые скрипты объявляют их через const/function на верхнем уровне: модулю они видны по имени.
-/* global S, api, tg, esc, toast, errMsg, header, render, savePrefs, openAddItem, cField, cFieldRead */
+/* global S, api, tg, esc, toast, errMsg, header, render, savePrefs, openAddItem, cField, cFieldRead, CA_WAIT, CA_REJECT */
 
 export const state = () => S;
 export const call = (action, params) => api(action, params);
@@ -8,6 +8,13 @@ export const telegram = () => (typeof tg === "undefined" ? null : tg);
 export const escape = (s) => esc(s);
 export const showToast = (msg, type) => toast(msg, type);
 export const errorText = (e) => errMsg(e);
+export const contentReasonText = (code) => {
+  if (String(code).startsWith("validation:")) {
+    const label = typeof CA_REJECT === "undefined" ? null : CA_REJECT[String(code).slice(11)];
+    return label ? `Отказ проверки: ${label}` : String(code);
+  }
+  return typeof CA_WAIT === "undefined" ? String(code) : CA_WAIT[code] || String(code);
+};
 export const leaveTo = (tab) => { S.tab = tab; savePrefs(); header(); render(); };
 // Автозалив пока без ролей: всем видны и доступны все кнопки (08.11.2026). Сервер решает так же (AUTOPOST_ALL).
 export const isAdmin = () => true;

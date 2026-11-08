@@ -1,5 +1,5 @@
 // Бейджи статусов: один словарь подписей и цветов на всю раскладку.
-import {escape} from "../bridge.js";
+import {contentReasonText, escape} from "../bridge.js";
 
 // tone: ok, warn, bad, info, mute, accent
 export const STATUS = {
@@ -8,7 +8,7 @@ export const STATUS = {
   // устройства
   online: ["На связи", "ok"], offline: ["Не на связи", "bad"], revoked: ["Отозван", "mute"],
   // задания
-  queued: ["В очереди", "info"], claimed: ["Выполняется", "accent"], committed: ["Публикуется", "accent"], sent: ["Отправлено", "ok"],
+  queued: ["В очереди", "info"], claimed: ["Выполняется", "accent"], committed: ["Публикуется", "accent"], sent: ["Проверяется", "info"],
   confirmed: ["Подтверждено", "ok"], done: ["Готово", "ok"], unknown: ["Неизвестно", "bad"], needs_attention: ["Нужно решение", "bad"],
   failed: ["Ошибка", "bad"], missed: ["Пропущено", "bad"], cancelled: ["Отменено", "mute"],
   // назначения
@@ -37,4 +37,17 @@ export function badge(status, {label, title} = {}) {
 }
 
 export const dot = (status) => `<i class="wdot wb-${(STATUS[status] || [0, "mute"])[1]}"></i>`;
-export const reasonText = (code) => (code ? REASON[code] || String(code).replace(/^validation:/, "Отказ проверки: ") : "");
+export const reasonText = (code) => (code ? REASON[code] || contentReasonText(code) : "");
+
+export function reasonAction(code, settings) {
+  settings = Array.isArray(settings) ? settings : [];
+  const actions = {
+    no_binding: "Привяжи аккаунт к телефону в «Аккаунтах».", account_archived: "Верни аккаунт из архива.",
+    account_paused: "Сними паузу в настройках аккаунта.", type_disabled: "Включи этот тип публикаций в настройках аккаунта.",
+    caption_settings_missing: "Заполни промпт подписей в настройках аккаунта.", no_free_slot: "Проверь норму, часы публикаций и горизонт планирования.",
+    not_logged_in: "Войди в Claude по подписке на ПК.", not_subscription: "Подключи вход Claude по подписке на ПК.",
+    api_key_in_env: "Убери ключ API из окружения планировщика на ПК.", limit: "Дождись снятия лимита планировщика.",
+    duplicate_conflict: "Проверь дубль в «Контенте» и прими решение.",
+  };
+  return actions[code] || (settings.length ? `Проверь настройки аккаунта и общие правила (${settings.join(", ")}).` : "Проверь подробности в «Контенте» и состояние планировщика в «Мозгах».");
+}
