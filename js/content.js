@@ -252,7 +252,7 @@ function bindSettings(el){
   el.querySelectorAll("[data-sown]").forEach(b=>b.onclick=async()=>{const key=b.dataset.sown,r=reg(key);if(key in (S.cSet.overrides[scope()]||{}))return;
     try{await api("content_settings_set",{scope:scope(),key,mode:"set",value:cEffective(r,{})});S.cOpenKey=key;await reload();}catch(e){toast(errMsg(e),"err");}});
   const bs=el.querySelector("#cbindsave");if(bs)bs.onclick=async()=>{const phone=el.querySelector("#cbindphone").value,acc=S.cSet.accounts.find(a=>String(a.id)===String(S.cScope));
-    try{if(phone)await api("device_binding_set",{account_id:acc.id,phone_id:+phone,expected_handle:acc.expected_handle||String(acc.account_name).replace(/^@/,""),min_gap_minutes:acc.min_gap_minutes==null?30:acc.min_gap_minutes});else await api("device_binding_delete",{account_id:acc.id});await reload("Сохранено");}catch(e){toast(errMsg(e),"err");}};
+    try{if(phone)await api("device_binding_set",{account_id:acc.id,phone_id:+phone,expected_handle:acc.expected_handle||String(acc.account_name).replace(/^@/,""),min_gap_minutes:acc.min_gap_minutes==null?0:acc.min_gap_minutes});else await api("device_binding_delete",{account_id:acc.id});await reload("Сохранено");}catch(e){toast(errMsg(e),"err");}};
   const bulk=el.querySelector("#cbulk");if(bulk)bulk.onclick=openBulk;
 }
 function openBulk(){const s=S.cSet,list=s.registry.filter(r=>r.scope!=="global");S.cBulk=S.cBulk||{ids:[],key:list[0].key,mode:"set"};const b=S.cBulk,rec=list.find(r=>r.key===b.key);

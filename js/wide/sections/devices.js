@@ -6,7 +6,7 @@ import {confirmDialog, dialog, dialogMessage, errorOf} from "../ui/dialog.js";
 import {chooseProxy} from "../ui/proxy-pick.js";
 import {badge, dot, reasonText, TYPE} from "../ui/badge.js";
 import {closeDetails, detailsKey, openDetails, setDetailsBody} from "../ui/details.js";
-import {ago, localText} from "../ui/format.js";
+import {ago, localText, slowSelect} from "../ui/format.js";
 import {bindToolbar, toolbar} from "../ui/table.js";
 import {bindTree, tree} from "../ui/tree.js";
 import {eventLabel} from "../ui/accounts-rail.js";
@@ -228,7 +228,7 @@ function addDialog(ctx, nodeKey) {
       subtitle: `ТЕЛЕФОН ${p?.name || p?.serial || ""}`.toUpperCase(), title: "Привязать аккаунт",
       body: `<div class="wform"><label class="wf"><span>Аккаунт без телефона</span><select data-f="a">${c.map((x) => `<option value="${x.account_id}">@${escape(x.account_name)}</option>`).join("")}</select></label>
         <label class="wf"><span>Ник на телефоне (пусто — как у аккаунта)</span><input data-f="h"></label>
-        <label class="wf"><span>Минимум между публикациями аккаунта, мин</span><input type="number" min="0" max="1440" value="30" data-f="g"></label></div>`,
+        <label class="wf"><span>Медленный режим</span>${slowSelect("g", 0)}</label></div>`,
       actions: [{id: "close", label: "Закрыть"}, {id: "go", label: "Привязать", primary: true}],
       onAction: async (a, box) => {
         if (a !== "go") return false;

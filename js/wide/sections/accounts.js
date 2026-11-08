@@ -4,7 +4,7 @@ import {call, escape, isAdmin, legacy} from "../bridge.js";
 import {badge, reasonText, TYPE} from "../ui/badge.js";
 import {confirmDialog, dialog, dialogMessage, errorOf} from "../ui/dialog.js";
 import {noData} from "../ui/empty.js";
-import {ago, localText, num, whenIso} from "../ui/format.js";
+import {ago, localText, num, slowSelect, slowText, whenIso} from "../ui/format.js";
 import {bindSort, bindToolbar, table, toolbar} from "../ui/table.js";
 import {bindRowActions, rowActions} from "../ui/schedule-edit.js";
 import {eventLabel} from "../ui/accounts-rail.js";
@@ -104,7 +104,7 @@ function cardView(c) {
         <div><span>Ближайшая публикация</span><b>${a.next_local ? localText(a.next_local) : "—"}</b></div>
         <div><span>Последнее действие</span><b>${a.last_action ? `${escape(eventLabel(a.last_action.type))} · ${ago(a.last_action.at)}` : "—"}</b></div>
         <div><span>Вступления 24 ч / 7 дн / всего</span><b>${num(a.joins.d1)} / ${num(a.joins.d7)} / ${num(a.joins.total)}</b></div>
-        <div><span>Интервал на телефоне</span><b>${c.binding ? `${num(c.binding.min_gap_minutes)} мин` : "—"}</b></div>
+        <div><span>Медленный режим</span><b>${c.binding ? slowText(c.binding.min_gap_minutes) : "—"}</b></div>
       </div>
       ${a.status !== "working" && a.status_reason ? `<div class="wwarn">${escape(reasonText(a.status_reason))}</div>` : ""}
     </div>
@@ -162,7 +162,7 @@ async function changePhone(ctx, c) {
     subtitle: `@${c.account.account_name}`.toUpperCase(), title: "Телефон аккаунта",
     body: `<div class="wform"><label class="wf"><span>Телефон</span><select data-f="phone"><option value="">Без телефона</option>${phones.map((p) => `<option value="${p.id}"${c.account.phone?.id === p.id ? " selected" : ""}>${escape(p.name || p.serial)}${p.worker ? ` · ${escape(p.worker)}` : ""}${p.online ? "" : " · не на связи"}</option>`).join("")}</select></label>
       <label class="wf"><span>Ник, который проверяется на телефоне</span><input data-f="handle" value="${escape(c.binding?.expected_handle || c.account.account_name)}"></label>
-      <label class="wf"><span>Минимум между публикациями аккаунта, мин</span><input type="number" min="0" max="1440" data-f="gap" value="${escape(c.binding?.min_gap_minutes ?? 30)}"></label></div>`,
+      <label class="wf"><span>Медленный режим</span>${slowSelect("gap", c.binding?.min_gap_minutes ?? 0)}</label></div>`,
     actions: [{id: "close", label: "Закрыть"}, {id: "save", label: "Сохранить", primary: true}],
     onAction: async (id, box) => {
       if (id !== "save") return false;

@@ -29,3 +29,8 @@ export function whenIso(iso, tz) {
 }
 
 export const num = (n) => (n == null ? "—" : Number(n).toLocaleString("ru-RU"));
+
+const SLOW = [[0, "Выключен — публикует сразу по времени"], [30, "Включён: 30 мин между публикациями"], [60, "Включён: 60 мин между публикациями"], [120, "Включён: 2 ч между публикациями"]];
+/** Медленный режим: минимум между любыми публикациями аккаунта. 0 — выключен. */
+export const slowSelect = (name, value) => `<select data-f="${name}">${SLOW.map(([v, l]) => `<option value="${v}"${Number(value ?? 0) === v ? " selected" : ""}>${l}</option>`).join("")}${SLOW.some(([v]) => v === Number(value ?? 0)) ? "" : `<option value="${Number(value)}" selected>Включён: ${Number(value)} мин</option>`}</select>`;
+export const slowText = (value) => (Number(value ?? 0) > 0 ? `включён, ${Number(value)} мин` : "выключен");

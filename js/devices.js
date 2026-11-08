@@ -67,7 +67,7 @@ function vAutoDevices(){
   const brows=accounts.map(a=>{const phone=phones.find(p=>p.id===a.phone_id);
     if(!admin())return '<div class="autorow"><b>@'+esc(String(a.account_name).replace(/^@/,""))+'</b><small>'+(phone?esc(phone.name||phone.serial):"нет привязки к телефону")+'</small></div>';
     return '<div class="autorow bind"><b>'+esc(a.account_name)+'</b><select data-bphone="'+a.id+'"><option value="">Без телефона</option>'+phones.map(p=>'<option value="'+p.id+'"'+(p.id===a.phone_id?" selected":"")+'>'+esc(p.name||p.serial)+'</option>').join("")+'</select>'+
-      '<input data-bhandle="'+a.id+'" placeholder="ник на телефоне" value="'+dEscapeAttr(a.expected_handle||String(a.account_name).replace(/^@/,""))+'"><label class="gap">интервал, мин<input type="number" min="0" max="1440" data-bgap="'+a.id+'" value="'+esc(a.min_gap_minutes==null?30:a.min_gap_minutes)+'"></label><button class="act" data-bsave="'+a.id+'">Сохранить</button></div>';}).join("");
+      '<input data-bhandle="'+a.id+'" placeholder="ник на телефоне" value="'+dEscapeAttr(a.expected_handle||String(a.account_name).replace(/^@/,""))+'"><label class="gap">интервал, мин<input type="number" min="0" max="1440" data-bgap="'+a.id+'" value="'+esc(a.min_gap_minutes==null?0:a.min_gap_minutes)+'"></label><button class="act" data-bsave="'+a.id+'">Сохранить</button></div>';}).join("");
   return pair+'<div class="autobox"><b>ПК</b>'+(wrows||'<p class="hint">Подключённых ПК нет.</p>')+'</div>'+
     '<div class="autobox"><b>Телефоны</b>'+(prows||'<p class="hint">Телефоны появятся, когда их увидит подключённый ПК.</p>')+'</div>'+
     '<div class="autobox"><b>Привязки аккаунтов</b>'+(brows||'<p class="hint">Аккаунтов нет. Они добавляются в разделе «Трекер».</p>')+'</div>';
