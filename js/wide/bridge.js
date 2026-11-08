@@ -9,8 +9,9 @@ export const escape = (s) => esc(s);
 export const showToast = (msg, type) => toast(msg, type);
 export const errorText = (e) => errMsg(e);
 export const leaveTo = (tab) => { S.tab = tab; savePrefs(); header(); render(); };
-export const isAdmin = () => !!(S.me && (S.me.roles || []).includes("admin"));
-export const myRoles = () => (S.me && S.me.roles) || [];
+// Автозалив пока без ролей: всем видны и доступны все кнопки (08.11.2026). Сервер решает так же (AUTOPOST_ALL).
+export const isAdmin = () => true;
+export const myRoles = () => [...new Set([...((S.me && S.me.roles) || []), "admin", "uploader"])];
 export const redrawAll = () => render();
 /** Старое окно (#amodal) открыто: опрос широкой раскладки ждёт. */
 export const legacyModalOpen = () => !!document.getElementById("amodal");

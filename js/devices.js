@@ -7,7 +7,8 @@ const AUTO_CODES={asset_missing:"Файл не найден на сервере"
   not_found:"Публикация не найдена в профиле",late_sent_conflict:"Старая попытка сообщила о публикации",tap_uncertain:"Обрыв во время нажатия",tap_window_expired:"Срок на нажатие вышел",
   commit_no_response:"Нет ответа на запрос разрешения",operator_stop:"Остановлено оператором",app_restarted:"Программа перезапускалась",missed:"ПК был недоступен всё окно запуска"};
 const AUTO_ATTENTION=["unknown","needs_attention"],AUTO_ACTIVE=["queued","claimed","committed","sent"];
-const canAuto=()=>admin()||roles().includes("uploader");
+// Автозалив пока виден всем участникам команды (08.11.2026).
+const canAuto=()=>true;
 const autoType=k=>AUTO_TYPES.find(t=>t.kind===k)||AUTO_TYPES[0];
 
 async function loadAuto(silent){
