@@ -111,8 +111,8 @@ function menuHtml() {
   const list = visibleSections(myRoles());
   const groups = [...new Set(list.map((s) => s.group))];
   return `<div class="wbrand"><div class="mark">F</div><div><div class="wbrand-n">FTask</div><div class="wbrand-s">Автозалив</div></div></div>
-    <div class="wnav" role="navigation">${groups.map((g) => `<div class="wnav-g">${escape(g)}</div>${list.filter((s) => s.group === g).map((s) => `<button class="wnav-i${W.section === s.id ? " on" : ""}" data-wsec="${s.id}">${icon(s.icon)}<span>${escape(s.title)}</span>${s.stub ? '<em>шаг 3</em>' : ""}</button>`).join("")}`).join("")}</div>
-    <div class="wnav-foot"><button class="wnav-i" data-wback>${icon("back")}<span>Другие разделы FTask</span></button><button class="wnav-i" data-wlegacy>${icon("dots")}<span>Старый вид</span></button><div class="wnav-me">${escape(state().me?.name || "")}</div></div>`;
+    <div class="wnav" role="navigation">${groups.map((g) => `<div class="wnav-g">${escape(g)}</div>${list.filter((s) => s.group === g && !s.parent).map((s) => navItem(s) + subItems(list, s)).join("")}`).join("")}</div>
+    <div class="wnav-foot"><button class="wnav-i" data-wback>${icon("back")}<span>Другие разделы FTask</span></button><div class="wnav-me">${escape(state().me?.name || "")}</div></div>`;
 }
 
 function drawShell() {
@@ -130,7 +130,6 @@ function drawShell() {
   left.innerHTML = menuHtml();
   left.querySelectorAll("[data-wsec]").forEach((b) => { b.onclick = () => { document.body.classList.remove("wnav-open"); ctx.go(b.dataset.wsec, {}); }; });
   left.querySelector("[data-wback]").onclick = () => { document.body.classList.remove("wnav-open"); exitFullscreen(); leaveTo("cat"); };
-  left.querySelector("[data-wlegacy]").onclick = () => { document.body.classList.remove("wnav-open"); chooseLegacy(true); W.mounted = false; document.body.classList.remove("wide"); redrawAll(); };
   drawRail();
   drawMain();
 }
@@ -142,6 +141,14 @@ function drawRail() {
   right.innerHTML = railHtml(W.accounts, W.section === "accounts" ? W.params.id : null);
   bindRail(right, {redraw: drawRail, onOpen: (id) => ctx.openAccount(id)});
   if (keepQ != null) { const i = right.querySelector("[data-wrailq]"); i.focus(); i.setSelectionRange(keepQ, keepQ); }
+}
+
+const navItem = (s, sub = false) => `<button class="wnav-i${sub ? " wnav-sub" : ""}${W.section === s.id ? " on" : ""}" data-wsec="${s.id}">${icon(s.icon)}<span>${escape(s.title)}</span>${s.stub ? '<em>шаг 3</em>' : ""}</button>`;
+/** Подразделы видны, пока открыт сам раздел или любой из них. */
+function subItems(list, parent) {
+  const kids = list.filter((s) => s.parent === parent.id);
+  if (!kids.length || !(W.section === parent.id || kids.some((k) => k.id === W.section))) return "";
+  return kids.map((k) => navItem(k, true)).join("");
 }
 
 async function drawMain() {

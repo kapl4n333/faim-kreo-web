@@ -127,7 +127,7 @@ export default {
         <button class="wbtn" data-wbulk="assign"${sel ? "" : " disabled"}>Назначить выбранное</button>
         <button class="wbtn" data-wbulk="cancel"${sel ? "" : " disabled"}>Снять выбранное</button>
         <button class="wbtn" data-wbulk="archive"${sel ? "" : " disabled"}>${view.status === "archived" ? "Вернуть из архива" : "В архив"}</button>
-        <button class="wbtn" data-wnewjob title="Одно видео сразу на аккаунт, без пула">+ Задание сразу</button>
+
         <button class="wbtn wbtn-p" data-wupload>+ Загрузить</button>`,
     });
     const legend = ["empty", "waiting", "scheduled", "taken", "published", "failed", "blocked"].map((s) => `<span class="wleg wc-${s} wb-${(STATUS[s] || [0, "mute"])[1]}"><i></i>${escape(s === "empty" ? "Не назначено" : STATUS[s][0])}</span>`).join("");

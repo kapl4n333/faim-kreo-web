@@ -298,3 +298,11 @@ body.wide #app{padding:0;margin:0;max-width:none}
   .wbtn{padding:8px 12px}
   .wmenu{max-width:calc(100vw - 16px)}
 }
+
+/* Подразделы «Контента» в меню и сетка «Папки историй» */
+.wnav-i.wnav-sub { padding-left: 34px; font-size: .92em; }
+.wnav-i.wnav-sub svg { width: 14px; height: 14px; opacity: .7; }
+.wsf { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.wsf-i { display: flex; flex-direction: column; gap: 6px; }
+.wsf-i img, .wsf-i .wm-noimg { width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 8px; background: var(--wline, #2a2a2a); }
+.wq-t { max-width: 360px; }

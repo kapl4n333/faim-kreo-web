@@ -146,7 +146,7 @@ export default {
     const tool = toolbar({
       search: {id: "q", placeholder: "Поиск: ПК, телефон, ник", value: view.q},
       filters: [{id: "status", label: "Статус", value: view.status, options: [["", "Все"], ["online", "На связи"], ["offline", "Не на связи"], ["attention", "Внимание"], ["paused", "Пауза"]]}],
-      actions: `<button class="wbtn" data-wnewjob title="Одно видео сразу на аккаунт, без пула">+ Задание сразу</button>${isAdmin() ? '<button class="wbtn wbtn-p" data-wpair>+ Добавить ПК</button>' : ""}`,
+      actions: `${isAdmin() ? '<button class="wbtn wbtn-p" data-wpair>+ Добавить ПК</button>' : ""}`,
     });
     const selected = con.key || null;
     return `<div class="whead"><h1>Устройства</h1><div class="whead-s">Обновлено ${ago(d.server_now)}</div></div>${tool}<div class="wpanel">${tree(columns, nodes(), {selected})}</div>`;
