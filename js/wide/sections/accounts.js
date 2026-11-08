@@ -98,7 +98,7 @@ function cardView(c) {
     <div class="wacard">
       <div class="wacard-h"><div><div class="wacard-n">@${escape(a.account_name)}</div><div class="wmute">${escape(a.platform || "")} · пояс ${escape(a.timezone)}</div></div>${badge(a.status, {title: reasonText(a.status_reason)})}</div>
       <div class="wkv">
-        <div><span>Телефон ${admin ? '<button class="wlink" data-wphone>изменить</button>' : ""}</span><b>${a.phone ? `${escape(a.phone.name)} ${a.phone.online ? badge("online") : badge("offline")}` : "нет"}</b></div>
+        <div><span>Телефон ${admin ? '<button class="wlink" data-wphone>изменить</button>' : ""}${a.phone ? ' <button class="wlink" data-wverify>проверить</button>' : ""}</span><b>${a.phone ? `${escape(a.phone.name)} ${a.phone.online ? badge("online") : badge("offline")}` : "нет"}</b></div>
         <div><span>Ник на телефоне</span><b>${escape(c.binding?.expected_handle || "—")}</b></div>
         <div><span>Прокси ${admin ? '<button class="wlink" data-wproxy>изменить</button>' : ""}</span><b>${a.proxy ? `${escape(a.proxy.host)}:${a.proxy.port}${a.proxy_source === "phone" ? " (телефона)" : ""}` : "—"}</b></div>
         <div><span>Ближайшая публикация</span><b>${a.next_local ? localText(a.next_local) : "—"}</b></div>
@@ -155,6 +155,17 @@ function addTexts(ctx, c) {
   });
 }
 
+// PostBot opens Instagram on the bound phone, reads the handle on the profile and compares it. Publishes nothing.
+async function verifyAccount(ctx, c) {
+  const name = `@${c.account.account_name}`;
+  if (!(await confirmDialog("Проверить аккаунт?", `PostBot откроет Instagram на телефоне ${c.account.phone?.name || ""} и сверит ник с ${c.binding?.expected_handle || c.account.account_name}. Ничего не публикует.`, {ok: "Проверить"}))) return;
+  try {
+    await call("device_job_create", {kind: "verify_account", account_id: c.account.id, idempotency_key: `verify-${c.account.id}-${Date.now()}`});
+    await confirmDialog("Проверка поставлена", `${name}: телефон возьмёт её в ближайшие 30 секунд. Итог — в «Истории» аккаунта: «Готово» значит ник совпал.`, {ok: "Понятно"});
+  } catch (e) { await confirmDialog("Не поставлено", errorOf(e), {ok: "Понятно"}); }
+  ctx.reload();
+}
+
 async function changePhone(ctx, c) {
   const tree = await call("device_tree");
   const phones = [...tree.workers.flatMap((w) => w.phones.map((p) => ({...p, worker: w.name}))), ...tree.unbound_phones];
@@ -207,6 +218,7 @@ export default {
       };
     });
     root.querySelector("[data-wphone]")?.addEventListener("click", () => changePhone(ctx, c));
+    root.querySelector("[data-wverify]")?.addEventListener("click", () => verifyAccount(ctx, c));
     root.querySelector("[data-wproxy]")?.addEventListener("click", () => chooseProxy(ctx, "account", c.account.id, `@${c.account.account_name}`, c.account.proxy_source === "account" ? c.account.proxy?.id : null));
   },
 };
