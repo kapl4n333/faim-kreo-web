@@ -25,7 +25,7 @@ const ctAccept=t=>t==="reel"?".mp4,video/mp4":".mp4,.jpg,.jpeg,.png,video/mp4,im
 async function loadContent(silent){
   const tab=S.autoTab;if(!["pool","schedule","settings"].includes(tab)||S.cLoading)return;S.cLoading=true;
   try{
-    if(tab==="pool"){const d=await api("content_pool_list",{status:S.cStatus||"active",content_type:S.cType||undefined});const sig=JSON.stringify(d.items.map(i=>[i.id,i.status,i.assignments,i.media.map(m=>m.id)]));
+    if(tab==="pool"){const folder=S.cType==="story_pool",d=await api("content_pool_list",{status:S.cStatus||"active",content_type:folder?"story":(S.cType||undefined),...(folder?{pool:true}:{})});const sig=JSON.stringify(d.items.map(i=>[i.id,i.status,i.assignments,i.media.map(m=>m.id)]));
       const changed=sig!==S._cSig;S._cSig=sig;S.cPool=d;if(S.tab==="auto"&&S.autoTab==="pool"&&!S.autoOpen&&(!silent||changed)&&!autoTyping())render();}
     else if(tab==="schedule"){const d=await api("content_schedule_list");if(!S.cSet)S.cSet=await api("content_settings_get");const sig=JSON.stringify(d);
       const changed=sig!==S._cSig;S._cSig=sig;S.cSched=d;if(S.tab==="auto"&&S.autoTab==="schedule"&&!S.autoOpen&&(!silent||changed)&&!autoTyping())render();}
@@ -41,7 +41,7 @@ function vPool(){
   if(!S.cPool)return cWait();
   const sel=S.cSel||[],type=S.cType||"",status=S.cStatus||"active";
   const chip=(v,l,cur,attr)=>'<button class="'+(cur===v?"on":"")+'" '+attr+'="'+v+'">'+l+'</button>';
-  return '<div class="autosubs cchips">'+chip("","Все",type,"data-ctype")+chip("reel","Reels",type,"data-ctype")+chip("carousel","Карусели",type,"data-ctype")+chip("story","Истории",type,"data-ctype")+chip("active","Активные",status,"data-cstatus")+chip("archived","Архив",status,"data-cstatus")+'</div>'+
+  return '<div class="autosubs cchips">'+chip("","Все",type,"data-ctype")+chip("reel","Reels",type,"data-ctype")+chip("carousel","Карусели",type,"data-ctype")+chip("story","Истории",type,"data-ctype")+chip("story_pool","Папка историй",type,"data-ctype")+chip("active","Активные",status,"data-cstatus")+chip("archived","Архив",status,"data-cstatus")+'</div>'+
     (sel.length?'<div class="csel"><b>Выбрано: '+sel.length+'</b><button class="primary" id="cassign">Назначить на аккаунты</button><button class="act" id="cclear">Снять</button></div>':'')+
     (S.cPool.items.length?'<div class="batchgrid">'+S.cPool.items.map(poolCard).join("")+'</div>':'<div class="empty"><div class="e-ic">🗂</div><div class="e-h">Материалов нет</div>Нажми «Добавить материал».</div>');
 }
@@ -49,7 +49,7 @@ function poolCard(i){
   const on=(S.cSel||[]).includes(i.id),m=i.media[0],img=i.poster_url||(m&&m.media_kind==="photo"?m.url:null);
   const assigned=i.assignments.map(a=>'<span class="cchip">'+esc(a.account_name)+' · '+esc(a.job_status?(AUTO_STATUS[a.job_status]||a.job_status):(CA_STATE[a.state]||a.state))+'</span>').join("");
   const order=i.content_type==="carousel"&&i.status==="active"?'<div class="corder">'+i.media.map((f,p)=>'<div class="autorow"><small>'+(p+1)+'. '+esc(fname(f.path))+'</small><button class="act" data-cmove="'+i.id+':'+p+':-1"'+(p?"":" disabled")+'>▲</button><button class="act" data-cmove="'+i.id+':'+p+':1"'+(p<i.media.length-1?"":" disabled")+'>▼</button></div>').join("")+'</div>':'';
-  return '<article class="batch job citem'+(on?" picked":"")+'"><div class="btop"><label class="ccheck"><input type="checkbox" data-csel="'+i.id+'"'+(on?" checked":"")+(i.status==="active"?"":" disabled")+'><span class="cthumb">'+(img?'<img loading="lazy" src="'+esc(img)+'">':(m&&m.media_kind==="video"?"🎬":"🖼"))+'</span><b>'+esc(i.title||fname(m&&m.path)||("Материал #"+i.id))+'</b></label><span class="ast">'+esc(CT_LABEL[i.content_type]||i.content_type)+(i.media.length>1?" · "+i.media.length:"")+'</span></div>'+
+  return '<article class="batch job citem'+(on?" picked":"")+'"><div class="btop"><label class="ccheck"><input type="checkbox" data-csel="'+i.id+'"'+(on?" checked":"")+(i.status==="active"?"":" disabled")+'><span class="cthumb">'+(img?'<img loading="lazy" src="'+esc(img)+'">':(m&&m.media_kind==="video"?"🎬":"🖼"))+'</span><b>'+esc(i.title||fname(m&&m.path)||("Материал #"+i.id))+'</b></label><span class="ast">'+esc(CT_LABEL[i.content_type]||i.content_type)+(i.pool?" · папка":"")+(i.media.length>1?" · "+i.media.length:"")+'</span></div>'+
     '<div class="cchips2">'+(assigned||'<small class="hintline">Ещё никуда не назначен</small>')+'</div>'+order+
     '<div class="bacts">'+(i.status==="active"?'<button data-carch="'+i.id+'">В архив</button>':'<button data-crest="'+i.id+'">Вернуть</button>')+'<button data-cdel="'+i.id+'">Удалить</button></div></article>';
 }
@@ -71,23 +71,26 @@ function cModal(html){S.autoOpen=true;let root=document.getElementById("amodal")
 function cModalClose(){S.autoOpen=false;document.getElementById("amodal")?.remove();}
 
 /* добавление материала */
-function openAddItem(){S.cAdd={type:S.cType||"reel",source:"upload",files:[],picks:[],title:"",busy:false,progress:"",q:""};renderAddItem();}
+function openAddItem(){S.cAdd={type:S.cType==="story_pool"?"story":(S.cType||"reel"),source:"upload",files:[],picks:[],title:"",busy:false,progress:"",q:"",pool:true};renderAddItem();}
+const cIsPool=a=>a.type==="story"&&a.pool;
 function cReadyList(a){const q=a.q.trim().toLowerCase();return (S.creos||[]).filter(c=>c.status==="done"&&!c.deferred_at).map(c=>({c,paths:(c.result_paths||[]).map((p,i)=>({p,i})).filter(x=>a.type==="reel"?/\.mp4(\?|$)/i.test(x.p):/\.(mp4|jpe?g|png)(\?|$)/i.test(x.p))})).filter(x=>x.paths.length&&(!q||String(x.c.result_caption||x.c.caption||"").toLowerCase().includes(q)||("#"+x.c.id).includes(q))).slice(0,60);}
 function renderAddItem(){const a=S.cAdd,root=cModal(
   '<div class="dw"><div class="dwhead"><div><small>ПУЛ</small><h2>Новый материал</h2></div><button id="cac">✕</button></div><div class="dwscroll">'+
   '<div class="dwsec"><label>Тип</label><select id="cat">'+Object.keys(CT_LABEL).map(t=>'<option value="'+t+'"'+(t===a.type?" selected":"")+'>'+CT_LABEL[t]+'</option>').join("")+'</select>'+
+  (a.type==="story"?'<label class="ccheckrow"><input id="capool" type="checkbox"'+(a.pool?" checked":"")+'><b>В папку историй</b></label><p class="hint">'+(a.pool?'Можно выбрать сразу много фото. Сервер сам каждый день берёт случайное и сам решает, в какой истории будет ссылка.':'Обычная история: назначаешь её на аккаунт, как Reels.')+'</p>':'')+
   '<label>Название, необязательно</label><input id="caname" value="'+dEscapeAttr(a.title)+'" maxlength="200"></div>'+
   '<div class="dwsec"><div class="modegrid"><button class="'+(a.source==="upload"?"on":"")+'" data-casrc="upload"><b>Загрузить файлы</b></button><button class="'+(a.source==="ready"?"on":"")+'" data-casrc="ready"><b>Из готовых</b></button></div>'+
-  (a.source==="upload"?'<label>Файлы'+(a.type==="carousel"?", в нужном порядке":"")+'</label><input id="cafile" type="file" accept="'+ctAccept(a.type)+'"'+(a.type==="carousel"?" multiple":"")+'>'+(a.files.length?'<p class="hint">Выбрано: '+a.files.map(f=>esc(f.name)).join(", ")+'</p>':''):
+  (a.source==="upload"?'<label>Файлы'+(a.type==="carousel"?", в нужном порядке":"")+'</label><input id="cafile" type="file" accept="'+ctAccept(a.type)+'"'+(a.type==="carousel"||cIsPool(a)?" multiple":"")+'>'+(a.files.length?'<p class="hint">Выбрано: '+a.files.map(f=>esc(f.name)).join(", ")+'</p>':''):
     '<label>Готовые креативы</label><input id="caq" placeholder="Поиск" value="'+dEscapeAttr(a.q)+'"><div class="alib">'+(cReadyList(a).map(({c,paths})=>{const x=paths[paths.length-1],on=a.picks.some(p=>p.creo_id===c.id);return '<button class="apick'+(on?" on":"")+'" data-capick="'+c.id+'" data-capath="'+dEscapeAttr(x.p)+'"><span class="an"><b>'+esc(c.result_caption||c.caption||("Креатив #"+c.id))+'</b></span><i>'+(on?"✓":"")+'</i></button>';}).join("")||'<p class="hint">Подходящих файлов нет.</p>')+'</div>')+
   (a.progress?'<p class="hint">'+esc(a.progress)+'</p>':'')+'</div></div><div class="dwfoot"><button class="act" id="cac2">Закрыть</button><button class="primary" id="cago"'+(a.busy?" disabled":"")+'>Добавить</button></div></div>');
   root.querySelector("#cac").onclick=root.querySelector("#cac2").onclick=()=>{if(!a.busy)cModalClose();};
   root.querySelector("#cat").onchange=e=>{a.type=e.target.value;a.files=[];a.picks=[];renderAddItem();};
   root.querySelector("#caname").oninput=e=>{a.title=e.target.value;};
+  const pl=root.querySelector("#capool");if(pl)pl.onchange=()=>{a.pool=pl.checked;a.files=[];a.picks=[];renderAddItem();};
   root.querySelectorAll("[data-casrc]").forEach(b=>b.onclick=()=>{a.source=b.dataset.casrc;renderAddItem();});
   const f=root.querySelector("#cafile");if(f)f.onchange=()=>{a.files=[...f.files];renderAddItem();};
   const q=root.querySelector("#caq");if(q)q.onchange=()=>{a.q=q.value;renderAddItem();};
-  root.querySelectorAll("[data-capick]").forEach(b=>b.onclick=()=>{const id=+b.dataset.capick,at=a.picks.findIndex(p=>p.creo_id===id);if(at>=0)a.picks.splice(at,1);else{if(a.type!=="carousel")a.picks=[];a.picks.push({creo_id:id,path:b.dataset.capath});}renderAddItem();});
+  root.querySelectorAll("[data-capick]").forEach(b=>b.onclick=()=>{const id=+b.dataset.capick,at=a.picks.findIndex(p=>p.creo_id===id);if(at>=0)a.picks.splice(at,1);else{if(a.type!=="carousel"&&!cIsPool(a))a.picks=[];a.picks.push({creo_id:id,path:b.dataset.capath});}renderAddItem();});
   root.querySelector("#cago").onclick=saveAddItem;
 }
 /* Кадр для превью рисует браузер: на сервере ffmpeg считался бы в те же 384 МБ сервиса. */
@@ -105,7 +108,8 @@ async function saveAddItem(){const a=S.cAdd;if(a.busy)return;
       const blob=await cPoster(a.files[0]);if(blob){const su=await api("sign_upload",{name:"poster.jpg"});await putFile(su.signedUrl,blob,()=>{});poster=su.path;}
     }
     a.progress="Проверяю файлы на сервере…";renderAddItem();
-    await api("content_item_add",{content_type:a.type,title:a.title,idempotency_key:a.key,files,poster_path:poster});
+    if(cIsPool(a)){for(const[n,f]of files.entries()){a.progress="В папку историй: "+(n+1)+" из "+files.length;renderAddItem();await api("content_item_add",{content_type:"story",pool:true,title:a.title,idempotency_key:a.key+":"+n,files:[f],poster_path:n===0?poster:undefined});}}
+    else await api("content_item_add",{content_type:a.type,title:a.title,idempotency_key:a.key,files,poster_path:poster});
     cModalClose();S.cAdd=null;toast("Материал добавлен","ok");S.cType=S.cType||"";await cRefreshPool();
   }catch(e){a.busy=false;a.progress="";toast(errMsg(e),"err");renderAddItem();}
 }
@@ -194,7 +198,7 @@ function cField(rec,v,id,dis){const d=dis?" disabled":"";
     case"timezone":case"url":return '<input id="'+id+'" value="'+dEscapeAttr(v==null?"":v)+'"'+d+'>';
     case"rate":return '<div class="cinline"><label>от<input type="number" min="0" data-f="min" id="'+id+'" value="'+esc(v.min)+'"'+d+'></label><label>до<input type="number" min="1" data-f="max" value="'+esc(v.max)+'"'+d+'></label><select data-f="period"'+d+'><option value="day"'+(v.period==="day"?" selected":"")+'>в день</option><option value="week"'+(v.period==="week"?" selected":"")+'>в неделю</option></select></div>';
     case"hours":return '<input id="'+id+'" placeholder="10:00-22:00, 23:00-01:00" value="'+dEscapeAttr((v||[]).map(w=>w.from+"-"+w.to).join(", "))+'"'+d+'>';
-    case"link_frequency":return '<div class="cinline"><select data-f="mode" id="'+id+'"'+d+'><option value="percent"'+(v.mode==="percent"?" selected":"")+'>процент историй</option><option value="nth"'+(v.mode==="nth"?" selected":"")+'>каждая N-я</option></select><input type="number" min="0" data-f="value" value="'+esc(v.value)+'"'+d+'></div>';
+    case"link_frequency":return '<div class="cinline"><select data-f="mode" id="'+id+'"'+d+'><option value="percent"'+(v.mode==="percent"?" selected":"")+'>процент историй</option><option value="nth"'+(v.mode==="nth"?" selected":"")+'>каждая N-я</option><option value="daily"'+(v.mode==="daily"?" selected":"")+'>историй со ссылкой в день</option></select><input type="number" min="0" data-f="value" value="'+esc(v.value)+'"'+d+'></div>';
     case"hashtags":return '<div class="cstack"><label>Обязательные<input data-f="required" id="'+id+'" value="'+dEscapeAttr((v.required||[]).join(" "))+'"'+d+'></label><label>Из чего выбирать<input data-f="pool" value="'+dEscapeAttr((v.pool||[]).join(" "))+'"'+d+'></label><label>Всего не больше<input type="number" min="0" data-f="max" value="'+esc(v.max)+'"'+d+'></label></div>';
     default:return '<input id="'+id+'" value="'+dEscapeAttr(JSON.stringify(v))+'"'+d+'>';
   }

@@ -117,7 +117,7 @@ export default {
     const tool = toolbar({
       search: {id: "q", placeholder: "Название или номер", value: view.q},
       filters: [
-        {id: "content_type", label: "Тип", value: view.content_type, options: [["", "Все"], ["reel", "Reels"], ["carousel", "Карусели"], ["story", "Истории"]]},
+        {id: "content_type", label: "Тип", value: view.content_type, options: [["", "Все"], ["reel", "Reels"], ["carousel", "Карусели"], ["story", "Истории"], ["story_pool", "Папка историй"]]},
         {id: "status", label: "Пул", value: view.status, options: [["active", "Активные"], ["archived", "Архив"]]},
         {id: "cell_state", label: "Клетки", value: view.cell_state, options: [["", "Любые"], ["empty", "Не назначено"], ["waiting", "Ждёт плана"], ["scheduled", "Запланировано"], ["taken", "Взято телефоном"], ["published", "Вышло"], ["failed", "Сорвалось"]]},
         {id: "account", label: "Аккаунт", value: view.account, options: [["", "Все"], ...allAccounts.map((a) => [String(a.id), "@" + a.account_name])]},
@@ -134,7 +134,7 @@ export default {
     if (!items.length) return `<div class="whead"><h1>Контент</h1></div>${tool}${noData("В пуле нет материалов под эти фильтры.")}`;
     const all = items.every((i) => picked.has(i.id));
     const head = `<tr><th class="wm-item"><label class="wm-pick"><input type="checkbox" data-wpickall${all ? " checked" : ""}> Материал</label></th><th class="wm-type">Тип</th>${accounts.map((a) => `<th class="wm-acc" title="${escape(a.phone ? a.phone.name : "нет телефона")}"><div>@${escape(a.account_name)}</div><small>${escape(a.phone ? a.phone.name : "нет телефона")}</small></th>`).join("")}</tr>`;
-    const rows = items.map((i) => `<tr data-witem="${i.id}"><th class="wm-item"><div class="wm-it"><input type="checkbox" data-wpick="${i.id}"${picked.has(i.id) ? " checked" : ""}>${i.poster_url ? `<img src="${escape(i.poster_url)}" alt="" loading="lazy">` : '<span class="wm-noimg"></span>'}<div data-wopenitem="${i.id}"><div class="wm-t">${escape(i.title || "Без названия")}</div><div class="wmute">#${i.id} · ${ago(i.created_at)}${i.media_count > 1 ? ` · файлов ${i.media_count}` : ""}</div></div></div></th><td class="wm-type">${escape(TYPE[i.content_type] || i.content_type)}</td>${accounts.map((a) => cellHtml(i.cells[a.id] || {state: "blocked"}, i, a)).join("")}</tr>`).join("");
+    const rows = items.map((i) => `<tr data-witem="${i.id}"><th class="wm-item"><div class="wm-it"><input type="checkbox" data-wpick="${i.id}"${picked.has(i.id) ? " checked" : ""}>${i.poster_url ? `<img src="${escape(i.poster_url)}" alt="" loading="lazy">` : '<span class="wm-noimg"></span>'}<div data-wopenitem="${i.id}"><div class="wm-t">${escape(i.title || "Без названия")}</div><div class="wmute">#${i.id} · ${ago(i.created_at)}${i.media_count > 1 ? ` · файлов ${i.media_count}` : ""}</div></div></div></th><td class="wm-type">${escape(TYPE[i.content_type] || i.content_type)}${i.pool ? " · папка" : ""}</td>${accounts.map((a) => cellHtml(i.cells[a.id] || {state: "blocked"}, i, a)).join("")}</tr>`).join("");
     return `<div class="whead"><h1>Контент</h1><div class="whead-s">Материалов ${items.length}${d.next_before_id ? "+" : ""} · аккаунтов ${accounts.length} · клик по пустой клетке назначает, по назначенной — меню</div></div>${tool}
       <div class="wlegend">${legend}</div>
       <div class="wpanel wmatrix-wrap"><table class="wmatrix"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
