@@ -10,7 +10,8 @@ export function openDetails(key, {title, subtitle = "", body, onClose} = {}) {
   if (!root) return null;
   if (current && current.key !== key) current.onClose?.();
   current = {key, onClose};
-  root.innerHTML = `<div class="wdh"><div><div class="wdh-s">${escape(subtitle)}</div><div class="wdh-t">${escape(title)}</div></div><button class="wx" data-wclose aria-label="Закрыть">✕</button></div><div class="wdb" id="wdbody">${body}</div>`;
+  // «Свернуть» слева: справа сверху у Telegram свои кнопки окна, рядом с ними легко промахнуться.
+  root.innerHTML = `<div class="wdh"><button class="wdh-close" data-wclose aria-label="Свернуть панель">← Свернуть</button><div class="wdh-txt"><div class="wdh-s">${escape(subtitle)}</div><div class="wdh-t">${escape(title)}</div></div></div><div class="wdb" id="wdbody">${body}</div>`;
   root.classList.add("show");
   root.querySelector("[data-wclose]").onclick = closeDetails;
   return root.querySelector("#wdbody");

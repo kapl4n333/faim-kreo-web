@@ -306,3 +306,9 @@ body.wide #app{padding:0;margin:0;max-width:none}
 .wsf-i { display: flex; flex-direction: column; gap: 6px; }
 .wsf-i img, .wsf-i .wm-noimg { width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 8px; background: var(--wline, #2a2a2a); }
 .wq-t { max-width: 360px; }
+
+/* Панель деталей: «Свернуть» слева в шапке, крупная кнопка */
+#wdetails .wdh { justify-content: flex-start; gap: 12px; }
+.wdh-close { flex: none; padding: 6px 12px; border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13px; border: 1px solid color-mix(in srgb, var(--text) 18%, transparent); cursor: pointer; }
+.wdh-close:hover { background: var(--a-dim); color: var(--a2); }
+.wdh-txt { min-width: 0; }

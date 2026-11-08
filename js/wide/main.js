@@ -253,7 +253,8 @@ window.addEventListener("resize", onResize);
 window.FTWide = {
   /** Вызывается старым render() при каждой отрисовке, до выбора вкладки. */
   onTab(tab) {
-    if (tab === "auto" && !W.inAuto) { W.inAuto = true; enterFullscreen(); applySafeArea(); }
+    // Без полноэкранного режима: окно Mini App остаётся обычным, его размер меняет сам человек (08.11.2026).
+    if (tab === "auto" && !W.inAuto) { W.inAuto = true; applySafeArea(); }
     else if (tab !== "auto" && W.inAuto) { W.inAuto = false; W.mounted = false; closeDetails(); closeMenu(); exitFullscreen(); document.body.classList.remove("wide", "wnav-open"); }
   },
   wants: () => state().tab === "auto" && pickLayout(window.innerWidth) === "wide",
