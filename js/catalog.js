@@ -327,7 +327,7 @@ function renderDetail(){
       '<div class="row2"><button class="act" data-dact="defer">💤 Отложить</button></div>'
       :'<div class="note">В работе у <b>'+esc(nameOf(c.assignee_tg_id)||"?")+'</b> · взял '+ago(c.claimed_at||c.created_at)+'</div>'+
       '<div class="row2">'+(admin()?'<button class="act" data-dact="queue">↩ В свободные</button>':"")+'<button class="act" data-dact="defer">💤 Отложить</button></div>';}
-  else{acts='<button class="primary" data-dact="upload">📤 Загрузить ещё результат</button>'+
+  else{acts='<button class="primary" data-dact="autopost">🚀 Автозалить</button><button class="act" data-dact="upload">📤 Загрузить ещё результат</button>'+
     '<div class="row2">'+((mine||admin())?'<button class="act" data-dact="work">↩ Снова в работу</button>':"")+'<button class="act" data-dact="defer">💤 Отложить</button></div>';}
   if(admin()&&!c.deferred_at)acts+='<div class="assign"><select id="dassign"><option value="">↪ переназначить…</option><option value="0">← в свободные</option>'+
     S.members.map(m=>'<option value="'+m.tg_id+'"'+(String(m.tg_id)===String(c.assignee_tg_id)?" selected":"")+'>'+esc(m.name||("@"+(m.username||m.tg_id)))+'</option>').join("")+'</select></div>';
@@ -383,6 +383,7 @@ function bindDetail(d,c){
   d.querySelectorAll("[data-dact]").forEach(b=>b.onclick=()=>{
     const a=b.dataset.dact;
     if(a==="niche-rename"){const ids=c.niche_ids||[];if(ids.length===1)renameNiche(ids[0]);else{const n=prompt("ID/название ниши для переименования:\n"+ids.map(i=>i+" — "+(nicheOf(i)||{}).name).join("\n"));const id=+String(n||"").split(" ")[0];if(id)renameNiche(id);}return;}
+    if(a==="autopost"){openAutopost([c.id]);return;}
     creoAction(a,c.id);});
   const as=d.querySelector("#dassign");if(as)as.onchange=()=>{if(as.value!=="")doAssign(c.id,as.value);};
   d.querySelectorAll("[data-dn]").forEach(b=>b.onclick=async()=>{haptic();

@@ -19,7 +19,7 @@ function pickThumb(c){const m=tileMedia(c);const img=m.img||c.preview_url||c.sou
 function deliveryPickBar(){if(S.view!=="done")return"";const pick=S.deliveryPick||[],n=pick.length;
   const thumbs=pick.map(x=>S.creos.find(c=>c.id===x.creo_id)).filter(Boolean).map(pickThumb).join("");
   return '<div class="pickbar" id="pickbar"><div class="pickrow"><b>'+(n?n+' выбрано':'Отметь видео галочкой')+'</b>'+(n?'<button class="act" id="dpickclear">Сбросить</button>':'')+
-    '<div class="pickacts"><button class="act" id="dschedule"'+(n?"":" disabled")+'>Запланировать</button><button class="primary" id="dnow"'+(n?"":" disabled")+'>Уникализировать</button></div></div>'+
+    '<div class="pickacts"><button class="primary" id="dautopost"'+(n?"":" disabled")+'>Автозалить</button><button class="act" id="dschedule"'+(n?"":" disabled")+'>Запланировать</button><button class="primary" id="dnow"'+(n?"":" disabled")+'>Уникализировать</button></div></div>'+
     (n?'<div class="pickstrip">'+thumbs+'</div>':'')+'</div>';}
 function deliveryPickBadge(c){if(S.view!=="done"||!latestVideo(c))return"";
   return '<button class="pickcheck'+(pickHas(c.id)?" on":"")+'" data-dpick="'+c.id+'" aria-label="Выбрать видео">'+(pickHas(c.id)?"✓":"")+'</button>';}
@@ -30,6 +30,7 @@ function bindDeliveryCatalog(el){
   const clr=el.querySelector("#dpickclear");if(clr)clr.onclick=()=>{S.deliveryPick=[];render();};
   el.querySelectorAll("[data-dpick]").forEach(b=>b.onclick=e=>{e.stopPropagation();const y=window.scrollY;deliveryPickToggle(S.creos.find(c=>c.id===+b.dataset.dpick));window.scrollTo(0,y);});
   const now=el.querySelector("#dnow"),plan=el.querySelector("#dschedule");if(now)now.onclick=()=>openDeliveryWizard("immediate",S.deliveryPick);if(plan)plan.onclick=()=>openDeliveryWizard("scheduled",S.deliveryPick);
+  const ap=el.querySelector("#dautopost");if(ap)ap.onclick=()=>openAutopost(S.deliveryPick.map(x=>x.creo_id));
 }
 
 async function loadDeliveries(silent){
