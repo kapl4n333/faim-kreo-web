@@ -1,3 +1,4 @@
+import {phoneSetupHtml, screenSetsHtml} from "../ui/screen-setup.js";
 // Устройства: дерево «Все → ПК → телефон → аккаунты» и живая консоль справа.
 // «+» на каждом уровне описан сервером (add.kind, add.apply, add.candidates): страница только вызывает указанный action.
 import {call, errorText, escape, isAdmin, legacy, showToast} from "../bridge.js";
@@ -35,7 +36,7 @@ function phoneNode(p) {
   const accounts = p.accounts.filter((a) => matches(a.account_name) || matches(p.name) || matches(p.serial));
   return {
     key: `phone:${p.id}`,
-    cells: [`${dot(status)}<span class="wtn-n">${phoneName(p)}</span><span class="wmute mono">${escape(p.serial)}</span>`, `${badge(status)}${p.paused ? badge("paused") : ""}`, quiet(p.last_seen_at), `${modeBadge(p.mode, p.mode_reason)} ${isAdmin() ? phoneButtons(p) : ""}`, proxyText(p.proxy), `<span class="wmute">${p.accounts.length} акк.</span>`],
+    cells: [`${dot(status)}<span class="wtn-n">${phoneName(p)}</span><span class="wmute mono">${escape(p.serial)}</span>${phoneSetupHtml(p)}`, `${badge(status)}${p.paused ? badge("paused") : ""}`, quiet(p.last_seen_at), `${modeBadge(p.mode, p.mode_reason)} ${isAdmin() ? phoneButtons(p) : ""}<button class="wbtn wbtn-s" data-wsetup="${p.id}">Проверить и настроить</button>`, proxyText(p.proxy), `<span class="wmute">${p.accounts.length} акк.</span>`],
     children: accounts.map(accountNode),
     add: p.add ? {label: `Аккаунт${p.add.candidates.length ? ` · свободных ${p.add.candidates.length}` : ""}`, disabled: !p.add.candidates.length, title: p.add.candidates.length ? "" : "Свободных аккаунтов нет"} : null,
     menu: [{label: "Открыть консоль", act: "console"}, {label: p.paused ? "Снять паузу" : "Пауза", act: p.paused ? "resume" : "pause", admin: true}, {label: "Прокси телефона", act: "proxy_phone", admin: true}, {label: "Отвязать от ПК", act: "phone_free", admin: true}],
@@ -140,7 +141,7 @@ function openConsole(ctx, nodeKey) {
 function stopConsole() { clearInterval(con.timer); con.timer = null; con.target = null; con.key = null; }
 
 export default {
-  load: async (ctx) => (data = await ctx.call("device_tree")),
+  load: async (ctx) => { const [tree, screens] = await Promise.all([ctx.call("device_tree"), ctx.call("device_screen_sets")]); return (data = {...tree, ...screens}); },
   render(d, ctx) {
     data = d;
     const columns = [{label: "Устройство"}, {label: "Статус", width: "170px"}, {label: "Последняя связь", width: "150px"}, {label: "Режим / версия", width: "210px"}, {label: "Прокси", width: "170px"}, {label: "Ближайшая", width: "130px"}];
@@ -150,9 +151,19 @@ export default {
       actions: `<button class="wbtn" data-wdownload title="Установщик PostBot для нового ПК: спросит папку и поставит всё сам">⬇ Скачать программу</button>${isAdmin() ? '<button class="wbtn wbtn-p" data-wpair>+ Добавить ПК</button>' : ""}`,
     });
     const selected = con.key || null;
-    return `<div class="whead"><h1>Устройства</h1><div class="whead-s">Обновлено ${ago(d.server_now)}</div></div>${tool}<div class="wpanel">${tree(columns, nodes(), {selected})}</div>`;
+    return `<div class="whead"><h1>Устройства</h1><div class="whead-s">Обновлено ${ago(d.server_now)}</div></div>${tool}<div class="wpanel">${tree(columns, nodes(), {selected})}</div>${screenSetsHtml(d)}`;
   },
   bind(root, ctx) {
+    root.querySelectorAll("[data-wsetup]").forEach((b) => { b.onclick = async (event) => {
+      event.stopPropagation(); b.disabled = true;
+      try { await ctx.call("device_phone_setup", {id: Number(b.dataset.wsetup)}); await ctx.reload(); }
+      catch (e) { await confirmDialog("Не удалось запустить настройку", errorOf(e), {ok: "Понятно"}); b.disabled = false; }
+    }; });
+    root.querySelectorAll("[data-wscreen-decision]").forEach((b) => { b.onclick = async () => {
+      b.disabled = true;
+      try { await ctx.call("device_screen_decide", {set_id: Number(b.dataset.wscreenSet), phone_id: Number(b.dataset.wscreenPhone), decision: b.dataset.wscreenDecision}); await ctx.reload(); }
+      catch (e) { await confirmDialog("Подтверждение не принято", errorOf(e), {ok: "Понятно"}); b.disabled = false; }
+    }; });
     bindToolbar(root, (id, value) => { view[id] = value; ctx.redraw(); });
     bindTree(root, {
       redraw: ctx.redraw,

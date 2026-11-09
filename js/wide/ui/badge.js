@@ -19,6 +19,7 @@ export const STATUS = {
 };
 
 export const REASON = {
+  phone_setup_required: "Телефон настраивается", screen_approval_required: "Ждёт подтверждения кнопки «Поделиться»",
   no_binding: "Нет телефона", type_disabled: "Тип выключен", job_needs_decision: "Задание ждёт решения", phone_offline: "Телефон не на связи",
   account_paused: "Пауза аккаунта", phone_paused: "Пауза телефона", caption_settings_missing: "Нет промпта подписей",
   duplicate_conflict: "Дубль, нужно решение", not_logged_in: "Claude: нет входа", not_subscription: "Claude: не подписка",

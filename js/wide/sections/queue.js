@@ -12,7 +12,7 @@ export function rowsOf(d) {
   const a = (d.rows || []).filter((r) => (r.job_status ? LIVE.includes(r.job_status) : WAIT.includes(r.state)))
     .map((r) => ({key: `a${r.id}`, kind: "assignment", id: r.id, revision: r.revision, editable: r.editable && r.job_status !== "sent", type: r.content_type, account: r.account_name, title: r.title || r.caption || "", run_at: r.run_at, status: r.job_status || r.state, link: r.story_link, wait_reason: r.wait_reason, wait_detail: r.wait_detail, blocking_settings: r.blocking_settings}));
   const o = (d.old_form || []).filter((j) => LIVE.includes(j.job_status))
-    .map((j) => ({key: `j${j.job_id}`, kind: "job", id: j.job_id, revision: j.job_revision, editable: j.job_status === "queued", type: j.kind === "warmup_reels" ? "warmup" : j.content_type, account: j.account_name, title: j.caption || "", run_at: j.run_at, status: j.job_status}));
+    .map((j) => ({key: `j${j.job_id}`, kind: "job", id: j.job_id, revision: j.job_revision, editable: j.job_status === "queued", type: j.kind === "warmup_reels" ? "warmup" : j.content_type, account: j.account_name, title: j.caption || "", run_at: j.run_at, status: j.job_status, wait_reason: j.wait_reason, wait_detail: j.wait_detail}));
   return [...a, ...o].sort((x, y) => (x.run_at ? Date.parse(x.run_at) : Infinity) - (y.run_at ? Date.parse(y.run_at) : Infinity));
 }
 
