@@ -19,6 +19,7 @@ export const STATUS = {
 };
 
 export const REASON = {
+  account_hold: "Аккаунт ждёт решения, телефон свободен", main_app_forbidden: "Основной Instagram запрещён на этом телефоне", app_not_allowed: "Клон не разрешён или не найден", app_proxy_missing: "Нет настроенного SOCKS5 для клона", app_account_conflict: "В клоне другой аккаунт", worker_clone_unsupported: "Нужно обновить PostBot", route_mismatch: "Маршрут прокси не совпал", proxy_not_ready: "Прокси телефона недоступен",
   phone_setup_required: "Телефон настраивается", screen_approval_required: "Ждёт подтверждения кнопки «Поделиться»",
   no_binding: "Нет телефона", type_disabled: "Тип выключен", job_needs_decision: "Задание ждёт решения", phone_offline: "Телефон не на связи",
   account_paused: "Пауза аккаунта", phone_paused: "Пауза телефона", caption_settings_missing: "Нет промпта подписей",

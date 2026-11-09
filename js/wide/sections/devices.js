@@ -1,3 +1,4 @@
+import {manageClones} from '../ui/clones.js';
 import {phoneSetupHtml, screenSetsHtml} from "../ui/screen-setup.js";
 // Устройства: дерево «Все → ПК → телефон → аккаунты» и живая консоль справа.
 // «+» на каждом уровне описан сервером (add.kind, add.apply, add.candidates): страница только вызывает указанный action.
@@ -39,7 +40,7 @@ function phoneNode(p) {
     cells: [`${dot(status)}<span class="wtn-n">${phoneName(p)}</span><span class="wmute mono">${escape(p.serial)}</span>${phoneSetupHtml(p)}`, `${badge(status)}${p.paused ? badge("paused") : ""}`, quiet(p.last_seen_at), `${modeBadge(p.mode, p.mode_reason)} ${isAdmin() ? phoneButtons(p) : ""}<button class="wbtn wbtn-s" data-wsetup="${p.id}">Проверить и настроить</button>`, proxyText(p.proxy), `<span class="wmute">${p.accounts.length} акк.</span>`],
     children: accounts.map(accountNode),
     add: p.add ? {label: `Аккаунт${p.add.candidates.length ? ` · свободных ${p.add.candidates.length}` : ""}`, disabled: !p.add.candidates.length, title: p.add.candidates.length ? "" : "Свободных аккаунтов нет"} : null,
-    menu: [{label: "Открыть консоль", act: "console"}, {label: p.paused ? "Снять паузу" : "Пауза", act: p.paused ? "resume" : "pause", admin: true}, {label: "Прокси телефона", act: "proxy_phone", admin: true}, {label: "Отвязать от ПК", act: "phone_free", admin: true}],
+    menu: [{label: "Клоны и аккаунты", act: "clones", admin: true}, {label: "Открыть консоль", act: "console"}, {label: p.paused ? "Снять паузу" : "Пауза", act: p.paused ? "resume" : "pause", admin: true}, {label: "Прокси телефона", act: "proxy_phone", admin: true}, {label: "Отвязать от ПК", act: "phone_free", admin: true}],
   };
 }
 
@@ -254,6 +255,7 @@ function addDialog(ctx, nodeKey) {
 async function menuAction(ctx, act, key) {
   const n = Number(key.split(":")[1]);
   try {
+    if (act === "clones") return manageClones(n,()=>ctx.reload());
     if (act === "console") return openConsole(ctx, key);
     if (act === "card") return ctx.openAccount(n);
     if (act === "pause" || act === "resume") { await call(act === "pause" ? "device_phone_pause" : "device_phone_resume", {id: n}); return ctx.reload(); }

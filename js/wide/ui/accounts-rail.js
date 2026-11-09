@@ -6,7 +6,7 @@ import {ago} from "./format.js";
 const FILTERS = [["", "Все"], ["working", "Работают"], ["attention", "Внимание"], ["paused", "Пауза"], ["no_phone", "Без телефона"]];
 const view = {q: "", status: ""};
 
-const EVENT = {claimed: "взято", committed: "разрешение", needs_attention: "нужно решение", confirmed: "подтверждено", cancelled: "отменено", retried: "повтор", missed: "пропущено", unknown: "неизвестно",
+const EVENT = {phone_released:"телефон освобождён",route_verified:"маршрут проверен",app_bound:"клон привязан",claimed: "взято", committed: "разрешение", needs_attention: "нужно решение", confirmed: "подтверждено", cancelled: "отменено", retried: "повтор", missed: "пропущено", unknown: "неизвестно",
   created: "создано", edited: "изменено", replanned: "перепланировано", evidence: "снимок экрана", attention_cleared: "продолжено",
   resolved_cancel: "отменено человеком", resolved_not_published: "возвращено в очередь", resolved_published: "отмечено вышедшим",
   result_needs_attention: "ПК: нужно решение", result_sent: "ПК: отправлено", result_failed: "ПК: ошибка", result_done: "ПК: готово"};

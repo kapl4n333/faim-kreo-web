@@ -1,3 +1,4 @@
+import {manageClones} from '../ui/clones.js';
 // Аккаунты: таблица и карточка. В карточке: правка расписания, настройки «как в общих / своё», тексты кнопок,
 // телефон и прокси. Все действия через существующие action, проверки на сервере.
 import {call, escape, isAdmin, legacy} from "../bridge.js";
@@ -100,6 +101,7 @@ function cardView(c) {
       <div class="wacard-h"><div><div class="wacard-n">@${escape(a.account_name)}</div><div class="wmute">${escape(a.platform || "")} · пояс ${escape(a.timezone)}</div></div>${badge(a.status, {title: reasonText(a.status_reason)})}</div>
       <div class="wkv">
         <div><span>Телефон ${admin ? '<button class="wlink" data-wphone>изменить</button>' : ""}${a.phone ? ' <button class="wlink" data-wverify>проверить</button>' : ""}</span><b>${a.phone ? `${escape(a.phone.name)} ${a.phone.online ? badge("online") : badge("offline")}` : "нет"}</b></div>
+        <div><span>Приложение</span><b>${escape(c.binding?.app_package || "com.instagram.android")}</b></div>
         <div><span>Ник на телефоне</span><b>${escape(c.binding?.expected_handle || "—")}</b></div>
         <div><span>Прокси ${admin ? '<button class="wlink" data-wproxy>изменить</button>' : ""}</span><b>${a.proxy ? `${escape(a.proxy.host)}:${a.proxy.port}${a.proxy_source === "phone" ? " (телефона)" : ""}` : "—"}</b></div>
         <div><span>Ближайшая публикация</span><b>${a.next_local ? localText(a.next_local) : "—"}</b></div>
@@ -191,6 +193,7 @@ async function warmupNow(ctx, c) {
 }
 
 async function changePhone(ctx, c) {
+  if(c.binding?.app_package && c.binding.app_package!=="com.instagram.android")return manageClones(c.binding.phone_id,()=>ctx.reload());
   const tree = await call("device_tree");
   const phones = [...tree.workers.flatMap((w) => w.phones.map((p) => ({...p, worker: w.name}))), ...tree.unbound_phones];
   dialog({

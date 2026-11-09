@@ -40,7 +40,7 @@ export default {
         <td>@${escape(String(r.account || "").replace(/^@/, ""))}</td>
         <td class="wq-t">${escape(r.title)}${r.type === "story" && r.link ? `<div class="wmute">ссылка: ${r.link.enabled ? escape(r.link.text || r.link.url || "") : "нет"}</div>` : ""}${r.wait_reason ? `<div class="wwarn">${escape(reasonText(r.wait_reason))}${r.wait_detail ? `: ${escape(r.wait_detail)}` : ""}</div><div class="wmute">${escape(reasonAction(r.wait_reason, r.blocking_settings))}</div>` : ""}</td>
         <td>${escape((STATUS[r.status] || [r.status])[0])}</td>
-        <td>${r.editable ? `<button class="wbtn wbtn-s" data-wqcancel="${r.key}">Отменить</button>` : `<span class="wmute">${r.status === "sent" ? "Отправлено, не подтверждено" : "телефон уже взял"}</span>`}</td>
+        <td>${r.editable ? `<button class="wbtn wbtn-s" data-wqcancel="${r.key}">Отменить</button>` : `<span class="wmute">${r.wait_reason === "account_hold" ? "Аккаунт ждёт решения, телефон свободен" : r.status === "sent" ? "Отправлено, не подтверждено" : "телефон уже взял"}</span>`}</td>
       </tr>`).join("");
     return `<div class="whead"><h1>Очередь</h1><div class="whead-s">Всё запланированное по времени: из Пула, из папки историй и из старой формы. Отмена здесь.</div></div>
       <div class="wtool"><label>Тип <select data-wqfilter><option value="all"${kindFilter === "all" ? " selected" : ""}>Всё</option><option value="publish"${kindFilter === "publish" ? " selected" : ""}>Заливы</option><option value="warmup"${kindFilter === "warmup" ? " selected" : ""}>Прогрев</option></select></label></div>

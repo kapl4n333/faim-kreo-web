@@ -7,6 +7,11 @@ globalThis.esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({"&"
 globalThis.document = {addEventListener() {}};
 const {default: queue} = await import("../js/wide/sections/queue.js");
 
+test("account hold stays visible and says the phone is free",()=>{
+  const html=queue.render({old_form:[{job_id:7,content_type:"reel",account_name:"held",caption:"Held job",job_status:"unknown",wait_reason:"account_hold"}]});
+  assert(html.includes("Held job"));assert(html.includes("Аккаунт ждёт решения, телефон свободен"));assert(!html.includes('data-wqcancel'));
+});
+
 test("sent from assignments and the old form stays visible, counts today and cannot be cancelled", () => {
   const run_at = new Date().toISOString();
   const data = {rows: [{id: 1, editable: true, content_type: "reel", title: "Материал", state: "scheduled", job_status: "sent", run_at}], old_form: [{job_id: 2, content_type: "story", caption: "Старая форма", job_status: "sent", run_at}]};
