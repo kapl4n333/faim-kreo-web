@@ -28,7 +28,7 @@ export default {
         const rec = d.registry.find((r) => r.key === key);
         b.disabled = true;
         try {
-          await call("content_settings_set", {scope: 0, key, mode: "set", value: readSetting(root, rec)});
+          await call("content_settings_set", {scope: "global", key, mode: "set", value: readSetting(root, rec)});
           saved.set(key, "ok");
           ctx.reload();
         } catch (e) {
