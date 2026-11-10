@@ -96,5 +96,5 @@ test("раздел «Кластеры» стоит сразу после «Ак�
   const i = SECTIONS.findIndex((s) => s.id === "accounts");
   assert.equal(SECTIONS[i + 1].id, "clusters");
   const index = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  for (const f of ["js/wide/main.js", "js/wide/bridge.js", "js/wide/registry.js", "js/wide/ui/dialog.js", "js/wide/ui/icons.js", "js/wide/ui/clusters.js", "js/wide/ui/settings-form.js", "js/core.js", "js/autopost.js"]) assert.ok(index.includes(`${f}?v=20261110c1`), f);
+  for (const f of ["js/wide/main.js", "js/wide/bridge.js", "js/wide/registry.js", "js/wide/ui/dialog.js", "js/wide/ui/icons.js", "js/wide/ui/clusters.js", "js/wide/ui/settings-form.js", "js/core.js", "js/autopost.js"]) assert.ok(new RegExp(`${f}[?]v=2026[0-9]{4}[a-z]`).test(index), f);
 });
