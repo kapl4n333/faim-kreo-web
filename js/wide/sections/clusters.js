@@ -83,7 +83,7 @@ function poolTab(d) {
   const items = d.card.items;
   const total = d.card.accounts.length;
   const manual = items.filter((i) => i.source === "manual").length;
-  const poster = (i) => { const url = d.posters?.[i.id]; return `<div class="wm-it">${url ? `<img src="${escape(url)}" alt="" loading="lazy">` : '<span class="wm-noimg"></span>'}</div>`; };
+  const poster = (i) => { const url = i.poster_url || d.posters?.[i.id]; return `<div class="wm-it">${url ? `<img src="${escape(url)}" alt="" loading="lazy">` : '<span class="wm-noimg"></span>'}</div>`; };
   const tool = `<div class="wtool"><span class="wmute">Вручную: ${manual} · из ниш: ${items.length - manual}. Материал из ниши уходит из пула, только если сменить ниши кластера.</span><div class="wtool-sp"></div><button class="wbtn wbtn-p" data-wcadditem>+ Добавить из пула</button></div>`;
   return tool + table("cl-items", [
     {key: "poster", label: "", width: "46px", sort: false, html: poster},

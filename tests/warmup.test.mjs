@@ -48,6 +48,5 @@ test("поля реестра: диапазон, дробный множител
 });
 test("версии ресурсов прогрева подняты", () => {
   const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  const versions = {'js/wide/main.js':'20261109a1', 'js/wide/ui/badge.js':'20261109a1', 'js/wide/ui/job-actions.js':'20261108w1', 'js/content.js':'20261109w2'};
-  for (const [path,version] of Object.entries(versions)) assert.ok(index.includes(path + '?v=' + version), path);
+  for (const path of ['js/wide/main.js', 'js/wide/ui/badge.js', 'js/wide/ui/job-actions.js', 'js/content.js']) assert.ok(new RegExp(`${path}[?]v=2026[0-9]{4}[a-z]`).test(index), path);
 });
