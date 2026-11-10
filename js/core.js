@@ -85,7 +85,8 @@ const ERR={not_member:"Тебя нет в команде FTask.",forbidden:"Не
   bad_items:"Проверь выбранные видео.",bad_asset:"Выбранная версия больше недоступна.",not_ready:"Видео ещё не готово.",
   bad_account:"Аккаунт недоступен.",batch_locked:"Пачка уже отправляется или закрыта.",
   bad_format:"Этот формат нельзя залить: нужен файл .mp4.",not_bound:"Аккаунт не привязан к телефону.",asset_missing:"Файл не найден на сервере.",caption_too_long:"Подпись слишком длинная.",
-  duplicate_asset:"Этот файл уже есть на аккаунте.",bad_kind:"Этот тип задачи недоступен для аккаунта.",bad_time:"Проверь дату и время.",no_handle:"Укажи ник на телефоне.",bad_gap:"Интервал должен быть от 0 до 1440 минут."};
+  duplicate_asset:"Этот файл уже есть на аккаунте.",bad_kind:"Этот тип задачи недоступен для аккаунта.",bad_time:"Проверь дату и время.",no_handle:"Укажи ник на телефоне.",bad_gap:"Интервал должен быть от 0 до 1440 минут.",
+  bad_item:"Материал не активен или не для Instagram."};
 const errMsg=e=>{const m=(e&&e.message)||"";if(/failed to fetch|networkerror|load failed/i.test(m))return ERR.network;return ERR[m]||"Не вышло. "+(m||"Попробуй ещё раз.");};
 function toast(msg,type){
   const t=document.createElement("div");t.className="toast"+(type?" "+type:"");t.textContent=msg;

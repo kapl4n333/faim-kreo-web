@@ -37,6 +37,33 @@ const items = Array.from({length: 18}, (_, i) => ({id: 240 - i, content_type: i 
     return [a.id, {state, assignment_id: state === "empty" ? null : 1000 + i * 20 + j, run_at: state === "scheduled" || state === "published" ? at((k - 4) * 180) : null, wait_reason: state === "waiting" ? "caption_settings_missing" : null}];
   }))}));
 
+// Кластеры: два кластера, у части аккаунтов разгон и последняя проверка.
+const CLUSTERS = [{id: 1, name: "Фитнес", platform: "instagram", niche_ids: [1], paused: false}, {id: 2, name: "Лайфстайл", platform: "instagram", niche_ids: [], paused: true}];
+accounts.forEach((a, i) => {
+  a.cluster = i < 5 ? {id: 1, name: "Фитнес"} : i < 7 ? {id: 2, name: "Лайфстайл"} : null;
+  a.ramp = i === 1 ? {ageDays: 1, warmupDays: 3, days: 7} : i === 3 ? {ageDays: 5, warmupDays: 3, days: 7} : null;
+  a.health = i === 6 ? null : i === 2 ? {ok: false, status: "needs_attention", error_code: "handle_mismatch", at: at(-90)} : {ok: true, status: "done", error_code: null, at: at(-60 * (i + 1))};
+});
+const CLUSTER_REG = [
+  {key: "cluster.reserve_per_type", type: "int", min: 1, max: 30, default: 3, scope: "both", group: "Кластер", label: "Запас назначений на аккаунт, каждого типа"},
+  {key: "cluster.max_parallel_per_item", type: "int", min: 1, max: 100, default: 3, scope: "both", group: "Кластер", label: "Один материал одновременно, аккаунтов"},
+  {key: "cluster.repeat_after_days", type: "int", min: 0, max: 365, default: 0, scope: "both", group: "Кластер", label: "Повтор материала после полного прохода, дней", hint: "0 — не повторять"},
+  {key: "ramp.enabled", type: "bool", default: true, scope: "both", group: "Разгон новых аккаунтов", label: "Разгон новых аккаунтов"},
+  {key: "health.interval_hours", type: "int", min: 0, max: 168, default: 12, scope: "both", group: "Здоровье клонов", label: "Проверка аккаунта, раз в N часов"},
+];
+function clusterReply(action, p) {
+  const c = CLUSTERS.find((x) => x.id === Number(p.id)) || CLUSTERS[0];
+  const members = accounts.filter((a) => a.cluster?.id === c.id);
+  if (action === "content_cluster_list") return {clusters: CLUSTERS.map((x) => ({...x, accounts: accounts.filter((a) => a.cluster?.id === x.id).length, items: x.id === 1 ? 6 : 0, open: x.id === 1 ? 11 : 0, published: x.id === 1 ? 23 : 0}))};
+  if (action === "content_cluster_card") return {cluster: c, accounts: members.map((a, i) => ({account_id: a.id, account_name: a.account_name, has_phone: !!a.phone, open: 3 - (i % 2), published: i * 2, ramp: a.ramp})),
+    items: c.id === 1 ? items.slice(0, 6).map((it, i) => ({id: it.id, content_type: it.content_type, title: it.title, poster_path: null, source: i < 4 ? "manual" : "niche", assigned: 3 + i, published: i})) : []};
+  if (action === "content_cluster_settings") return {registry: [...REGISTRY.filter((r) => r.scope === "both"), ...CLUSTER_REG], values: c.id === 1 ? {"cluster.reserve_per_type": 2, "rate.reel": {min: 1, max: 2, period: "day"}} : {}};
+  if (action === "content_pool_list") return {items: items.map((it) => ({...it, platform: "instagram"})), accounts: []};
+  if (action === "content_cluster_distribute") return {made: 4};
+  if (/^content_cluster_/.test(action)) { (window.__wideCalls ||= []).push([action, p]); return action === "content_cluster_save" ? {cluster: {...c, ...p, id: p.id || 3}} : {ok: true}; }
+  return null;
+}
+
 let eventId = 500;
 const events = () => Array.from({length: 14}, (_, i) => ({id: ++eventId, job_id: 118, source: i % 4 === 0 ? "server" : "app", type: ["claimed", "step", "step", "screen", "tap_intent", "tap_done", "heartbeat"][i % 7], at: at(-14 + i), detail: {step: ["open_app", "pick_media", "caption", "share"][i % 4], ms: 400 + i * 37}}));
 
@@ -46,6 +73,8 @@ export const REGISTRY = [{"key":"enabled.reel","type":"bool","default":true,"sco
 
 export function deskReply(action, p) {
   if (action === "account_list") return {accounts, server_now: at(0)};
+  const cluster = clusterReply(action, p);
+  if (cluster) return cluster;
   if (action === "device_tree") return tree;
   if (action === "desk_overview") return {
     timezone: "Europe/Warsaw", today: loc(0).slice(0, 10), tomorrow: loc(1440).slice(0, 10), account_count: accounts.length,

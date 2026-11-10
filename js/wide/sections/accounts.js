@@ -11,6 +11,8 @@ import {bindRowActions, rowActions} from "../ui/schedule-edit.js";
 import {eventLabel} from "../ui/accounts-rail.js";
 import {bindJobButtons, jobButtons} from "../ui/job-actions.js";
 import {chooseProxy} from "../ui/proxy-pick.js";
+import {settingValue} from "../ui/settings-form.js";
+import {healthHtml, rampBadge} from "../ui/clusters.js";
 
 const view = {q: "", status: "", tab: "schedule"};
 const TABS = [["schedule", "Расписание"], ["warmup", "Прогрев"], ["history", "История"], ["settings", "Настройки"], ["texts", "Тексты кнопок"], ["link", "Ссылка"]];
@@ -26,23 +28,14 @@ function listView(d) {
     {key: "account_name", label: "Ник", html: (a) => `<b>@${escape(a.account_name)}</b>`},
     {key: "phone", label: "Телефон", width: "150px", value: (a) => a.phone?.name, html: (a) => (a.phone ? `${escape(a.phone.name)} ${a.phone.online ? "" : '<span class="wbad">не на связи</span>'}` : '<span class="wmute">нет</span>')},
     {key: "proxy", label: "Прокси", width: "170px", value: (a) => a.proxy?.host, html: (a) => (a.proxy ? `${escape(a.proxy.host)}:${a.proxy.port}${a.proxy_source === "phone" ? ' <span class="wmute">телефона</span>' : ""}` : '<span class="wmute">—</span>')},
-    {key: "status", label: "Статус", width: "200px", html: (a) => `${badge(a.status)} <span class="wmute">${escape(a.status === "working" ? "" : reasonText(a.status_reason))}</span>`},
+    {key: "status", label: "Статус", width: "200px", html: (a) => `${badge(a.status)} <span class="wmute">${escape(a.status === "working" ? "" : reasonText(a.status_reason))}</span>${a.ramp ? ` ${rampBadge(a.ramp)}` : ""}`},
+    {key: "cluster", label: "Кластер", width: "140px", value: (a) => a.cluster?.name, html: (a) => (a.cluster ? `<button class="wlink" data-wcluster="${a.cluster.id}">${escape(a.cluster.name)}</button>` : '<span class="wmute">—</span>')},
+    {key: "health", label: "Проверка", width: "150px", value: (a) => a.health?.at, html: (a) => healthHtml(a.health)},
     {key: "next_run_at", label: "Ближайшая публикация", width: "170px", html: (a) => (a.next_local ? localText(a.next_local) : '<span class="wmute">—</span>')},
     {key: "last_action", label: "Последнее действие", width: "190px", value: (a) => a.last_action?.at, html: (a) => (a.last_action ? `${escape(eventLabel(a.last_action.type))} · ${ago(a.last_action.at)}` : '<span class="wmute">—</span>')},
     {key: "joins", label: "Вступления 7 дн / всего", width: "160px", align: "right", value: (a) => a.joins.total, html: (a) => `${num(a.joins.d7)} / <b>${num(a.joins.total)}</b>`},
   ], list, {rowAttr: (a) => `data-wopen="${a.id}"`, empty: "Аккаунтов нет"});
   return `<div class="whead"><h1>Аккаунты</h1><div class="whead-s">${list.length} из ${d.accounts.length}</div></div>${tool}<div class="wpanel">${t}</div>`;
-}
-
-function settingValue(v) {
-  if (v == null || v === "") return '<span class="wmute">пусто</span>';
-  if (typeof v === "boolean") return v ? "да" : "нет";
-  if (Array.isArray(v) && v.every((x) => x && x.from)) return v.map((x) => `${x.from}–${x.to}`).join(", ");
-  if (typeof v === "object" && "min" in v && "max" in v) return `${v.min}–${v.max}${v.period ? ` в ${v.period === "week" ? "неделю" : "день"}` : ""}`;
-  if (typeof v === "object" && "mode" in v) return v.mode === "percent" ? `${v.value}% историй` : `каждая ${v.value}-я`;
-  if (typeof v === "object") return `<span class="mono">${escape(JSON.stringify(v))}</span>`;
-  const s = String(v);
-  return s.length > 160 ? `${escape(s.slice(0, 160))}…` : escape(s);
 }
 
 function cardTab(c) {
@@ -98,7 +91,7 @@ function cardView(c) {
   const tabs = TABS.map(([k, l]) => `<button class="wtab${view.tab === k ? " on" : ""}" data-wtab="${k}">${l}</button>`).join("");
   return `<div class="whead"><button class="wlink" data-wlist>← Все аккаунты</button></div>
     <div class="wacard">
-      <div class="wacard-h"><div><div class="wacard-n">@${escape(a.account_name)}</div><div class="wmute">${escape(a.platform || "")} · пояс ${escape(a.timezone)}</div></div>${badge(a.status, {title: reasonText(a.status_reason)})}</div>
+      <div class="wacard-h"><div><div class="wacard-n">@${escape(a.account_name)}</div><div class="wmute">${escape(a.platform || "")} · пояс ${escape(a.timezone)}</div></div><div>${a.ramp ? `${rampBadge(a.ramp)} ` : ""}${badge(a.status, {title: reasonText(a.status_reason)})}</div></div>
       <div class="wkv">
         <div><span>Телефон ${admin ? '<button class="wlink" data-wphone>изменить</button>' : ""}${a.phone ? ' <button class="wlink" data-wverify>проверить</button>' : ""}</span><b>${a.phone ? `${escape(a.phone.name)} ${a.phone.online ? badge("online") : badge("offline")}` : "нет"}</b></div>
         <div><span>Приложение</span><b>${escape(c.binding?.app_package || "com.instagram.android")}</b></div>
@@ -108,6 +101,8 @@ function cardView(c) {
         <div><span>Последнее действие</span><b>${a.last_action ? `${escape(eventLabel(a.last_action.type))} · ${ago(a.last_action.at)}` : "—"}</b></div>
         <div><span>Вступления 24 ч / 7 дн / всего</span><b>${num(a.joins.d1)} / ${num(a.joins.d7)} / ${num(a.joins.total)}</b></div>
         <div><span>Медленный режим</span><b>${c.binding ? slowText(c.binding.min_gap_minutes) : "—"}</b></div>
+        <div><span>Кластер</span><b>${a.cluster ? `<button class="wlink" data-wcluster="${a.cluster.id}">${escape(a.cluster.name)}</button>` : "—"}</b></div>
+        <div><span>Последняя проверка</span><b>${healthHtml(a.health)}</b></div>
       </div>
       ${a.status !== "working" && a.status_reason ? `<div class="wwarn">${escape(reasonText(a.status_reason))}</div>` : ""}
     </div>
@@ -231,6 +226,7 @@ export default {
     bindSort(root, ctx.redraw);
     bindJobButtons(root, () => ctx.reload());
     root.querySelectorAll("[data-wopen]").forEach((tr) => { tr.onclick = () => ctx.openAccount(Number(tr.dataset.wopen)); });
+    root.querySelectorAll("[data-wcluster]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); ctx.go("clusters", {id: Number(b.dataset.wcluster)}); }; });
     root.querySelectorAll("[data-wtab]").forEach((b) => { b.onclick = () => { view.tab = b.dataset.wtab; ctx.redraw(); }; });
     const back = root.querySelector("[data-wlist]");
     if (back) back.onclick = () => ctx.go("accounts", {});

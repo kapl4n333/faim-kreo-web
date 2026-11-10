@@ -3,6 +3,8 @@
 /* global S, api, tg, esc, toast, errMsg, header, render, savePrefs, openAddItem, cField, cFieldRead, CA_WAIT, CA_REJECT */
 
 export const state = () => S;
+/** Ниши каталога (bootstrap): [{id, name}], для выбора ниш кластера. */
+export const niches = () => (typeof S !== "undefined" && Array.isArray(S.niches) ? S.niches : []);
 export const call = (action, params) => api(action, params);
 export const telegram = () => (typeof tg === "undefined" ? null : tg);
 export const escape = (s) => esc(s);

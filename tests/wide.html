@@ -9,10 +9,10 @@
 // Свежая версия модулей на каждую загрузку демо: тот же приём, что importmap в index.html.
 window.__V = String(Date.now());
 document.write('<link rel="stylesheet" href="../css/wide.css?v=' + __V + '">');
-const files = ["bridge", "registry", "ui/accounts-rail", "ui/badge", "ui/details", "ui/dialog", "ui/empty", "ui/format", "ui/icons", "ui/proxy-pick", "ui/schedule-edit", "ui/table", "ui/tree"];
+const files = ["bridge", "registry", "ui/accounts-rail", "ui/badge", "ui/details", "ui/dialog", "ui/empty", "ui/format", "ui/icons", "ui/proxy-pick", "ui/schedule-edit", "ui/table", "ui/tree", "ui/clusters", "ui/settings-form"];
 document.write('<script type="importmap">' + JSON.stringify({imports: Object.fromEntries(files.map((f) => ["../js/wide/" + f + ".js", "../js/wide/" + f + ".js?v=" + __V]))}) + '<\/script>');
 </script>
-<!-- Демо широкой раскладки «Автозалива» на вымышленных данных. ?section=devices|content|accounts&id=1
+<!-- Демо широкой раскладки «Автозалива» на вымышленных данных. ?section=devices|content|accounts|clusters&id=1
      ?tg=fullscreen|old|none — подставной Telegram: с requestFullscreen, версия 7.0 без него, без Telegram. -->
 </head>
 <body>
