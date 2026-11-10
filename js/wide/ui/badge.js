@@ -19,7 +19,7 @@ export const STATUS = {
 };
 
 export const REASON = {
-  account_hold: "Аккаунт ждёт решения, телефон свободен", main_app_forbidden: "Основной Instagram запрещён на этом телефоне", app_not_allowed: "Клон не разрешён или не найден", app_proxy_missing: "Нет настроенного SOCKS5 для клона", app_account_conflict: "В клоне другой аккаунт", worker_clone_unsupported: "Нужно обновить PostBot", route_mismatch: "Маршрут прокси не совпал", proxy_not_ready: "Прокси телефона недоступен",
+  account_hold: "Аккаунт ждёт решения, телефон свободен", phone_fault: "Телефон не готов (экран блокировки, adb или VPN), ждём", confirm_timeout: "Отправлено, но не подтверждено в профиле", post_moved: "Публикация сдвинулась, прогрев отменён", app_platform_mismatch: "Клон другой платформы", main_app_forbidden: "Основной Instagram запрещён на этом телефоне", app_not_allowed: "Клон не разрешён или не найден", app_proxy_missing: "Нет настроенного SOCKS5 для клона", app_account_conflict: "В клоне другой аккаунт", worker_clone_unsupported: "Нужно обновить PostBot", route_mismatch: "Маршрут прокси не совпал", proxy_not_ready: "Прокси телефона недоступен",
   phone_setup_required: "Телефон настраивается", screen_approval_required: "Ждёт подтверждения кнопки «Поделиться»",
   no_binding: "Нет телефона", type_disabled: "Тип выключен", job_needs_decision: "Задание ждёт решения", phone_offline: "Телефон не на связи",
   account_paused: "Пауза аккаунта", phone_paused: "Пауза телефона", caption_settings_missing: "Нет промпта подписей",
@@ -31,7 +31,7 @@ export const REASON = {
   gemini_key_missing: "Gemini: нет ключа в .env", gemini_key_invalid: "Gemini: ключ не принят", gemini_unavailable: "Gemini недоступен", claude_unavailable: "Claude недоступен", bad_output: "Ответ не прошёл схему", timeout: "Нет ответа вовремя",
 };
 
-export const TYPE = {reel: "Reels", carousel: "Карусель", story: "История", warmup: "Прогрев", warmup_reels: "Прогрев"};
+export const TYPE = {reel: "Reels", carousel: "Карусель", story: "История", warmup: "Прогрев", warmup_reels: "Прогрев", publish_text: "Пост Threads", engage: "Лента Threads"};
 
 export function badge(status, {label, title} = {}) {
   const [text, tone] = STATUS[status] || [status || "—", "mute"];

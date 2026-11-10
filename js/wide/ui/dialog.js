@@ -59,6 +59,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && open) cl
 
 /** Текст ошибки сервера для человека. */
 const ERRORS = {
+  clone_limit_reached: "На телефоне уже 10 разрешённых клонов этой платформы. Отключите лишний клон.",
   worker_update_required: "Для определения клонов обновите PostBot на подключённом ПК.",
   clone_feature_disabled: "Интеграция клонов ещё не включена на сервере.",
   main_app_forbidden: "Основной Instagram запрещён на этом телефоне. Выберите и определите клон.",
