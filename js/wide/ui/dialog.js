@@ -59,6 +59,11 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && open) cl
 
 /** Текст ошибки сервера для человека. */
 const ERRORS = {
+  threads_clone_missing: "На этом телефоне нет клона Threads с тем же номером, что у клона Instagram. Сделайте клон Threads в клонере и подождите минуту, пока PostBot его увидит.",
+  no_threads_pair: "Для этого приложения Instagram нет пары Threads.",
+  app_account_conflict: "Это приложение Threads на телефоне уже привязано к другому нику.",
+  account_bound_elsewhere: "Этот Threads-аккаунт уже привязан к другому телефону или приложению.",
+  ambiguous_account: "Найдено несколько аккаунтов с этим ником. Уберите лишний в архив.",
   clone_limit_reached: "На телефоне уже 10 разрешённых клонов этой платформы. Отключите лишний клон.",
   worker_update_required: "Для определения клонов обновите PostBot на подключённом ПК.",
   clone_feature_disabled: "Интеграция клонов ещё не включена на сервере.",

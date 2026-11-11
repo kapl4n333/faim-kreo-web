@@ -25,7 +25,7 @@ function listView(d) {
     filters: [{id: "status", label: "Статус", value: view.status, options: [["", "Все"], ["working", "Работает"], ["attention", "Внимание"], ["paused", "Пауза"], ["no_phone", "Без телефона"]]}],
   });
   const t = table("accounts", [
-    {key: "account_name", label: "Ник", html: (a) => `<b>@${escape(a.account_name)}</b>`},
+    {key: "account_name", label: "Ник", html: (a) => `<b>@${escape(a.account_name)}</b>${a.platform === "threads" ? ' <span class="wmute">Threads</span>' : ""}`},
     {key: "phone", label: "Телефон", width: "150px", value: (a) => a.phone?.name, html: (a) => (a.phone ? `${escape(a.phone.name)} ${a.phone.online ? "" : '<span class="wbad">не на связи</span>'}` : '<span class="wmute">нет</span>')},
     {key: "proxy", label: "Прокси", width: "170px", value: (a) => a.proxy?.host, html: (a) => (a.proxy ? `${escape(a.proxy.host)}:${a.proxy.port}${a.proxy_source === "phone" ? ' <span class="wmute">телефона</span>' : ""}` : '<span class="wmute">—</span>')},
     {key: "status", label: "Статус", width: "200px", html: (a) => `${badge(a.status)} <span class="wmute">${escape(a.status === "working" ? "" : reasonText(a.status_reason))}</span>${a.ramp ? ` ${rampBadge(a.ramp)}` : ""}`},
@@ -35,7 +35,8 @@ function listView(d) {
     {key: "last_action", label: "Последнее действие", width: "190px", value: (a) => a.last_action?.at, html: (a) => (a.last_action ? `${escape(eventLabel(a.last_action.type))} · ${ago(a.last_action.at)}` : '<span class="wmute">—</span>')},
     {key: "joins", label: "Вступления 7 дн / всего", width: "160px", align: "right", value: (a) => a.joins.total, html: (a) => `${num(a.joins.d7)} / <b>${num(a.joins.total)}</b>`},
   ], list, {rowAttr: (a) => `data-wopen="${a.id}"`, empty: "Аккаунтов нет"});
-  return `<div class="whead"><h1>Аккаунты</h1><div class="whead-s">${list.length} из ${d.accounts.length}</div></div>${tool}<div class="wpanel">${t}</div>`;
+  const link = isAdmin() ? '<button class="wbtn" data-wthreadsall title="Каждому Instagram-аккаунту с телефоном — его Threads на том же телефоне: клон slotNNN → клон threadsNNN, основной Instagram → основной Threads">Связать Threads всем</button>' : "";
+  return `<div class="whead"><h1>Аккаунты</h1><div class="whead-s">${list.length} из ${d.accounts.length}</div>${link}</div>${tool}<div class="wpanel">${t}</div>`;
 }
 
 function cardTab(c) {
@@ -85,6 +86,34 @@ function cardTab(c) {
     <dt>Своя ссылка для историй</dt><dd>${c.settings.own.story_link_url ? escape(c.settings.own.story_link_url) : '<span class="wmute">не задана, берётся приглашение</span>'} <button class="wbtn wbtn-s" data-wset="story_link_url">Изменить</button></dd></dl>`;
 }
 
+/** Пара Instagram ↔ Threads: тот же ник на том же телефоне. */
+function twinRow(c, admin) {
+  const a = c.account, t = c.twin;
+  const label = a.platform === "threads" ? "Instagram" : "Threads";
+  if (t) return `<div><span>${label}</span><b><button class="wlink" data-wtwin="${t.id}">@${escape(t.account_name)}</button>${t.app_package ? ` <span class="wmute">${escape(t.app_package)}</span>` : ""}</b></div>`;
+  if (a.platform === "threads") return `<div><span>Instagram</span><b class="wmute">—</b></div>`;
+  return `<div><span>Threads</span><b>${admin && c.binding ? '<button class="wbtn wbtn-s" data-wthreads>Связать Threads</button>' : '<span class="wmute">не связан</span>'}</b></div>`;
+}
+
+async function linkThreads(ctx, c) {
+  try {
+    const r = await call("device_threads_link", {account_id: c.account.id});
+    await confirmDialog("Threads связан", `@${r.handle} в ${r.package === "com.instagram.barcelona" ? "основном приложении Threads" : r.package}. ИИ начнёт вести его по общим настройкам Threads, на английском.`, {ok: "Понятно"});
+  } catch (e) { await confirmDialog("Не связан", errorOf(e), {ok: "Понятно"}); }
+  ctx.reload();
+}
+
+async function linkThreadsAll(ctx) {
+  if (!(await confirmDialog("Связать Threads всем?", "Каждому Instagram-аккаунту с телефоном — его Threads на том же телефоне и с тем же ником: клон slotNNN → клон threadsNNN, основной Instagram → основной Threads. Уже связанные не меняются. ИИ сразу начнёт вести Threads.", {ok: "Связать"}))) return;
+  try {
+    const {results} = await call("device_threads_link", {all: true});
+    const ok = results.filter((r) => r.ok), bad = results.filter((r) => !r.ok);
+    const lines = [...ok.map((r) => `@${r.handle}: связан, ${r.package}`), ...bad.map((r) => `@${r.handle}: ${errorOf({message: r.error})}`)];
+    await confirmDialog(`Связано ${ok.length} из ${results.length}`, lines.join("\n") || "Instagram-аккаунтов с телефоном нет.", {ok: "Понятно"});
+  } catch (e) { await confirmDialog("Не вышло", errorOf(e), {ok: "Понятно"}); }
+  ctx.reload();
+}
+
 function cardView(c) {
   const a = c.account;
   const admin = isAdmin();
@@ -96,6 +125,7 @@ function cardView(c) {
         <div><span>Телефон ${admin ? '<button class="wlink" data-wphone>изменить</button>' : ""}${a.phone ? ' <button class="wlink" data-wverify>проверить</button>' : ""}</span><b>${a.phone ? `${escape(a.phone.name)} ${a.phone.online ? badge("online") : badge("offline")}` : "нет"}</b></div>
         <div><span>Приложение</span><b>${escape(c.binding?.app_package || "com.instagram.android")}</b></div>
         <div><span>Ник на телефоне</span><b>${escape(c.binding?.expected_handle || "—")}</b></div>
+        ${twinRow(c, admin)}
         <div><span>Прокси ${admin ? '<button class="wlink" data-wproxy>изменить</button>' : ""}</span><b>${a.proxy ? `${escape(a.proxy.host)}:${a.proxy.port}${a.proxy_source === "phone" ? " (телефона)" : ""}` : "—"}</b></div>
         <div><span>Ближайшая публикация</span><b>${a.next_local ? localText(a.next_local) : "—"}</b></div>
         <div><span>Последнее действие</span><b>${a.last_action ? `${escape(eventLabel(a.last_action.type))} · ${ago(a.last_action.at)}` : "—"}</b></div>
@@ -230,6 +260,7 @@ export default {
     root.querySelectorAll("[data-wtab]").forEach((b) => { b.onclick = () => { view.tab = b.dataset.wtab; ctx.redraw(); }; });
     const back = root.querySelector("[data-wlist]");
     if (back) back.onclick = () => ctx.go("accounts", {});
+    root.querySelector("[data-wthreadsall]")?.addEventListener("click", () => linkThreadsAll(ctx));
     if (!c) return;
     bindRowActions(root, c.schedule, () => ctx.reload());
     root.querySelectorAll("[data-wset]").forEach((b) => { b.onclick = () => editSetting(ctx, c, b.dataset.wset); });
@@ -242,6 +273,8 @@ export default {
     });
     root.querySelector("[data-wphone]")?.addEventListener("click", () => changePhone(ctx, c));
     root.querySelector("[data-wverify]")?.addEventListener("click", () => verifyAccount(ctx, c));
+    root.querySelector("[data-wthreads]")?.addEventListener("click", () => linkThreads(ctx, c));
+    root.querySelectorAll("[data-wtwin]").forEach((b) => { b.onclick = () => ctx.openAccount(Number(b.dataset.wtwin)); });
     root.querySelector("[data-wwarmup]")?.addEventListener("click", () => warmupNow(ctx, c));
     root.querySelector("[data-wproxy]")?.addEventListener("click", () => chooseProxy(ctx, "account", c.account.id, `@${c.account.account_name}`, c.account.proxy_source === "account" ? c.account.proxy?.id : null));
   },

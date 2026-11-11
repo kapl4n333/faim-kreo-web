@@ -207,7 +207,7 @@ body.wide #app{padding:0;margin:0;max-width:none}
 .wdlg-b{padding:14px 16px;overflow:auto;flex:1;min-height:0}
 .wdlg-f{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid var(--line-soft)}
 .wdlg-msg{flex:1;font-size:12px;color:var(--c,var(--hint))}
-.wdlg-p{margin:0 0 10px;line-height:1.5}
+.wdlg-p{margin:0 0 10px;line-height:1.5;white-space:pre-line}
 .wcode{font-size:30px;letter-spacing:.12em;text-align:center;padding:14px;margin:12px 0 6px;border:1px dashed var(--a);border-radius:10px;color:var(--a2)}
 
 /* формы */
