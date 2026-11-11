@@ -3,7 +3,7 @@
 import {escape} from "../bridge.js";
 import {badge, reasonText, TYPE} from "../ui/badge.js";
 import {noData} from "../ui/empty.js";
-import {ago, num, timeOnly, whenIso} from "../ui/format.js";
+import {ago, num, timeOnly, whenIso, th} from "../ui/format.js";
 import {table} from "../ui/table.js";
 import {bindJobButtons, jobButtons} from "../ui/job-actions.js";
 
@@ -12,7 +12,7 @@ const tile = (label, value, tone, go) => `<button class="wkpi wb-${tone}" ${go ?
 function dayTable(id, list) {
   return table(id, [
     {key: "local", label: "Время", width: "64px", html: (r) => `<span class="mono">${timeOnly(r.local)}</span>`},
-    {key: "account_name", label: "Аккаунт", html: (r) => `@${escape(r.account_name)}`},
+    {key: "account_name", label: "Аккаунт", html: (r) => `@${escape(r.account_name)}${th(r)}`},
     {key: "content_type", label: "Тип", width: "86px", html: (r) => escape(TYPE[r.content_type] || r.content_type || "—")},
     {key: "title", label: "Материал", html: (r) => escape(r.title || (r.source === "old_form" ? "Новая задача" : "—"))},
     {key: "status", label: "Статус", width: "130px", value: (r) => r.job_status || r.state, html: (r) => badge(r.job_status || r.state)},
@@ -39,7 +39,7 @@ export default {
   render(d) {
     const a = d.accounts, dev = d.devices;
     const decisions = table("dash-dec", [
-      {key: "account_name", label: "Аккаунт", html: (r) => `@${escape(r.account_name)}`},
+      {key: "account_name", label: "Аккаунт", html: (r) => `@${escape(r.account_name)}${th(r)}`},
       {key: "kind", label: "Что", width: "110px", html: (r) => (r.kind === "job" ? `Задание #${r.id}` : `Назначение #${r.id}`)},
       {key: "status", label: "Статус", width: "140px", html: (r) => badge(r.status)},
       {key: "error_code", label: "Причина", html: (r) => `${escape(reasonText(r.error_code) || r.stage || "—")}${r.error_message ? `<div class="wmute wclip" title="${escape(r.error_message)}">${escape(r.error_message)}</div>` : ""}`},
@@ -47,7 +47,7 @@ export default {
       {key: "act", label: "Решение", width: "250px", sort: false, html: (r) => (r.kind === "job" ? jobButtons(r) : "")},
     ], d.decisions, {empty: "Решений не ждёт ничего"});
     const joins = table("dash-joins", [
-      {key: "account_name", label: "Аккаунт", html: (r) => `@${escape(r.account_name)}`},
+      {key: "account_name", label: "Аккаунт", html: (r) => `@${escape(r.account_name)}${th(r)}`},
       {key: "d1", label: "24 ч", width: "70px", align: "right", html: (r) => num(r.d1)},
       {key: "d7", label: "7 дней", width: "70px", align: "right", html: (r) => num(r.d7)},
       {key: "total", label: "Всего", width: "70px", align: "right", html: (r) => `<b>${num(r.total)}</b>`},

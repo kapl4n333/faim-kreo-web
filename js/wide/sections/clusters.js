@@ -4,7 +4,7 @@ import {call, escape, isAdmin, niches} from "../bridge.js";
 import {badge, TYPE} from "../ui/badge.js";
 import {confirmDialog, dialog, dialogMessage, errorOf} from "../ui/dialog.js";
 import {noData} from "../ui/empty.js";
-import {num} from "../ui/format.js";
+import {num, th} from "../ui/format.js";
 import {bindSort, bindToolbar, table, toolbar} from "../ui/table.js";
 import {readSetting, settingRow, settingsGrid, settingValue} from "../ui/settings-form.js";
 import {clusterValue, coverageText, inheritedValue, rampInfo, rulesSummary} from "../ui/clusters.js";
@@ -70,7 +70,7 @@ export function cardSummary(d) {
 function accountsTab(d) {
   const tool = '<div class="wtool"><span class="wmute">Аккаунт состоит максимум в одном кластере. Аккаунтам без телефона материалы не раздаются.</span><div class="wtool-sp"></div><button class="wbtn wbtn-p" data-wcaddacc>+ Добавить аккаунты</button></div>';
   return tool + table("cl-accs", [
-    {key: "account_name", label: "Аккаунт", html: (a) => `<button class="wlink" data-wcacc="${a.account_id}">@${escape(a.account_name)}</button>`},
+    {key: "account_name", label: "Аккаунт", html: (a) => `<button class="wlink" data-wcacc="${a.account_id}">@${escape(a.account_name)}</button>${th(a)}`},
     {key: "has_phone", label: "Телефон", width: "100px", html: (a) => (a.has_phone ? "да" : '<span class="wbad">нет</span>')},
     {key: "open", label: "Ждут", width: "90px", align: "right", html: (a) => num(a.open)},
     {key: "published", label: "Опубликовано", width: "130px", align: "right", html: (a) => num(a.published)},

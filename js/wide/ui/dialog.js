@@ -59,6 +59,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && open) cl
 
 /** Текст ошибки сервера для человека. */
 const ERRORS = {
+  threads_use_link: "Threads не привязывается к телефону вручную: откройте его Instagram-аккаунт и нажмите «Связать Threads».",
   threads_clone_missing: "На этом телефоне нет клона Threads с тем же номером, что у клона Instagram. Сделайте клон Threads в клонере и подождите минуту, пока PostBot его увидит.",
   no_threads_pair: "Для этого приложения Instagram нет пары Threads.",
   app_account_conflict: "Это приложение Threads на телефоне уже привязано к другому нику.",

@@ -8,7 +8,7 @@ import {confirmDialog, dialog, dialogMessage, errorOf} from "../ui/dialog.js";
 import {chooseProxy} from "../ui/proxy-pick.js";
 import {badge, dot, reasonText, TYPE} from "../ui/badge.js";
 import {closeDetails, detailsKey, openDetails, setDetailsBody} from "../ui/details.js";
-import {ago, localText, slowSelect} from "../ui/format.js";
+import {ago, localText, slowSelect, th} from "../ui/format.js";
 import {bindToolbar, toolbar} from "../ui/table.js";
 import {bindTree, tree} from "../ui/tree.js";
 import {eventLabel} from "../ui/accounts-rail.js";
@@ -27,7 +27,7 @@ function matches(text) { return !view.q || String(text || "").toLowerCase().incl
 function accountNode(a) {
   return {
     key: `account:${a.id}`,
-    cells: [`${dot(a.status)}<span class="wtn-n">@${escape(a.account_name)}</span>`, badge(a.status, {title: reasonText(a.status_reason)}), a.last_action ? `${escape(eventLabel(a.last_action.type))} · ${ago(a.last_action.at)}` : '<span class="wmute">—</span>', '<span class="wmute">аккаунт</span>', proxyText(a.proxy), a.next_local ? localText(a.next_local) : '<span class="wmute">—</span>'],
+    cells: [`${dot(a.status)}<span class="wtn-n">@${escape(a.account_name)}${th(a)}</span>`, badge(a.status, {title: reasonText(a.status_reason)}), a.last_action ? `${escape(eventLabel(a.last_action.type))} · ${ago(a.last_action.at)}` : '<span class="wmute">—</span>', '<span class="wmute">аккаунт</span>', proxyText(a.proxy), a.next_local ? localText(a.next_local) : '<span class="wmute">—</span>'],
     menu: [{label: "Открыть консоль", act: "console"}, {label: "Карточка аккаунта", act: "card"}, {label: "Отвязать от телефона", act: "unbind", admin: true}, {label: "Прокси аккаунта", act: "proxy_account", admin: true}],
   };
 }

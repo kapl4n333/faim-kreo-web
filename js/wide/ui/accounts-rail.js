@@ -1,7 +1,7 @@
 // Правая колонка аккаунтов: общая для всех разделов. Данные: account_list.
 import {escape} from "../bridge.js";
 import {dot, reasonText, STATUS} from "./badge.js";
-import {ago} from "./format.js";
+import {ago, th} from "./format.js";
 
 const FILTERS = [["", "Все"], ["working", "Работают"], ["attention", "Внимание"], ["paused", "Пауза"], ["no_phone", "Без телефона"]];
 const view = {q: "", status: ""};
@@ -19,7 +19,7 @@ export function railHtml(accounts, selectedId) {
   const list = accounts.filter((a) => (!view.status || a.status === view.status) && (!q || a.account_name.toLowerCase().includes(q) || (a.phone?.name || "").toLowerCase().includes(q)));
   const chips = FILTERS.map(([k, l]) => `<button class="wchip${view.status === k ? " on" : ""}" data-wrailf="${k}">${l}<b>${counts[k]}</b></button>`).join("");
   const rows = list.map((a) => `<button class="wacc${String(selectedId) === String(a.id) ? " on" : ""}" data-wacc="${a.id}" title="${escape(reasonText(a.status_reason) || (STATUS[a.status] || [""])[0])}">
-      <div class="wacc-1">${dot(a.status)}<span class="wacc-n">@${escape(a.account_name)}</span><span class="wacc-p">${a.phone ? escape(a.phone.name) : "нет телефона"}</span></div>
+      <div class="wacc-1">${dot(a.status)}<span class="wacc-n">@${escape(a.account_name)}${th(a)}</span><span class="wacc-p">${a.phone ? escape(a.phone.name) : "нет телефона"}</span></div>
       <div class="wacc-2">${a.last_action ? `${escape(eventLabel(a.last_action.type))} · ${ago(a.last_action.at)}` : "действий не было"}</div>
     </button>`).join("") || '<div class="wempty-t">Ничего не найдено</div>';
   return `<div class="wrail-h">Аккаунты <span>${accounts.length}</span></div>
