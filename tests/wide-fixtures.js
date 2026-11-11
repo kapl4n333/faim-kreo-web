@@ -73,6 +73,24 @@ export const REGISTRY = [{"key":"enabled.reel","type":"bool","default":true,"sco
 
 export function deskReply(action, p) {
   if (action === "account_list") return {accounts, server_now: at(0)};
+  if (action === "content_requests_list") {
+    const day = (n) => { const d = new Date(Date.now() + n * 864e5); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+    const img = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="160"><rect width="90" height="160" fill="#c9a96e"/></svg>');
+    const r = (id, n, kind, brief, rubric, state = "open", account_id = 7, handle = "noksitest") => ({id, account_id, handle, platform: "threads", date: day(n), kind, slot: 1, brief, rubric, state,
+      files: state === "uploaded" ? [{path: "1/a.jpg", url: img, name: "a.jpg"}] : [], uploaded_at: null, job_id: null});
+    const all = [
+      r(1, -1, "photo", "Вечер, кухня, она в огромной худи режет фрукты, тёплый свет лампы, снято с уровня стола.", "Будни", "open"),
+      r(2, 0, "photo", "Утро у окна: кофе в руках, лицо в полупрофиль, мягкий дневной свет, без макияжа.", "Утро", "uploaded"),
+      r(3, 1, "photo", "Спортзал после тренировки, селфи в зеркало, топ и легинсы, растрёпанный хвост.", "Фитнес"),
+      r(4, 1, "video", "8 секунд: идёт по набережной на закате, камера сбоку, ветер в волосах, смеётся в кадр.", "Прогулки"),
+      r(5, 2, "photo", "Кафе, круассан и латте на столике, её рука с маникюром в кадре, сверху.", "Еда", "open", 8, "olivia.fox"),
+      r(6, 3, "photo", "Дома на диване с ноутбуком, плед, вечер, свет экрана на лице.", "Будни", "skipped"),
+      r(7, 4, "photo", "Пляж утром, сидит на полотенце, шляпа, вид со спины на океан.", "Майами"),
+    ];
+    return {requests: all.filter((x) => x.date >= p.from && x.date <= p.to && (!p.account_id || x.account_id === p.account_id)),
+      accounts: [{id: 7, handle: "noksitest"}, {id: 8, handle: "olivia.fox"}], waiting: [{account_id: 7, count: 12}]};
+  }
+  if (/^content_request_/.test(action)) { (window.__wideCalls ||= []).push([action, p]); return {request: {}}; }
   const cluster = clusterReply(action, p);
   if (cluster) return cluster;
   if (action === "device_tree") return tree;
@@ -86,7 +104,7 @@ export function deskReply(action, p) {
     joins: accounts.map((a) => ({account_id: a.id, account_name: a.account_name, ...a.joins})).sort((x, y) => y.total - x.total), metrics: null,
   };
   if (action === "device_console") return {jobs: [{id: 118, content_type: "reel", kind: "publish_reel", status: "claimed", local: loc(-2), account_name: "nokk.ksi"}, {id: 112, content_type: "reel", kind: "publish_reel", status: "confirmed", local: loc(-600), account_name: "nokk.ksi"}], events: p.after_id ? events().slice(0, 1) : events(), last_id: eventId};
-  if (action === "content_matrix") return {items, accounts: accounts.map((a) => ({id: a.id, account_name: a.account_name, status: a.status, phone: a.phone && {id: a.phone.id, name: a.phone.name}})), next_before_id: null};
+  if (action === "content_matrix") return {items, accounts: accounts.map((a) => ({id: a.id, account_name: a.account_name, status: a.status, platform: a.platform || "instagram", cluster: a.cluster || (a.id % 2 ? {id: 1, name: "Майами"} : null), phone: a.phone && {id: a.phone.id, name: a.phone.name}})), next_before_id: null};
   if (action === "content_item_detail") return {item: {id: p.id, title: "Утро у окна", content_type: "reel", created_at: at(-300), note: "лёгкий, без хештегов про зал", media: []}, per_account: accounts.slice(0, 3).map((a, i) => ({id: 500 + i, item_id: p.id, title: "Утро у окна", content_type: "reel", revision: 2, account_id: a.id, account_name: a.account_name, state: "scheduled", job_status: i === 2 ? "claimed" : "queued", editable: i !== 2, locked_reason: i === 2 ? "taken" : null, local_time: loc(100 + i * 60), edit_local: loc(100 + i * 60), edit_timezone: "Europe/Warsaw", timezone: "Europe/Warsaw", caption: "Утро начинается с тишины", wait_reason: null}))};
   if (action === "account_card") {
     const a = accounts.find((x) => x.id === Number(p.id)) || accounts[0];
