@@ -100,6 +100,7 @@ const ctx = {
   local: {},
   go(section, params = {}) { closeMenu(); if (W.section !== section) closeDetails(); W.section = section; W.params = params; savePrefs(); drawShell(); loadSection(true); },
   setParams(params) { W.params = {...W.params, ...params}; savePrefs(); },
+  data: (id) => W.data[id],
   redraw: () => drawMain(),
   reload: () => loadSection(true),
   openAccount(id) { ctx.go("accounts", {id}); },
@@ -143,7 +144,17 @@ function drawRail() {
   if (keepQ != null) { const i = right.querySelector("[data-wrailq]"); i.focus(); i.setSelectionRange(keepQ, keepQ); }
 }
 
-const navItem = (s, sub = false) => `<button class="wnav-i${sub ? " wnav-sub" : ""}${W.section === s.id ? " on" : ""}" data-wsec="${s.id}">${icon(s.icon)}<span>${escape(s.title)}</span>${s.stub ? '<em>шаг 3</em>' : ""}</button>`;
+// «Нужно внимание»: сколько аккаунтов ждут человека — счётчик на «Дашборде», виден из любого раздела (12.11.2026).
+const attentionCount = () => (W.accounts || []).filter((a) => a.status === "attention").length;
+const navBadge = (s) => (s.id === "dashboard" && attentionCount() ? `<b class="wnav-badge" title="Аккаунтов ждут решения">${attentionCount()}</b>` : "");
+const navItem = (s, sub = false) => `<button class="wnav-i${sub ? " wnav-sub" : ""}${W.section === s.id ? " on" : ""}" data-wsec="${s.id}">${icon(s.icon)}<span>${escape(s.title)}</span>${navBadge(s)}${s.stub ? '<em>шаг 3</em>' : ""}</button>`;
+function refreshNavBadge() {
+  const b = document.querySelector('#wleft [data-wsec="dashboard"]');
+  if (!b) return;
+  b.querySelector(".wnav-badge")?.remove();
+  const n = attentionCount();
+  if (n) b.insertAdjacentHTML("beforeend", `<b class="wnav-badge" title="Аккаунтов ждут решения">${n}</b>`);
+}
 /** Подразделы видны, пока открыт сам раздел или любой из них. */
 function subItems(list, parent) {
   const kids = list.filter((s) => s.parent === parent.id);
@@ -219,6 +230,7 @@ async function loadAccounts() {
     if (sig === W.accountsSig) return;
     W.accountsSig = sig;
     W.accounts = d.accounts;
+    refreshNavBadge();
     if (!document.activeElement?.matches?.("[data-wrailq]") && !menuOpen()) drawRail();
   } catch { W.accountsAt = Date.now(); }
 }

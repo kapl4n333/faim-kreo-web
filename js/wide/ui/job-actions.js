@@ -32,6 +32,34 @@ async function act(name, id, revision) {
   return call("device_job_resolve", {id, revision, decision: name});
 }
 
+/** Какие решения доступны заданию (те же правила, что у кнопок). */
+export function jobChoices(j) {
+  const session = j.kind === "warmup_reels" || j.kind === "engage";
+  if (ATTENTION.includes(j.status)) return session ? ["cancel"] : ["not_published", "cancel", "published"];
+  if (RETRY.includes(j.status)) return session ? [] : ["retry"];
+  return [];
+}
+
+const BULK = {not_published: "↻ В очередь", cancel: "Отменить", published: "Вышло", retry: "Повторить"};
+
+/**
+ * Массовое решение по отмеченным заданиям (владелец, 12.11.2026: «по одному — долго»). Одно подтверждение,
+ * дальше по очереди; задание, которому это решение не подходит, пропускается. Итог — в done(сделано, пропущено, ошибки).
+ */
+export async function bulkDecide(name, jobs, done) {
+  const fit = jobs.filter((j) => jobChoices(j).includes(name));
+  if (!fit.length) return done?.(0, jobs.length, []);
+  const [title, text, ok] = ASK[name] || ["Точно?", "", "Да"];
+  if (!(await confirmDialog(`${title} (${fit.length})`, `${text}${fit.length < jobs.length ? ` Не подходят и будут пропущены: ${jobs.length - fit.length}.` : ""}`, {ok, danger: name.startsWith("cancel")}))) return undefined;
+  const errors = [];
+  let made = 0;
+  for (const j of fit) {
+    try { await act(name, Number(j.id), Number(j.revision)); made++; } catch (e) { errors.push(`#${j.id}: ${errorOf(e)}`); }
+  }
+  return done?.(made, jobs.length - fit.length, errors);
+}
+export const bulkLabel = (name) => BULK[name] || name;
+
 /** Вешает обработчики на кнопки из jobButtons внутри root. После успеха вызывает done(). */
 export function bindJobButtons(root, done) {
   root.querySelectorAll("[data-wjob]").forEach((btn) => {

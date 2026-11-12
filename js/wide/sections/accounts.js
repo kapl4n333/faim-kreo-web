@@ -15,7 +15,7 @@ import {settingValue} from "../ui/settings-form.js";
 import {healthHtml, rampBadge} from "../ui/clusters.js";
 
 const view = {q: "", status: "", tab: "schedule"};
-const TABS = [["schedule", "Расписание"], ["warmup", "Прогрев"], ["history", "История"], ["settings", "Настройки"], ["texts", "Тексты кнопок"], ["link", "Ссылка"]];
+const TABS = [["schedule", "Расписание"], ["threads", "Threads"], ["warmup", "Прогрев"], ["history", "История"], ["settings", "Настройки"], ["texts", "Тексты кнопок"], ["link", "Ссылка"]];
 
 function listView(d) {
   const q = view.q.trim().toLowerCase();
@@ -39,7 +39,24 @@ function listView(d) {
   return `<div class="whead"><h1>Аккаунты</h1><div class="whead-s">${list.length} из ${d.accounts.length}</div>${link}</div>${tool}<div class="wpanel">${t}</div>`;
 }
 
+/** Готовность аккаунта одним списком: телефон, ПК, приложение, пауза, прокси, пара Threads (12.11.2026). */
+function readinessHtml(list) {
+  if (!list?.length) return "";
+  const mark = (ok) => (ok === true ? '<span class="ok">✓</span>' : ok === false ? '<span class="no">✕</span>' : '<span class="un">•</span>');
+  return `<div class="wready">${list.map((r) => `${mark(r.ok)}<div>${escape(r.label)}${r.detail ? ` <span class="wmute">· ${escape(r.detail)}</span>` : ""}</div>`).join("")}</div>`;
+}
+
+/** Сессии Threads этого аккаунта и его пары: лайки, ответы и их тексты. */
+function threadsView(c) {
+  const list = c.threads || [];
+  if (!list.length) return '<div class="wempty-t">Сессий Threads ещё не было</div>';
+  return `<div class="wthr">${list.map((t) => `<details class="wthr-s"${t.replies ? " open" : ""}><summary>${t.mode === "search" ? `Поиск «${escape(t.query || "")}»` : "Лента"} · <span class="wmute">${ago(t.at)}</span>
+      <span class="wthr-n">♥ ${num(t.likes)} · ответов ${num(t.replies)}${t.replies_failed ? ` · <span class="wbad">не вышло ${num(t.replies_failed)}</span>` : ""} · постов ${num(t.posts_seen)}</span></summary>
+      ${t.replied.length ? t.replied.map((r) => `<div class="wthr-r"><div class="wmute">@${escape(r.author || "?")}: «${escape(r.post || "")}»</div><div>→ ${escape(r.text || "")}</div></div>`).join("") : '<div class="wmute">Ответов не было</div>'}</details>`).join("")}</div>`;
+}
+
 function cardTab(c) {
+  if (view.tab === "threads") return threadsView(c);
   if (view.tab === "warmup") return warmupView(c);
   if (view.tab === "schedule") {
     return table("acc-sched", [
@@ -135,6 +152,7 @@ function cardView(c) {
         <div><span>Последняя проверка</span><b>${healthHtml(a.health)}</b></div>
       </div>
       ${a.status !== "working" && a.status_reason ? `<div class="wwarn">${escape(reasonText(a.status_reason))}</div>` : ""}
+      ${c.readiness?.length ? `<div class="wcon-h">Готовность</div>${readinessHtml(c.readiness)}` : ""}
     </div>
     <div class="wtabs">${tabs}</div>
     <div class="wtabbody">${cardTab(c)}</div>`;

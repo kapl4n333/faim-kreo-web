@@ -62,6 +62,21 @@ body.wide #app{padding:0;margin:0;max-width:none}
 .wtn-n{font-weight:600;overflow:hidden;text-overflow:ellipsis}
 .wtr.d0 .wtn-n{font-family:var(--disp)}
 .wtr.d3 .wtn-n{font-weight:500}
+/* Уровни дерева слегка разного тона, строки с проблемой — целиком красные или жёлтые (12.11.2026) */
+.wtr.wlv-pc{background:color-mix(in srgb,var(--a) 6%,transparent)}
+.wtr.wlv-phone{background:color-mix(in srgb,var(--p) 5%,transparent)}
+.wtr.wlv-acc{background:transparent}
+.wtr.wrow-bad{background:color-mix(in srgb,var(--w-bad) 14%,transparent)}
+.wtr.wrow-bad td:first-child{box-shadow:inset 3px 0 0 var(--w-bad)}
+.wtr.wrow-warn{background:color-mix(in srgb,var(--w-warn) 10%,transparent)}
+.wtr.wrow-warn td:first-child{box-shadow:inset 3px 0 0 var(--w-warn)}
+.wrow-acts{display:inline-flex;gap:4px;margin-right:4px}
+.wrow-acts .wbtn{padding:2px 8px;font-size:11px}
+.wplats{display:inline-flex;gap:4px;margin-left:2px}
+.wplat{font-size:10.5px;line-height:1;padding:3px 6px;border-radius:6px;border:1px solid var(--line);color:var(--hint);background:transparent}
+.wplat:hover{color:var(--text)}
+.wplat.on{color:var(--w-ok);border-color:color-mix(in srgb,var(--w-ok) 60%,transparent);background:color-mix(in srgb,var(--w-ok) 12%,transparent)}
+.wplat.bad{color:var(--w-bad);border-color:color-mix(in srgb,var(--w-bad) 60%,transparent)}
 .wtg{width:18px;height:18px;border-radius:5px;color:var(--hint);font-size:11px;flex:0 0 18px}
 .wtg:hover{background:var(--raise);color:var(--text)}
 .wtg-sp{width:18px;flex:0 0 18px}
@@ -358,3 +373,17 @@ body.wide #app{padding:0;margin:0;max-width:none}
 .wdg{border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;margin:0 0 8px}
 .wdg-h{display:flex;align-items:center;gap:6px;margin:0 0 6px;cursor:pointer}
 @media (max-width:760px){.wci{grid-template-columns:auto 40px 1fr}.wci-s{grid-column:1/-1}.wci-a{grid-column:1/-1}}
+
+/* 12.11.2026: счётчик «Нужно внимание», массовые решения, снимки в решениях, сессии Threads */
+.wnav-badge{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--w-bad);color:#fff;font-size:11px;font-style:normal;display:inline-grid;place-items:center}
+.wbulk{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+.wshots{display:flex;gap:6px;margin-top:4px}
+.wshot-s img{width:54px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.wthr{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto}
+.wthr-s{border:1px solid var(--line-soft);border-radius:8px;padding:6px 8px}
+.wthr-s summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;gap:4px;align-items:baseline}
+.wthr-n{margin-left:auto;font-size:11.5px;color:var(--hint)}
+.wthr-r{padding:5px 0 3px;border-top:1px dashed var(--line-soft);margin-top:5px;font-size:12px}
+.wready{display:grid;grid-template-columns:18px 1fr;gap:4px 8px;font-size:12.5px}
+.wready .ok{color:var(--w-ok)}.wready .no{color:var(--w-bad)}.wready .un{color:var(--hint)}
+.wreason{display:block;font-size:11px;color:var(--w-bad);margin-top:2px;white-space:normal}

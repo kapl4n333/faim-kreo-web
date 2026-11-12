@@ -1,5 +1,5 @@
 // Дерево со столбцами: раскрытие групп, статус, «+» на уровне, меню «⋮».
-// node: {key, cells: [html...], children?: [node], add?: {label, disabled, title}, menu?: [{label, act, disabled}], attr?}
+// node: {key, cells: [html...], children?: [node], add?: {label, disabled, title}, menu?: [{label, act, disabled}], attr?, cls?}
 import {escape} from "../bridge.js";
 
 // Отозванные ПК по умолчанию свёрнуты: это архив, а не рабочие устройства.
@@ -15,7 +15,7 @@ export function tree(columns, nodes, {selected = null} = {}) {
     const toggle = has ? `<button class="wtg" data-wtoggle="${escape(node.key)}" aria-label="${expanded ? "Свернуть" : "Раскрыть"}">${expanded ? "▾" : "▸"}</button>` : '<span class="wtg-sp"></span>';
     const menu = node.menu?.length ? `<button class="wkebab" data-wmenu="${escape(node.key)}" aria-label="Меню">⋮</button>` : "";
     const cells = node.cells.map((c, i) => (i === 0 ? `<td><div class="wtn" style="padding-left:${depth * 20}px">${toggle}${c}</div></td>` : `<td>${c}</td>`)).join("");
-    out.push(`<tr class="wtr d${depth}${selected === node.key ? " on" : ""}" data-wnode="${escape(node.key)}" ${node.attr || ""}>${cells}<td class="a-right">${menu}</td></tr>`);
+    out.push(`<tr class="wtr d${depth}${node.cls ? ` ${node.cls}` : ""}${selected === node.key ? " on" : ""}" data-wnode="${escape(node.key)}" ${node.attr || ""}>${cells}<td class="a-right">${menu}</td></tr>`);
     if (!expanded) return;
     for (const kid of kids) walk(kid, depth + 1);
     if (node.add) {
