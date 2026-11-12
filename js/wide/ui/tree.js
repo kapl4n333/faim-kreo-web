@@ -48,7 +48,7 @@ export function openMenu(anchor, items) {
   if (!items.length) return;
   menuEl = document.createElement("div");
   menuEl.className = "wmenu";
-  menuEl.innerHTML = items.map((it, i) => `<button data-i="${i}"${it.disabled ? " disabled" : ""}${it.title ? ` title="${escape(it.title)}"` : ""}>${escape(it.label)}</button>`).join("");
+  menuEl.innerHTML = items.map((it, i) => `<button data-i="${i}"${it.danger ? ' class="danger"' : ""}${it.disabled ? " disabled" : ""}${it.title ? ` title="${escape(it.title)}"` : ""}>${escape(it.label)}</button>`).join("");
   document.body.appendChild(menuEl);
   const r = anchor.getBoundingClientRect();
   menuEl.style.top = `${Math.min(window.innerHeight - menuEl.offsetHeight - 8, r.bottom + 4)}px`;

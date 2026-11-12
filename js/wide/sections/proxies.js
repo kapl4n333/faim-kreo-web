@@ -1,6 +1,6 @@
 // Прокси: список, массовая вставка, правка, проверка с сервера или с ПК, привязки, автораспределение.
 // Раздел только для админа; пароли сервер отдаёт только сюда. На телефоне прокси в этом этапе не применяется.
-import {call, escape} from "../bridge.js";
+import {call, escape, isAdmin} from "../bridge.js";
 import {badge} from "../ui/badge.js";
 import {confirmDialog, dialog, dialogMessage, errorOf} from "../ui/dialog.js";
 import {ago} from "../ui/format.js";
@@ -141,10 +141,10 @@ export default {
       openMenu(b, [
         {label: "Изменить", onClick: () => editDialog(ctx, p)},
         {label: "Проверить соединение", onClick: () => checkDialog(ctx, d, [p.id])},
-        {label: "Удалить", onClick: async () => {
+        ...(isAdmin() ? [{label: "Удалить", danger: true, onClick: async () => {
           if (!(await confirmDialog("Удалить прокси?", `${p.host}:${p.port}. Привязки снимутся.`, {ok: "Удалить", danger: true}))) return;
           try { await call("proxy_delete", {id: p.id}); view.picked.delete(p.id); ctx.reload(); } catch (err) { await confirmDialog("Не вышло", errorOf(err), {ok: "Понятно"}); }
-        }},
+        }}] : []),
       ]);
     }; });
   },

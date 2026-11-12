@@ -299,11 +299,11 @@ body.wide #app{padding:0;margin:0;max-width:none}
   .wpanel,.wcard{overflow-x:auto}
   .wt{min-width:560px}
   .wtree{min-width:0}
-  .wtree th:nth-child(2),.wtree td:nth-child(2),.wtree th:nth-child(3),.wtree td:nth-child(3),.wtree th:nth-child(5),.wtree td:nth-child(5),.wtree th:nth-child(6),.wtree td:nth-child(6){display:none}
+  .wtree th:nth-child(4),.wtree td:nth-child(4),.wtree th:nth-child(5),.wtree td:nth-child(5),.wtree th:nth-child(6),.wtree td:nth-child(6){display:none}
   .wtree td{white-space:normal;padding:6px}
   .wtree th{width:auto!important}
-  .wtree td:nth-child(4) .wbtn{display:block;margin-top:4px}
-  .wtree td:nth-child(2) .wb{white-space:nowrap}
+  .wtree .wctl{flex-wrap:wrap}
+  .wtree td:nth-child(3) .wb{white-space:nowrap}
   .wtree .wtn .wmute.mono{display:none}
   .wt td{max-width:240px}
   .wdetails{position:fixed;top:var(--wide-top);left:0;width:100%;border-left:0;z-index:50}
@@ -387,3 +387,14 @@ body.wide #app{padding:0;margin:0;max-width:none}
 .wready{display:grid;grid-template-columns:18px 1fr;gap:4px 8px;font-size:12.5px}
 .wready .ok{color:var(--w-ok)}.wready .no{color:var(--w-bad)}.wready .un{color:var(--hint)}
 .wreason{display:block;font-size:11px;color:var(--w-bad);margin-top:2px;white-space:normal}
+
+/* 12.11.2026, ревью: меню «опасно», снимок в панели, колонка управления, метки-кнопки */
+.wmenu button.danger{color:var(--w-bad)}
+.wshot-s{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--hint);background:none;border:0;padding:0;cursor:zoom-in}
+.wshot-s span{max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wshot-big img{width:100%;border-radius:8px;border:1px solid var(--line)}
+.wctl{display:flex;gap:4px;flex-wrap:nowrap}
+.wctl .wbtn{padding:2px 8px;font-size:11px}
+.wplat{cursor:pointer;display:inline-flex;align-items:center;gap:3px}
+.wplat::after{content:"›";opacity:.6}
+.wver{font-size:10.5px;color:var(--hint);font-family:var(--mono,monospace);margin-left:4px}

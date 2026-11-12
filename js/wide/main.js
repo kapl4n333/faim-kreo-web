@@ -84,7 +84,8 @@ const W = {section: "dashboard", params: {}, data: {}, sig: {}, errors: {}, load
 try { const p = JSON.parse(localStorage.getItem(PREFS) || "{}"); if (p.section) W.section = p.section; if (p.params) W.params = p.params; } catch { /* нет хранилища */ }
 const savePrefs = () => { try { localStorage.setItem(PREFS, JSON.stringify({section: W.section, params: W.params})); } catch { /* нет хранилища */ } };
 
-const typing = () => { const f = document.activeElement; return !!f && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName); };
+// Галочка или переключатель в фокусе — это не ввод: опрос не должен вставать (Fable review 12.11.2026).
+const typing = () => { const f = document.activeElement; return !!f && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName) && !["checkbox", "radio", "button"].includes(f.type); };
 const blocked = () => typing() || menuOpen() || dialogOpen() || legacyModalOpen();
 
 async function moduleOf(id) {
@@ -144,15 +145,16 @@ function drawRail() {
 }
 
 // «Нужно внимание»: сколько аккаунтов ждут человека — счётчик на «Дашборде», виден из любого раздела (12.11.2026).
-const attentionCount = () => (W.accounts || []).filter((a) => a.status === "attention").length;
-const navBadge = (s) => (s.id === "dashboard" && attentionCount() ? `<b class="wnav-badge" title="Аккаунтов ждут решения">${attentionCount()}</b>` : "");
+// То же число, что в «Ждут решения» на дашборде (раньше считались аккаунты — числа расходились).
+const attentionCount = () => W.decisionsCount ?? (W.accounts || []).filter((a) => a.status === "attention").length;
+const navBadge = (s) => (s.id === "dashboard" && attentionCount() ? `<b class="wnav-badge" title="Ждут решения">${attentionCount()}</b>` : "");
 const navItem = (s, sub = false) => `<button class="wnav-i${sub ? " wnav-sub" : ""}${W.section === s.id ? " on" : ""}" data-wsec="${s.id}">${icon(s.icon)}<span>${escape(s.title)}</span>${navBadge(s)}${s.stub ? '<em>шаг 3</em>' : ""}</button>`;
 function refreshNavBadge() {
   const b = document.querySelector('#wleft [data-wsec="dashboard"]');
   if (!b) return;
   b.querySelector(".wnav-badge")?.remove();
   const n = attentionCount();
-  if (n) b.insertAdjacentHTML("beforeend", `<b class="wnav-badge" title="Аккаунтов ждут решения">${n}</b>`);
+  if (n) b.insertAdjacentHTML("beforeend", `<b class="wnav-badge" title="Ждут решения">${n}</b>`);
 }
 /** Подразделы видны, пока открыт сам раздел или любой из них. */
 function subItems(list, parent) {
@@ -225,10 +227,11 @@ async function loadAccounts() {
   try {
     const d = await call("account_list");
     W.accountsAt = Date.now();
-    const sig = JSON.stringify(d.accounts);
+    const sig = JSON.stringify([d.accounts, d.decisions_count]);
     if (sig === W.accountsSig) return;
     W.accountsSig = sig;
     W.accounts = d.accounts;
+    if (typeof d.decisions_count === "number") W.decisionsCount = d.decisions_count;
     refreshNavBadge();
     if (!document.activeElement?.matches?.("[data-wrailq]") && !menuOpen()) drawRail();
   } catch { W.accountsAt = Date.now(); }

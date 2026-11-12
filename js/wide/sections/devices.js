@@ -31,19 +31,31 @@ const worst = (list) => list.reduce((w, x) => ((RANK[x] ?? 0) > (RANK[w] ?? 0) ?
 // Сейчас работает: последнее действие аккаунта — взятое задание за последние 15 минут.
 const busyNow = (a) => ["claimed", "committed", "result_sent"].includes(a.last_action?.type) && Date.now() - Date.parse(a.last_action.at) < 15 * 60000;
 const platformName = (a) => (a.platform === "threads" ? "Threads" : "Instagram");
+const badgeText = (status) => ({paused: "Пауза", attention: "Внимание", no_phone: "Нет телефона"})[status] || "";
 
 /** Instagram и его Threads с тем же ником — одна строка, платформы мелко рядом с ником; зелёная — та, что работает сейчас. */
 function accountNode(group) {
   const main = group.find((a) => a.platform !== "threads") || group[0];
   const last = group.map((a) => a.last_action).filter(Boolean).sort((x, y) => Date.parse(y.at) - Date.parse(x.at))[0];
   const status = worst(group.map((a) => a.status));
-  const tags = group.map((a) => `<button class="wplat${busyNow(a) ? " on" : a.status === "attention" ? " bad" : ""}" data-wconsole="account:${a.id}" title="Консоль ${platformName(a)}${a.status_reason ? ` · ${escape(reasonText(a.status_reason) || a.status_reason)}` : ""}">${platformName(a)}</button>`).join("");
+  const tags = group.map((a) => `<button class="wplat${busyNow(a) ? " on" : a.status === "attention" ? " bad" : ""}" data-wconsole="account:${a.id}" title="Открыть консоль ${platformName(a)}${a.status_reason ? ` · ${escape(reasonText(a.status_reason) || a.status_reason)}` : ""}">${platformName(a)}</button>`).join("");
   const next = group.map((a) => a.next_local).filter(Boolean).sort()[0];
+  const two = group.length > 1;
+  const per = (a) => (two ? ` (${platformName(a)})` : "");
+  // Причина текстом у каждой не зелёной строки (Fable review 12.11.2026), по каждой платформе своя.
+  const reasons = status === "working" ? "" : group.filter((a) => a.status !== "working").map((a) => `<span class="wreason">${two ? `${platformName(a)}: ` : ""}${escape(reasonText(a.status_reason) || a.status_reason || (a.status === "no_phone" ? "Нет телефона" : "") || badgeText(a.status))}</span>`).join("");
   return {
     key: `account:${main.id}`,
+    status,
     cls: `wlv-acc${rowTone(status)}`,
-    cells: [`${dot(status)}<span class="wtn-n">@${escape(main.account_name)}</span><span class="wplats">${tags}</span>`, `${badge(status)}${status === "attention" || status === "paused" ? group.map((a) => a.status_reason ? `<span class="wreason">${escape(reasonText(a.status_reason) || a.status_reason)}</span>` : "").join("") : ""}`, last ? `${escape(eventLabel(last.type))} · ${ago(last.at)}` : '<span class="wmute">—</span>', "", proxyText(main.proxy), next ? localText(next) : '<span class="wmute">—</span>'],
-    menu: [{label: "Открыть консоль", act: "console"}, ...group.filter((a) => a !== main).map((a) => ({label: `Консоль ${platformName(a)}`, act: `console_of:${a.id}`})), {label: "Карточка аккаунта", act: "card"}, {label: "Отвязать от телефона", act: "unbind", admin: true}, {label: "Прокси аккаунта", act: "proxy_account", admin: true}],
+    cells: [`${dot(status)}<span class="wtn-n">@${escape(main.account_name)}</span><span class="wplats">${tags}</span>`, `<span class="wctl"><button class="wbtn wbtn-s" data-wconsole="account:${main.id}" title="Консоль: задания и события">Консоль</button></span>`, `${badge(status)}${reasons}`, last ? `${escape(eventLabel(last.type))} · ${ago(last.at)}` : '<span class="wmute">—</span>', proxyText(main.proxy), next ? localText(next) : '<span class="wmute">—</span>'],
+    // Действия для каждой платформы строки (раньше всё било только по Instagram).
+    menu: group.flatMap((a) => [
+      {label: `Консоль${per(a)}`, act: `console_of:${a.id}`},
+      {label: `Карточка аккаунта${per(a)}`, act: `card_of:${a.id}`},
+      {label: `Отвязать от телефона${per(a)}`, act: `unbind_of:${a.id}`, admin: true},
+      {label: `Прокси аккаунта${per(a)}`, act: `proxy_account_of:${a.id}`, admin: true},
+    ]),
   };
 }
 
@@ -58,12 +70,14 @@ function phoneNode(p) {
   const status = p.online ? "online" : "offline";
   const accounts = p.accounts.filter((a) => matches(a.account_name) || matches(p.name) || matches(p.serial));
   const human = p.mode === "ATTENTION" || p.mode === "FAULT";
-  // Кнопки — слева, рядом с именем: справа их обрезало (владелец, 12.11.2026).
-  const actions = `<span class="wrow-acts">${isAdmin() ? phoneButtons(p) : ""}<button class="wbtn wbtn-s" data-wsetup="${p.id}" title="Проверить и настроить телефон">Проверить</button></span>`;
+  // Управление — своя колонка фиксированной ширины сразу после имени: кнопки всегда на одном месте, имена ровной
+  // колонкой (владелец, 12.11.2026: справа обрезало, слева сбивало имена).
+  const actions = `<span class="wctl">${isAdmin() ? phoneButtons(p) : ""}<button class="wbtn wbtn-s" data-wsetup="${p.id}" title="Проверить и настроить телефон">Проверить</button><button class="wbtn wbtn-s" data-wconsole="phone:${p.id}" title="Консоль телефона">Консоль</button></span>`;
+  const why = !p.online ? "Не отвечает" : p.mode !== "RUNNING" && p.mode_reason ? p.mode_reason : "";
   return {
     key: `phone:${p.id}`,
     cls: `wlv-phone${!p.online || human ? " wrow-bad" : p.paused ? " wrow-warn" : ""}`,
-    cells: [`${dot(status)}${actions}<span class="wtn-n">${phoneName(p)}</span><span class="wmute mono">${escape(p.serial)}</span>${phoneSetupHtml(p)}`, `${badge(status)}${p.paused ? badge("paused") : ""} ${p.paused && p.mode === "PAUSED" ? "" : modeBadge(p.mode, p.mode_reason)}${human && p.mode_reason ? `<span class="wreason">${escape(p.mode_reason)}</span>` : ""}`, quiet(p.last_seen_at), "", proxyText(p.proxy), `<span class="wmute">${accountGroups(p.accounts).length} акк.</span>`],
+    cells: [`${dot(status)}<span class="wtn-n">${phoneName(p)}</span><span class="wmute mono">${escape(p.serial)}</span>${phoneSetupHtml(p)}`, actions, `${badge(status)}${p.paused ? badge("paused") : ""} ${p.paused && p.mode === "PAUSED" ? "" : modeBadge(p.mode, p.mode_reason)}${why ? `<span class="wreason">${escape(why)}</span>` : ""}`, quiet(p.last_seen_at), proxyText(p.proxy), `<span class="wmute">${accountGroups(p.accounts).length} акк.</span>`],
     children: accountGroups(accounts).map(accountNode),
     add: p.add ? {label: `Аккаунт${p.add.candidates.length ? ` · свободных ${p.add.candidates.length}` : ""}`, disabled: !p.add.candidates.length, title: p.add.candidates.length ? "" : "Свободных аккаунтов нет"} : null,
     menu: [{label: "Клоны и аккаунты", act: "clones", admin: true}, {label: "Открыть консоль", act: "console"}, {label: p.paused ? "Снять паузу" : "Пауза", act: p.paused ? "resume" : "pause", admin: true}, {label: "Прокси телефона", act: "proxy_phone", admin: true}, {label: "Отвязать от ПК", act: "phone_free", admin: true}],
@@ -75,7 +89,7 @@ function workerNode(w) {
   return {
     key: `worker:${w.id}`,
     cls: `wlv-pc${w.status === "offline" ? " wrow-bad" : ""}`,
-    cells: [`${dot(w.status)}<span class="wtn-n">${escape(w.name)}</span><span class="wmute">ПК</span>`, badge(w.status), quiet(w.last_seen_at), `<span class="mono">${escape(w.app_version || "—")}</span>`, '<span class="wmute">—</span>', `<span class="wmute">${w.phones.length} тел.</span>`],
+    cells: [`${dot(w.status)}<span class="wtn-n">${escape(w.name)}</span><span class="wmute">ПК</span>${w.app_version ? `<span class="wver" title="Версия PostBot">v${escape(w.app_version)}</span>` : ""}`, "", `${badge(w.status)}${w.status === "offline" ? '<span class="wreason">ПК не выходит на связь</span>' : ""}`, quiet(w.last_seen_at), '<span class="wmute">—</span>', `<span class="wmute">${w.phones.length} тел.</span>`],
     children: phones.map(phoneNode),
     add: w.add ? {label: `Телефон${w.add.candidates.length ? ` · найдено по ADB ${w.add.candidates.length}` : ""}`, disabled: !w.add.candidates.length, title: w.add.candidates.length ? "" : "Этот ПК не видит новых телефонов по ADB"} : null,
     menu: [w.status === "revoked" ? null : {label: "Отозвать ПК", act: "revoke", admin: true}, w.deletable ? {label: "Удалить ПК", act: "delete_worker", admin: true} : null].filter(Boolean),
@@ -85,7 +99,8 @@ function workerNode(w) {
 function statusOk(node) {
   if (!view.status) return true;
   const want = view.status;
-  const any = (n) => (n.key.startsWith("account:") ? data_status(n.key) === want : (want === "online" || want === "offline") && n.cells[1].includes(want === "online" ? "На связи" : "Не на связи")) || (n.children || []).some(any);
+  // The merged row's own (worst) status, not the Instagram account's (Fable review 12.11.2026).
+  const any = (n) => (n.key.startsWith("account:") ? n.status === want : (want === "online" || want === "offline") && n.cells[2].includes(want === "online" ? "На связи" : "Не на связи")) || (n.children || []).some(any);
   return any(node);
 }
 const data_status = (key) => {
@@ -158,9 +173,10 @@ function openConsole(ctx, nodeKey) {
   const all = [...data.workers.flatMap((w) => w.phones), ...data.unbound_phones];
   const title = kind === "phone" ? (all.find((p) => String(p.id) === id)?.name || all.find((p) => String(p.id) === id)?.serial || `Телефон ${id}`) : `@${all.flatMap((p) => p.accounts).concat(data.unbound_accounts).find((a) => String(a.id) === id)?.account_name || id}`;
   stopConsole();
-  con.key = nodeKey; con.target = target; con.lastId = 0; con.jobs = []; con.events = [];
   // Закрытая панель забывает консоль: иначе следующий опрос (2–3 с) открывал её снова (владелец, 12.11.2026).
-  openDetails(`console:${nodeKey}`, {subtitle: kind === "phone" ? "КОНСОЛЬ ТЕЛЕФОНА" : "КОНСОЛЬ АККАУНТА", title, body: consoleShell(title), onClose: () => { stopConsole(); ctx.setParams({console: null}); }});
+  // Закрытие старой панели (при открытии новой) не трогает новую консоль: проверяется её ключ (Fable review).
+  openDetails(`console:${nodeKey}`, {subtitle: kind === "phone" ? "КОНСОЛЬ ТЕЛЕФОНА" : "КОНСОЛЬ АККАУНТА", title, body: consoleShell(title), onClose: () => { if (con.key === nodeKey) { stopConsole(); ctx.setParams({console: null}); } }});
+  con.key = nodeKey; con.target = target; con.lastId = 0; con.jobs = []; con.events = [];
   pullConsole(ctx, true);
   con.timer = setInterval(() => { if (!document.hidden) pullConsole(ctx, false); }, CONSOLE_MS);
   ctx.setParams({console: nodeKey});
@@ -173,7 +189,7 @@ export default {
   load: async (ctx) => { const [tree, screens] = await Promise.all([ctx.call("device_tree"), ctx.call("device_screen_sets")]); return (data = {...tree, ...screens}); },
   render(d, ctx) {
     data = d;
-    const columns = [{label: "Устройство"}, {label: "Статус", width: "170px"}, {label: "Последняя связь", width: "150px"}, {label: "Версия ПК", width: "80px"}, {label: "Прокси", width: "170px"}, {label: "Ближайшая", width: "130px"}];
+    const columns = [{label: "Устройство"}, {label: "Управление", width: "230px"}, {label: "Статус", width: "210px"}, {label: "Последняя связь", width: "150px"}, {label: "Прокси", width: "170px"}, {label: "Ближайшая", width: "120px"}];
     const tool = toolbar({
       search: {id: "q", placeholder: "Поиск: ПК, телефон, ник", value: view.q},
       filters: [{id: "status", label: "Статус", value: view.status, options: [["", "Все"], ["online", "На связи"], ["offline", "Не на связи"], ["attention", "Внимание"], ["paused", "Пауза"]]}],
@@ -287,13 +303,14 @@ async function menuAction(ctx, act, key) {
     if (act === "clones") return manageClones(n,()=>ctx.reload());
     if (act === "console") return openConsole(ctx, key);
     if (act.startsWith("console_of:")) return openConsole(ctx, `account:${act.split(":")[1]}`);
+    if (act.includes("_of:")) { const [name, id] = act.split("_of:"); return menuAction(ctx, name, `account:${id}`); }
     if (act === "card") return ctx.openAccount(n);
     if (act === "pause" || act === "resume") { await call(act === "pause" ? "device_phone_pause" : "device_phone_resume", {id: n}); return ctx.reload(); }
     if (act === "proxy_phone") { const p = allPhones().find((x) => x.id === n); return chooseProxy(ctx, "phone", n, p?.name || p?.serial || `Телефон ${n}`, p?.proxy?.id ?? null); }
     if (act === "proxy_account") { const a = allAccounts().find((x) => x.id === n); return chooseProxy(ctx, "account", n, `@${a?.account_name || n}`, a?.proxy_source === "account" ? a.proxy?.id : null); }
     if (act === "unbind") {
       const a = allAccounts().find((x) => x.id === n);
-      if (!(await confirmDialog("Отвязать аккаунт от телефона?", `@${a?.account_name || n}: новые публикации на него назначить будет нельзя, уже запланированные будут ждать телефона.`, {ok: "Отвязать", danger: true}))) return undefined;
+      if (!(await confirmDialog("Отвязать аккаунт от телефона?", `@${a?.account_name || n}${a?.platform === "threads" ? " (Threads)" : " (Instagram)"}: новые публикации на него назначить будет нельзя, уже запланированные будут ждать телефона. Вторая платформа этого ника остаётся привязанной.`, {ok: "Отвязать", danger: true}))) return undefined;
       await call("device_binding_delete", {account_id: n});
       return ctx.reload();
     }

@@ -21,7 +21,7 @@ export function table(id, columns, rows, {rowAttr = () => "", selected = null, e
   const head = columns.map((c) => {
     const mark = sort?.key === c.key ? (sort.dir > 0 ? " ▲" : " ▼") : "";
     const sortable = c.sort === false ? "" : ` data-wsort="${id}:${c.key}"`;
-    return `<th${c.width ? ` style="width:${c.width}"` : ""}${c.align ? ` class="a-${c.align}"` : ""}${sortable}>${escape(c.label)}${mark}</th>`;
+    return `<th${c.width ? ` style="width:${c.width}"` : ""}${c.align ? ` class="a-${c.align}"` : ""}${sortable}>${c.raw ? c.label : escape(c.label)}${mark}</th>`;
   }).join("");
   const body = list.length
     ? list.map((r) => `<tr ${rowAttr(r)}${selected != null && selected(r) ? ' class="on"' : ""}>${columns.map((c) => `<td${c.align ? ` class="a-${c.align}"` : ""}>${c.html ? c.html(r) : escape(r[c.key] ?? "—")}</td>`).join("")}</tr>`).join("")

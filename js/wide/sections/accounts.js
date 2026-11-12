@@ -1,4 +1,5 @@
 import {manageClones} from '../ui/clones.js';
+import {bindThreadsActivity, threadsActivity} from "../ui/threads-activity.js";
 // Аккаунты: таблица и карточка. В карточке: правка расписания, настройки «как в общих / своё», тексты кнопок,
 // телефон и прокси. Все действия через существующие action, проверки на сервере.
 import {call, escape, isAdmin, legacy} from "../bridge.js";
@@ -43,20 +44,14 @@ function listView(d) {
 function readinessHtml(list) {
   if (!list?.length) return "";
   const mark = (ok) => (ok === true ? '<span class="ok">✓</span>' : ok === false ? '<span class="no">✕</span>' : '<span class="un">•</span>');
-  return `<div class="wready">${list.map((r) => `${mark(r.ok)}<div>${escape(r.label)}${r.detail ? ` <span class="wmute">· ${escape(r.detail)}</span>` : ""}</div>`).join("")}</div>`;
-}
-
-/** Сессии Threads этого аккаунта и его пары: лайки, ответы и их тексты. */
-function threadsView(c) {
-  const list = c.threads || [];
-  if (!list.length) return '<div class="wempty-t">Сессий Threads ещё не было</div>';
-  return `<div class="wthr">${list.map((t) => `<details class="wthr-s"${t.replies ? " open" : ""}><summary>${t.mode === "search" ? `Поиск «${escape(t.query || "")}»` : "Лента"} · <span class="wmute">${ago(t.at)}</span>
-      <span class="wthr-n">♥ ${num(t.likes)} · ответов ${num(t.replies)}${t.replies_failed ? ` · <span class="wbad">не вышло ${num(t.replies_failed)}</span>` : ""} · постов ${num(t.posts_seen)}</span></summary>
-      ${t.replied.length ? t.replied.map((r) => `<div class="wthr-r"><div class="wmute">@${escape(r.author || "?")}: «${escape(r.post || "")}»</div><div>→ ${escape(r.text || "")}</div></div>`).join("") : '<div class="wmute">Ответов не было</div>'}</details>`).join("")}</div>`;
+  // Где можно — кнопка прямо у пункта: «Снять паузу» телефона или аккаунта (Fable review 12.11.2026).
+  const fix = (r) => (r.label === "Телефон не на паузе" && r.ok === false ? ' <button class="wlink" data-wready="phone_resume">снять паузу</button>'
+    : r.label === "Аккаунт не на паузе" && r.ok === false ? ' <button class="wlink" data-wready="account_resume">снять паузу</button>' : "");
+  return `<div class="wready">${list.map((r) => `${mark(r.ok)}<div>${escape(r.label)}${r.detail ? ` <span class="wmute">· ${escape(r.detail)}</span>` : ""}${isAdmin() ? fix(r) : ""}</div>`).join("")}</div>`;
 }
 
 function cardTab(c) {
-  if (view.tab === "threads") return threadsView(c);
+  if (view.tab === "threads") return threadsActivity(c.threads);
   if (view.tab === "warmup") return warmupView(c);
   if (view.tab === "schedule") {
     return table("acc-sched", [
@@ -273,6 +268,15 @@ export default {
     bindToolbar(root, (id, value) => { view[id] = value; ctx.redraw(); });
     bindSort(root, ctx.redraw);
     bindJobButtons(root, () => ctx.reload());
+    bindThreadsActivity(root);
+    root.querySelectorAll("[data-wready]").forEach((b) => { b.onclick = async () => {
+      b.disabled = true;
+      try {
+        if (b.dataset.wready === "phone_resume" && c?.binding?.phone_id) await call("device_phone_resume", {id: c.binding.phone_id});
+        if (b.dataset.wready === "account_resume" && c) await call("content_settings_set", {scope: c.account.id, key: "paused", mode: "set", value: false});
+        await ctx.reload();
+      } catch (e) { b.disabled = false; await confirmDialog("Не вышло", errorOf(e), {ok: "Понятно"}); }
+    }; });
     root.querySelectorAll("[data-wopen]").forEach((tr) => { tr.onclick = () => ctx.openAccount(Number(tr.dataset.wopen)); });
     root.querySelectorAll("[data-wcluster]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); ctx.go("clusters", {id: Number(b.dataset.wcluster)}); }; });
     root.querySelectorAll("[data-wtab]").forEach((b) => { b.onclick = () => { view.tab = b.dataset.wtab; ctx.redraw(); }; });
