@@ -104,7 +104,7 @@ export default {
       refresh();
     });
     root.querySelectorAll("[data-wbulkact]").forEach((b) => { b.onclick = () => {
-      const list = jobs(ctx.data?.("dashboard")).filter((j) => picked.has(String(j.id)));
+      const list = jobs(ctx.data).filter((j) => picked.has(String(j.id)));
       bulkDecide(b.dataset.wbulkact, list, async (made, skipped, errors) => {
         picked.clear();
         await ctx.reload();

@@ -5,6 +5,7 @@ import {badge} from "../ui/badge.js";
 import {confirmDialog, dialog, dialogMessage, errorOf} from "../ui/dialog.js";
 import {ago} from "../ui/format.js";
 import {bindSort, bindToolbar, table, toolbar} from "../ui/table.js";
+import {openMenu} from "../ui/tree.js";
 
 const view = {q: "", check: "", reveal: new Set(), picked: new Set()};
 const CHECK = {ok: ["Работает", "ok"], failed: ["Не работает", "bad"], checking: ["Проверяется", "accent"]};
@@ -119,7 +120,8 @@ export default {
       {key: "check", label: "Проверка", width: "200px", value: (p) => p.check.status, html: (p) => `${checkBadge(p.check)}${p.check.latency_ms ? ` <span class="wmute">${p.check.latency_ms} мс</span>` : ""}${p.check.exit_ip ? ` <span class="wmute mono">${escape(p.check.exit_ip)}</span>` : ""}`},
       {key: "bound", label: "Привязан", value: (p) => p.bound.length, html: (p) => (p.bound.length ? p.bound.map((b) => `${b.kind === "account" ? "@" : "📱 "}${escape(b.name || b.id)}${b.source === "auto" ? ' <span class="wmute">авто</span>' : ""}`).join(", ") : '<span class="wmute">—</span>')},
       {key: "status", label: "", width: "90px", html: (p) => (p.status === "disabled" ? badge("paused", {label: "Выключен"}) : "")},
-      {key: "edit", label: "", width: "90px", sort: false, html: (p) => `<button class="wbtn wbtn-s" data-wedit="${p.id}">Изменить</button>`},
+      // «⋮»: изменить, проверить соединение, удалить (владелец, 12.11.2026: удаления не было видно).
+      {key: "edit", label: "", width: "44px", sort: false, html: (p) => `<button class="wkebab" data-wpmenu="${p.id}" aria-label="Меню прокси">⋮</button>`},
     ], list, {empty: "Прокси нет. Вставь списком или внеси через SQL (пример в контракте, раздел 15.8)."});
     return `<div class="whead"><h1>Прокси</h1><div class="whead-s">${d.proxies.length} всего · на телефоне в этом этапе не применяются</div></div>${tool}<div class="wpanel">${t}</div>`;
   },
@@ -132,6 +134,18 @@ export default {
     root.querySelector("[data-wcheck]").onclick = () => checkDialog(ctx, d, [...view.picked]);
     root.querySelectorAll("[data-wpick]").forEach((cb) => { cb.onchange = () => { const id = Number(cb.dataset.wpick); cb.checked ? view.picked.add(id) : view.picked.delete(id); ctx.redraw(); }; });
     root.querySelectorAll("[data-wreveal]").forEach((b) => { b.onclick = () => { const id = Number(b.dataset.wreveal); view.reveal.has(id) ? view.reveal.delete(id) : view.reveal.add(id); ctx.redraw(); }; });
-    root.querySelectorAll("[data-wedit]").forEach((b) => { b.onclick = () => editDialog(ctx, d.proxies.find((p) => p.id === Number(b.dataset.wedit))); });
+    root.querySelectorAll("[data-wpmenu]").forEach((b) => { b.onclick = (e) => {
+      e.stopPropagation();
+      const p = d.proxies.find((x) => x.id === Number(b.dataset.wpmenu));
+      if (!p) return;
+      openMenu(b, [
+        {label: "Изменить", onClick: () => editDialog(ctx, p)},
+        {label: "Проверить соединение", onClick: () => checkDialog(ctx, d, [p.id])},
+        {label: "Удалить", onClick: async () => {
+          if (!(await confirmDialog("Удалить прокси?", `${p.host}:${p.port}. Привязки снимутся.`, {ok: "Удалить", danger: true}))) return;
+          try { await call("proxy_delete", {id: p.id}); view.picked.delete(p.id); ctx.reload(); } catch (err) { await confirmDialog("Не вышло", errorOf(err), {ok: "Понятно"}); }
+        }},
+      ]);
+    }; });
   },
 };

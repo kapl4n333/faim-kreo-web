@@ -100,7 +100,6 @@ const ctx = {
   local: {},
   go(section, params = {}) { closeMenu(); if (W.section !== section) closeDetails(); W.section = section; W.params = params; savePrefs(); drawShell(); loadSection(true); },
   setParams(params) { W.params = {...W.params, ...params}; savePrefs(); },
-  data: (id) => W.data[id],
   redraw: () => drawMain(),
   reload: () => loadSection(true),
   openAccount(id) { ctx.go("accounts", {id}); },
