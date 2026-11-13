@@ -398,3 +398,6 @@ body.wide #app{padding:0;margin:0;max-width:none}
 .wplat{cursor:pointer;display:inline-flex;align-items:center;gap:3px}
 .wplat::after{content:"›";opacity:.6}
 .wver{font-size:10.5px;color:var(--hint);font-family:var(--mono,monospace);margin-left:4px}
+
+/* Режим теста (13.11.2026) */
+#wtestmode{position:sticky;top:0;z-index:50;background:#7a4b00;color:#fff;font-size:13px;padding:6px 16px;text-align:center}

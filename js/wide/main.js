@@ -223,10 +223,22 @@ async function loadSection(force = false) {
   }
 }
 
+/** Плашка «Режим теста» сверху: сервер сам не планирует, телефоны берут только ручные задания (13.11.2026). */
+function testModeBanner(on) {
+  let el = document.getElementById("wtestmode");
+  if (!on) { el?.remove(); return; }
+  if (el) return;
+  el = document.createElement("div");
+  el.id = "wtestmode";
+  el.textContent = "Режим теста: сервер сам ничего не планирует, телефоны выполняют только задания, созданные вручную. Выключается в общих настройках.";
+  document.body.prepend(el);
+}
+
 async function loadAccounts() {
   try {
     const d = await call("account_list");
     W.accountsAt = Date.now();
+    testModeBanner(d.test_mode === true);
     const sig = JSON.stringify([d.accounts, d.decisions_count]);
     if (sig === W.accountsSig) return;
     W.accountsSig = sig;

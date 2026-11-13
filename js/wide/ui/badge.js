@@ -22,7 +22,7 @@ export const REASON = {
   account_hold: "Аккаунт ждёт решения, телефон свободен", phone_without_pc: "Телефон не подключён ни к одному ПК", threads_use_link: "Threads привязывается как пара своего Instagram", clone_not_installed: "Клон не установлен на телефоне", app_not_installed: "Приложение (например, Threads) не установлено на телефоне", threads_app_missing: "На телефоне нет приложения Threads — задания Threads ждут", planner_restarted: "ПК перезапустился во время планирования, план заново", phone_fault: "Телефон не готов (экран блокировки, adb или VPN), ждём", confirm_timeout: "Отправлено, но не подтверждено в профиле", post_moved: "Публикация сдвинулась, прогрев отменён", app_platform_mismatch: "Клон другой платформы", main_app_forbidden: "Основной Instagram запрещён на этом телефоне", app_not_allowed: "Клон не разрешён или не найден", app_proxy_missing: "Нет настроенного SOCKS5 для клона", app_account_conflict: "В клоне другой аккаунт", worker_clone_unsupported: "Нужно обновить PostBot", route_mismatch: "Маршрут прокси не совпал", proxy_not_ready: "Прокси телефона недоступен",
   phone_setup_required: "Телефон настраивается", screen_approval_required: "Ждёт подтверждения кнопки «Поделиться»",
   no_binding: "Нет телефона", type_disabled: "Тип выключен", job_needs_decision: "Задание ждёт решения", phone_offline: "Телефон не на связи",
-  account_paused: "Пауза аккаунта", phone_paused: "Пауза телефона", caption_settings_missing: "Нет промпта подписей",
+  account_paused: "Пауза аккаунта", test_mode: "Режим теста", phone_paused: "Пауза телефона", caption_settings_missing: "Нет промпта подписей",
   duplicate_conflict: "Дубль, нужно решение", not_logged_in: "Claude: нет входа", not_subscription: "Claude: не подписка",
   api_key_in_env: "Ключ API в окружении", limit: "Лимит исчерпан", no_free_slot: "Нет свободного места",
   needs_attention: "Телефон остановился, нужен человек", tap_uncertain: "Неясно, было ли нажатие «Поделиться»", finished_without_tap: "Сценарий закончился без публикации",
@@ -45,7 +45,7 @@ export function reasonAction(code, settings) {
   settings = Array.isArray(settings) ? settings : [];
   const actions = {
     no_binding: "Привяжи аккаунт к телефону в «Аккаунтах».", account_archived: "Верни аккаунт из архива.",
-    account_paused: "Сними паузу в настройках аккаунта.", type_disabled: "Включи этот тип публикаций в настройках аккаунта.",
+    account_paused: "Сними паузу в настройках аккаунта.", test_mode: "Включён режим теста: сервер сам не планирует, телефоны берут только ручные задания. Выключается в общих настройках.", type_disabled: "Включи этот тип публикаций в настройках аккаунта.",
     caption_settings_missing: "Заполни промпт подписей в настройках аккаунта.", no_free_slot: "Проверь норму, часы публикаций и горизонт планирования.",
     not_logged_in: "Войди в Claude по подписке на ПК.", not_subscription: "Подключи вход Claude по подписке на ПК.",
     api_key_in_env: "Убери ключ API из окружения планировщика на ПК.", limit: "Дождись снятия лимита планировщика.",
