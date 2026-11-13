@@ -29,6 +29,31 @@ function dayTable(id, list) {
   ], list, {empty: "Ничего не запланировано"});
 }
 
+const KIND_RU = {"instagram:publish_reel": "Reels", "instagram:publish_story": "Истории", "instagram:publish_carousel": "Карусели",
+  "instagram:warmup_reels": "Прогрев", "instagram:verify_account": "Проверки аккаунта", "threads:publish_text": "Посты Threads", "threads:engage": "Сессии Threads"};
+const cnt = (v, tone) => (v ? `<span class="wsum-${tone}">${num(v)}</span>` : '<span class="wmute">0</span>');
+
+/** Итоги дня (13.11.2026): запланировано, вышло, ждёт человека, упало — по типам и по аккаунтам. */
+function daySummary(id, s, hidden) {
+  if (!s) return "";
+  const t = s.total;
+  const cols = [
+    {key: "planned", label: "Всего", width: "70px", align: "right", html: (r) => num(r.planned)},
+    {key: "done", label: "Вышло", width: "70px", align: "right", html: (r) => cnt(r.done, "ok")},
+    {key: "sent", label: "Проверяется", width: "90px", align: "right", html: (r) => cnt(r.sent, "warn")},
+    {key: "ahead", label: "Впереди", width: "80px", align: "right", html: (r) => cnt(r.ahead, "mute")},
+    {key: "person", label: "Ждёт человека", width: "110px", align: "right", html: (r) => cnt(r.person, "bad")},
+    {key: "failed", label: "Упало", width: "70px", align: "right", html: (r) => cnt(r.failed, "bad")},
+  ];
+  const kinds = table(`${id}-k`, [{key: "kind", label: "Что", html: (r) => escape(KIND_RU[`${r.platform}:${r.kind}`] || r.kind)}, ...cols], s.kinds, {empty: "За этот день заданий нет"});
+  const accs = table(`${id}-a`, [{key: "account_name", label: "Аккаунт", html: (r) => `@${escape(r.account_name)}${th(r)}`}, ...cols,
+    {key: "likes", label: "♥", width: "60px", align: "right", html: (r) => num(r.likes)},
+    {key: "replies", label: "Ответов", width: "80px", align: "right", html: (r) => num(r.replies)}], s.accounts, {empty: "За этот день заданий нет"});
+  return `<div class="wsum" data-wsum="${id}"${hidden ? " hidden" : ""}>
+    <div class="wkpis">${tile("Запланировано", t.planned, "mute")}${tile("Вышло", t.done, "ok")}${tile("Проверяется", t.sent, "warn")}${tile("Впереди", t.ahead, "mute")}${tile("Ждёт человека", t.person, t.person ? "bad" : "mute")}${tile("Упало", t.failed, t.failed ? "bad" : "mute")}${tile("Лайков", s.likes, "ok")}${tile("Ответов", s.replies, "ok")}</div>
+    <h3 class="wsum-h">По типам</h3>${kinds}<h3 class="wsum-h">По аккаунтам</h3>${accs}</div>`;
+}
+
 function planner(p) {
   if (!p) return noData();
   const r = p.last_run;
@@ -73,6 +98,8 @@ export default {
         ${tile("ПК на связи", dev.workers.online, "ok", "devices")}${tile("ПК не на связи", dev.workers.offline, dev.workers.offline ? "bad" : "mute", "devices")}
         ${tile("Телефоны на связи", dev.phones.online, "ok", "devices")}${tile("Телефоны не на связи", dev.phones.offline, dev.phones.offline ? "bad" : "mute", "devices")}
       </div>
+      ${d.day ? `<section class="wcard wsum-card"><h2>Итоги дня <span class="wsum-tabs"><button class="wbtn wbtn-s on" data-wsumday="today">Сегодня · ${escape(d.day.today.date)}</button><button class="wbtn wbtn-s" data-wsumday="yesterday">Вчера · ${escape(d.day.yesterday.date)}</button></span></h2>
+        ${daySummary("today", d.day.today, false)}${daySummary("yesterday", d.day.yesterday, true)}</section>` : ""}
       <div class="wgrid wgrid-3">
         <section class="wcard"><h2>Сегодня · ${escape(d.today)} <span>${d.schedule.today.length}</span></h2>${dayTable("dash-today", d.schedule.today)}</section>
         <section class="wcard"><h2>Завтра · ${escape(d.tomorrow)} <span>${d.schedule.tomorrow.length}</span></h2>${dayTable("dash-tom", d.schedule.tomorrow)}</section>
@@ -89,6 +116,12 @@ export default {
   },
   bind(root, ctx) {
     root.querySelectorAll("[data-wgo]").forEach((b) => { b.onclick = () => ctx.go(b.dataset.wgo); });
+    root.querySelectorAll("[data-wsumday]").forEach((b) => {
+      b.onclick = () => {
+        root.querySelectorAll("[data-wsumday]").forEach((x) => x.classList.toggle("on", x === b));
+        root.querySelectorAll("[data-wsum]").forEach((x) => { x.hidden = x.dataset.wsum !== b.dataset.wsumday; });
+      };
+    });
     bindJobButtons(root, () => ctx.reload());
     bindThreadsActivity(root);
     const jobs = (d) => (d?.decisions || []).filter((r) => r.kind === "job").map(asJob);

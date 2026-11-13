@@ -104,6 +104,12 @@ export function deskReply(action, p) {
     decisions: [{kind: "job", job_kind: "publish_reel", shots: [{url: "shots/devices.png", name: "stop"}], id: 118, revision: 4, status: "needs_attention", stage: "after_commit", error_code: "tap_uncertain", error_message: "Ожидаемый экран не появился. Последний экран: unknown", account_name: "noksi.reels", at: at(-25)}, {kind: "assignment", id: 77, status: "duplicate_conflict", account_name: "nina.flow", at: at(-80)}],
     planner: {last_run: {started_at: at(-11), outcome: "ok", item_count: 6, accepted_count: 5, rejected_count: 1, error_code: null, next_try_at: null}, last_poll_at: at(-3), waiting: 4, offline: false},
     joins: accounts.map((a) => ({account_id: a.id, account_name: a.account_name, ...a.joins})).sort((x, y) => y.total - x.total), metrics: null,
+    day: {
+      today: {date: "2026-11-13", total: {planned: 14, done: 8, sent: 1, ahead: 3, person: 1, failed: 1}, likes: 37, replies: 9,
+        kinds: [{platform: "threads", kind: "engage", planned: 6, done: 5, sent: 0, ahead: 1, person: 0, failed: 0}, {platform: "instagram", kind: "publish_reel", planned: 4, done: 2, sent: 1, ahead: 0, person: 1, failed: 0}, {platform: "instagram", kind: "publish_story", planned: 4, done: 1, sent: 0, ahead: 2, person: 0, failed: 1}],
+        accounts: [{account_id: 15, account_name: "noksi961", platform: "instagram", planned: 8, done: 4, sent: 1, ahead: 1, person: 1, failed: 1, likes: 20, replies: 0}, {account_id: 19, account_name: "noksi961", platform: "threads", planned: 6, done: 4, sent: 0, ahead: 2, person: 0, failed: 0, likes: 17, replies: 9}]},
+      yesterday: {date: "2026-11-12", total: {planned: 0, done: 0, sent: 0, ahead: 0, person: 0, failed: 0}, likes: 0, replies: 0, kinds: [], accounts: []},
+    },
   };
   if (action === "device_console") return {jobs: [{id: 118, content_type: "reel", kind: "publish_reel", status: "claimed", local: loc(-2), account_name: "nokk.ksi"}, {id: 112, content_type: "reel", kind: "publish_reel", status: "confirmed", local: loc(-600), account_name: "nokk.ksi"}], events: p.after_id ? events().slice(0, 1) : events(), last_id: eventId};
   if (action === "content_matrix") return {items, accounts: accounts.map((a) => ({id: a.id, account_name: a.account_name, status: a.status, platform: a.platform || "instagram", cluster: a.cluster || (a.id % 2 ? {id: 1, name: "Майами"} : null), phone: a.phone && {id: a.phone.id, name: a.phone.name}})), next_before_id: null};

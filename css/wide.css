@@ -401,3 +401,11 @@ body.wide #app{padding:0;margin:0;max-width:none}
 
 /* Режим теста (13.11.2026) */
 #wtestmode{position:sticky;top:0;z-index:50;background:#7a4b00;color:#fff;font-size:13px;padding:6px 16px;text-align:center}
+
+/* Итоги дня (13.11.2026) */
+.wsum-tabs{display:inline-flex;gap:6px;margin-left:10px;vertical-align:middle}
+.wsum-tabs .wbtn.on{border-color:var(--accent,#6aa0ff);color:var(--accent,#6aa0ff)}
+.wsum .wkpis{margin-bottom:12px}
+.wsum-ok{color:var(--ok,#3fb950);font-weight:600}.wsum-warn{color:var(--warn,#d29922);font-weight:600}.wsum-bad{color:var(--bad,#f85149);font-weight:600}.wsum-mute{color:var(--mute,#8b949e)}
+.wsum-h{font-size:13px;font-weight:600;margin:12px 0 6px;color:var(--mute,#8b949e)}
+.wcard.wsum-card{max-height:none;overflow:visible}
